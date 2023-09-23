@@ -8,9 +8,9 @@ const path = require("path");
 
 import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } from "../core/Core";
 import { IAction } from "./action/AbstractAction";
-import { ForgeServer } from "./ForgeServer";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask } from "./ForgeTask";
+import { ForgeServer } from "./server/ForgeServer";
 
 // relay class defitions
 

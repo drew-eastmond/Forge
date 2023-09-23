@@ -47,40 +47,51 @@ async function SortDependencies(code, storeKey, fileManifest) {
             }
 
             // split the compiled code into segments using 
-            const compiledSegments = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
+            const compiledSegments = code.split(/[ ]*\/\/\s+(.+?\..+?)\n/g);
             const header = compiledSegments[0];
 
+            console.log("compiledSegments.length", compiledSegments.length);
+
+            const nameMap = new Map();
             const segmentMap = new Map();
+
+            let output = header;
             for (let i = 1; i < compiledSegments.length; i += 2) {
 
-                for (const file of fileManifest) {
+                // just resolve the file name so we can check it absolute path instead. esbuild something give full paths
+                const segmentName = compiledSegments[i];
+                const importName = SanitizeFileUrl(segmentName);
+                const segmentCode = compiledSegments[i + 1];
 
-                    const importName = SanitizeFileUrl(compiledSegments[i]);
+                // to make sure we don't accidentally split at coment that match. Make sure the suspected file is
+                // in the fileManifest
+                if (fileManifest.indexOf(segmentName) == -1) {
 
-                    if (file.indexOf(importName) == 0) {
+                    output += `// ${segmentName}\n\n${segmentCode}\n\n`
 
-                        segmentMap.set(file, compiledSegments[i + 1]);
-                        break;
+                } else {
 
-                    }
+                    nameMap.set(importName, segmentName);
+                    segmentMap.set(importName, compiledSegments[i + 1]);
 
                 }
 
             }
 
-            let output = header;
+            // let output = header;
             for (const nodeData of dependencyHelper) {
 
-                const file = nodeData.title;
+                const file = SanitizeFileUrl(nodeData.title);
 
                 if (segmentMap.has(file) === false) {
 
-                    console.log(segmentMap.keys())
+                    console.log(file);
+                    console.log(segmentMap.keys());
 
                 }
 
-                
-                output += segmentMap.get(file); // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+                output += `// ${nameMap.get(file)}\n\n${segmentMap.get(file)}\n\n`; // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+
             }
 
             return output;
@@ -99,7 +110,7 @@ async function SortDependencies(code, storeKey, fileManifest) {
         .catch(function (error) {
 
             // no storeKey, no need to change any of the code
-            console.log(error);
+            console.log(error.message);
             return code;
 
         });
@@ -222,6 +233,7 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
 class DependencyHelper {
 
+    _node_modules = [];
     _dependencies;
     _count = 0;
 
@@ -237,6 +249,13 @@ class DependencyHelper {
     }
 
     *[Symbol.iterator]() {
+
+
+        for (const file of this._node_modules) {
+
+            yield { title: file };
+
+        }
 
         for (const nodeData of this._dependencies) {
 
@@ -353,7 +372,15 @@ class DependencyHelper {
         // 2. now add imports that we're not part . This is a new file recent;y added since it was sorted
         for (const file of inputs) {
 
-            if (this._has(file) === false) this._spliceDependency(file, inputs);
+            if (/node_modules/.test(file)) {
+
+                this._node_modules.push(file);
+
+            } else if (this._has(file) === false) {
+
+                this._spliceDependency(file, inputs);
+
+            }
 
         }
 
@@ -442,16 +469,11 @@ cliArguments
 
 const entryFile = cliArguments.get("in");
 const outFile = cliArguments.get("out");
-
 const override = cliArguments.get("override");
 const format = cliArguments.get("format");
 const bundled = cliArguments.get("bundled");
-const dependencyPromotions = cliArguments.get("promotions");
-
 const platform = cliArguments.get("platform");
-
 const metaFile = cliArguments.get("meta");
-
 const outFilePath = path.parse(outFile);
 
 const yourPlugin = {
@@ -501,7 +523,7 @@ await fetch(`${API_BASE}/storage/save/${entryFile}/metadata`, {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        // 'Content-Type': 'application/x-www-form-urlencoded',
+        "Overwrite" : false
     },
     body: JSON.stringify(inputManifest),
     signal: AbortSignal.timeout(125)
@@ -523,7 +545,7 @@ await fetch(`${API_BASE}/storage/save/${entryFile}/metadata`, {
     })
     .catch(function (error) {
 
-        console.log(error);
+        console.error(error.message);
 
     })
 
@@ -540,5 +562,5 @@ if (metaFile === true) {
 console.log(`\u001b[32;1mBuild Successful (${((Date.now() - startTime) / 1000).toFixed(3)}s)\u001b[0m
 \t* ${(bundled) ? "bundled" : "unbundled"} : ${bundled}\n
 \t* format : ${format}\n
-\t* promotions : "${dependencyPromotions}"
+\t* platform : ${platform}
 `);

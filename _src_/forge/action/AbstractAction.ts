@@ -5,7 +5,6 @@ import { ForgeStream } from "../ForgeStream";
 import { ForgeTask } from "../ForgeTask";
 
 const $fs = require("fs").promises;
-const mime = require('mime-types');
 
 const __ForgeProtocol: string = "forge://";
 export enum ActionStdioType {
