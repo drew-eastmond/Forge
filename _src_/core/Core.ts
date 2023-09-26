@@ -15,7 +15,7 @@ export function EmptyFunction(): void {
 
 }
 
-export function EncodeBase64(json): string {
+export function EncodeBase64(json: Record<string, unknown>): string {
 
 	const jsonStringify = JSON.stringify(json);
 	const buffer = Buffer.from(jsonStringify);
@@ -25,7 +25,7 @@ export function EncodeBase64(json): string {
 
 }
 
-export function DecodeBase64(value): any {
+export function DecodeBase64(value: string): any {
 
 	const buff = new Buffer(value, "base64");
 	return buff.toString("ascii");
@@ -68,7 +68,6 @@ export function FlattenObject(obj, accessor?: string): { access: string, value: 
 
 }
 
-let __HashCount: number = 0;
 
 function s4(seed): string {
 

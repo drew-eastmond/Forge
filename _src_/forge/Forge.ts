@@ -1,12 +1,13 @@
 const { spawn, fork, exec, execSync } = require("child_process");
 const chokidar = require("chokidar");
-const $fs = require("fs").promises;;
+const $fs = require("fs").promises;
 const glob = require("glob");
 const express = require("express");
 const url = require("url");
 const path = require("path");
 
 import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } from "../core/Core";
+import { ForgeIO } from "../io/ForgeIO";
 import { IAction } from "./action/AbstractAction";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask } from "./ForgeTask";
@@ -42,11 +43,7 @@ export class Forge {
 
     private readonly _forgeStream: ForgeStream = new ForgeStream();
 
-    constructor(port: number) {
-
-        if (isNaN(port)) throw new Error("No port assigned");
-
-        this._forgeServer = new ForgeServer(this, port);
+    constructor() {
 
     }
 
@@ -89,19 +86,23 @@ export class Forge {
 
         const entries: { access: string, value: unknown }[] = FlattenObject(variables);
 
+        /*
+        * 1. Replace all `static variables` : {var} 
+        */
         for (const { access, value } of entries) {
 
             config = config.replace(new RegExp(`{${access}}`, "g"), String(value));
 
         }
 
-        // reparse the new config string 
+        /*
+        * 2. Reparse the new config string and add all the supplied forege task
+        */ 
         const configObj = JSON.parse(config);
-
         for (const taskObj of configObj.forge) {
 
             const forgeTask: ForgeTask = new ForgeTask(taskObj);
-            // this.$add(forgeTask);
+            this.add(forgeTask);
 
         }
 
@@ -147,7 +148,7 @@ export class Forge {
         watcher.on("ready", function () {
 
             console.log("watch is ready!");
-            watcher.on("all", function (event, file) {
+            watcher.on("all", function (event: string, file : string) {
 
                 this.$signal("watch", file);
 
@@ -184,6 +185,21 @@ export class Forge {
         // oh fuck! Hurry up and clean up...
 
 
+
+    }
+
+    public async $serve(port: number, base: string): Promise<ForgeServer> {
+
+        // validate the port
+        if (isNaN(port)) throw new Error("No port assigned");
+
+        // validate the base and test if the directory exists
+        if (await ForgeIO.$DirectoryExists(base) === false) throw new Error(`Serve base provided is invalid "${base}"`);
+        
+        // the params will be validated in the  `ForgeServer` constructor
+        this._forgeServer = new ForgeServer(this, port, base);
+
+        return this._forgeServer;
 
     }
 

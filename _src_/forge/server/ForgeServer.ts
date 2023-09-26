@@ -4,7 +4,7 @@ const path = require("path");
 const $fs = require("fs").promises;
 const mimeTypes = require("mime-types");
 
-import { $UsePromise, $Promise, TimeoutClear } from "../../core/Core";
+import { $Promise, $UsePromise, TimeoutClear } from "../../core/Core";
 import { IAction } from "../action/AbstractAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
@@ -86,21 +86,24 @@ export class ForgeServer {
 
     private _app;
 
-    private _saveTimeout: TimeoutClear;
+    private _base: string;
 
-    private readonly _requestBodyParser: RequestBodyParser = new RequestBodyParser();
+    private _saveTimeout: TimeoutClear;
 
     private readonly _routeSet: Set<IForgeServerRoute> = new Set();
 
     // temporary for now. Connect to `ether` or `ForgeStorage`
     private readonly _database: Map<string, Map<string, StoreEntry>> = new Map();
 
-    constructor(forge: Forge, port: number, options?: { base ?: string, load ?: string }) {
-
-        if (isNaN(port)) throw new Error("No valid port assigned");
+    constructor(forge: Forge, port: number, base : string) {
 
         this._forge = forge;
 
+        // validate the port
+        if (isNaN(port)) throw new Error("No port assigned");
+
+        this._base = path.resolve(base);
+        
         this._$setupServer(port);
 
     }
@@ -244,14 +247,17 @@ export class ForgeServer {
 
         this._app.all("*", async function (request, response, next: Function) {
 
-            console.log("Home items");
+            let file: string = (request.params[0] == "/") ? "index.html" : "." + request.params[0];
+            const route: string = path.resolve(this._base, file);
+            console.log("params", request.params);
+            console.log("base", this._base);
+            console.log("all routes", route);
+            console.log("");
 
-            const file: string = request.params[0] || "index.html";
-
-            $fs.readFile(`./_src_/_templates_/html/${file}`)
+            $fs.readFile(route)
                 .then(function (buffer: Buffer) {
 
-                    response.setHeader("Content-Type", mimeTypes.lookup(file)).end(buffer);
+                    response.setHeader("Content-Type", mimeTypes.lookup(route)).end(buffer);
 
                 })
                 .catch(function (error: unknown) {
@@ -260,7 +266,7 @@ export class ForgeServer {
 
                 });
 
-        });
+        }.bind(this));
 
         $fs.readFile("./backup.json")
             .then(function (buffer: Buffer) {
@@ -320,8 +326,6 @@ export class ForgeServer {
         })
 
     }
-
-
 
     public async $keys(partitionName: string): Promise<string[]> {
         

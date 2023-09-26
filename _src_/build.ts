@@ -4,11 +4,11 @@
 *
 */
 import * as esbuild from "esbuild";
-import * as $fs from "node:fs/promises";
 import * as fs from "fs";
+import * as $fs from "node:fs/promises";
 import path from "path";
 
-import { CLIArguments } from "./cli/CLIArguments";
+import { CLIArguments } from "./args/Argument";
 import { $UsePromise } from "./core/Core";
 import { DependencyHelper } from "./core/DependencyHElper";
 // regular imports
