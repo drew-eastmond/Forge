@@ -18,9 +18,15 @@ import { ForgeServer } from "./server/ForgeServer";
 
 export class Forge {
 
-    private _app; // i have no what type express() returns;
+    public static Search(pattern: string) : void {
+        
+        
+        
+    } 
 
-    private _debounceTimeout;
+    private _app: unknown; // i have no what type express() returns;
+
+    private _debounceTimeout: TimeoutClear;
     private _debounceDelay: number = 1000;
     private _lastUpdate: number = Date.now();
 

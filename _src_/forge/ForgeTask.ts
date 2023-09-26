@@ -4,8 +4,6 @@ import { ForkAction } from "./action/ForkAction";
 import { SpawnAction, SpawnService } from "./action/SpawnAction";
 import { ForgeStream } from "./ForgeStream";
 
-const { spawn, fork, exec, execSync } = require('child_process');
-
 export class ForgeTask {
 
     private readonly _iActions: Map<string, IAction> = new Map();
