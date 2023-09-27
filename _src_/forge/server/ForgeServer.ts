@@ -8,7 +8,8 @@ import { $Promise, $UsePromise, TimeoutClear } from "../../core/Core";
 import { IAction } from "../action/AbstractAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
-import { ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./Route";
+import { ForgeStorage, IForgeStorage } from "../storage/ForgeStorage";
+import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./Route";
 
 /*
 *   
@@ -16,24 +17,55 @@ import { ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./
 *
 */
 
+
 /*
-* Enums
+*
+* Types / Enums
+*
 */
+type Route = string;
+type RequestDelegate = Function; //  ((params: { get: any, post: any, request: any }) => any) | ((req: Request, res: Response, next: Function) => any);
+type StoreEntry = { mime: string, buffer: Buffer };
+
 enum RequestMethod {
     Post,
     Get,
     All
 }
 
+
+export async function $ParseRequestBody(request): Promise<{ mime: string, buffer: Buffer}> {
+
+    return new Promise(function (resolve: Function, reject: Function) {
+
+        const buffers: Buffer[] = [];
+        request
+            .on("data", (chunk: Buffer) => {
+
+                buffers.push(chunk);
+
+            })
+            .on('end', () => {
+
+                // at this point, `body` has the entire request body.
+                const mime: string = request.get("Content-Type");
+                const buffer: Buffer = Buffer.concat(buffers);
+                resolve({ mime, buffer });
+
+            });
+
+    })
+
+}
+
+
 /*
-* Types
+* lass
 */
-type Route = string;
-type RequestDelegate = Function; //  ((params: { get: any, post: any, request: any }) => any) | ((req: Request, res: Response, next: Function) => any);
 
 
 
-class RequestBodyParser {
+export class RequestBodyParser {
 
     private _buffers: Buffer[];
     private _request;
@@ -44,6 +76,18 @@ class RequestBodyParser {
 
     }.bind(this);
 
+    constructor(request) {
+
+        this._buffers = [];
+        this._$buffer = $UsePromise();
+
+        this._request = request;
+        this._request
+            .on("data", this._onData)
+            .on("end", this._onEnd);
+            
+    }
+
     private _onEnd = function (data: Buffer): void {
 
         this._request
@@ -51,34 +95,22 @@ class RequestBodyParser {
             .off("end", this._onEnd);
         
 
-        this._$buffer[1](Buffer.concat(this._buffers));
+        const mime: string = request.get("Content-Type");
+        const buffer: Buffer = Buffer.concat(buffers);
+        this._$buffer[1]({ mime, buffer });
 
         this._buffers = undefined;
         this._request = undefined;
 
     }.bind(this);
 
-    public $parse(request) {
-
-        this._buffers = [];
-
-        this._request = request;
-        this._request
-            .on("data", this._onData)
-            .on("end", this._onEnd);
-
-        this._$buffer = $UsePromise();
+    public $resolve(): Promise<[string, Buffer]> {
 
         return this._$buffer[0];
 
     }
 
 }
-
-
-
-
-type StoreEntry = { mime: string, buffer: Buffer };
 
 export class ForgeServer {
 
@@ -94,6 +126,7 @@ export class ForgeServer {
 
     // temporary for now. Connect to `ether` or `ForgeStorage`
     private readonly _database: Map<string, Map<string, StoreEntry>> = new Map();
+    private _iForgeStorage: IForgeStorage;
 
     constructor(forge: Forge, port: number, base : string) {
 
@@ -390,38 +423,33 @@ export class ForgeServer {
 
     }
 
-    public add(overload: IForgeServerRoute) : this {
+    public add(overload: IForgeServerRoute | IForgeStorage) : this {
 
-        switch (overload.constructor) {
-            case ActionRoute:
-            case RedirectRoute:
-            case DelegateRoute:
-                this._routeSet.add(overload);
-                break;
+        if (overload instanceof AbstractRoute) {
+            
+            const iForgeServerRoute: IForgeServerRoute = overload as IForgeServerRoute;
+            this._routeSet.add(iForgeServerRoute);
+        
+        } else if (overload instanceof ForgeStorage) {
 
+            const forgeStorage: IForgeStorage = overload as IForgeStorage;
+            this._iForgeStorage = forgeStorage;
+            this._iForgeStorage.connect(this);
+
+        } else {
+
+            throw new Error(`Unknown parameter added ${overload && overload.constructor}`);
+            
         }
-
+         
         return this;
 
     }
 
+    public use(delegate: Function): void {
+        
+        this._app.use(delegate);
+
+    }
+
 }
-
-/* this._app.all("/", async function (request, response, next: Function) {
-
-console.log("Home");
-
-$fs.readFile("./_src_/_templates_/html/index.html")
-.then(function (buffer: Buffer) {
-
-    response.setHeader("Content-Type", "text/html").end(buffer);
-
-})
-.catch(function (error: unknown) {
-
-    console.log("GOT HIM", error);
-    return "404";
-
-});
-
-}); */

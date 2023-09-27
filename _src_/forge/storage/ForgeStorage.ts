@@ -1,10 +1,13 @@
 import { Tree } from "../../core/collection/Tree";
 import { Attributes } from "../../core/Core";
+import { ForgeServer } from "../server/ForgeServer";
 
 type ForgeStoreAttributes = Attributes & { name: string };
-interface IForgeStorage {
+export interface IForgeStorage {
 
     next(): number;
+
+    connect(forgeServer: ForgeServer): this;
 
     // create
     $create(buffer: Buffer, attributes: Attributes): Promise<ForgeStore>;
@@ -24,7 +27,7 @@ interface IForgeStorage {
 }
 
 
-class ForgeStore {
+export class ForgeStore {
 
     private _id: number;
 
@@ -83,7 +86,7 @@ class ForgeStore {
 
 }
 
-class AbstractStorage implements IForgeStorage {
+export class ForgeStorage implements IForgeStorage {
 
     private _count: number = 0;
 
@@ -91,6 +94,19 @@ class AbstractStorage implements IForgeStorage {
     protected readonly _tree: Tree<ForgeStore> = new Tree();
     
     constructor() {
+
+    }
+    $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, forgeStore: ForgeStore): Promise<ForgeStore[]> {
+        throw new Error("Method not implemented.");
+    }
+
+    public *[Symbol.iterator] (): IterableIterator<ForgeStore> {
+
+        for (const entry of this._tree) {
+
+            yield entry;
+
+        }
 
     }
 
@@ -132,7 +148,7 @@ class AbstractStorage implements IForgeStorage {
     }
 
     // update
-    $update(forgeStore: ForgeStore): Promise<void> {
+    public async $update(forgeStore: ForgeStore): Promise<void> {
 
     }
 
@@ -143,7 +159,7 @@ class AbstractStorage implements IForgeStorage {
 
     }
 
-    public async $traverse($delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, ...rest: unknown[]): Promise<ForgeStore[]> {
+    /* public async $traverse($delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, ...rest: unknown[]): Promise<ForgeStore[]> {
 
         const results: ForgeStore[] = [];
         for (const forgeStore of this._tree) {
@@ -154,7 +170,19 @@ class AbstractStorage implements IForgeStorage {
 
         return results;
 
+    } */
+
+    public connect(ForgeServer: ForgeServer): this {
+        
+        return this;
+        
     }
+
+    public $flush(): Promise<void> {
+
+        
+        
+    } 
 
 }
 

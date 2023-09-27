@@ -3,6 +3,7 @@ const $fs = require("node:fs/promises");
 import { CompositeArguments } from "./args/Argument";
 import { DebugFormatter } from "./core/Debug";
 import { Forge } from "./forge/Forge";
+import { ForgeServer } from "./forge/server/ForgeServer";
 
 /*
 * 1. Handle all the poly-fills
@@ -43,7 +44,7 @@ if (require.main === module && !module.parent) {
 		* 3. intiatiate a `Forge` instance
 		*/
 		const forge: Forge = new Forge();
-		forge.$serve(PORT, WWW_ROOT);
+		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
 
 	}());
 
