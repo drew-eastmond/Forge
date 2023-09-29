@@ -1,22 +1,3 @@
-require('js-lib/core/Core');
-require('js-lib/core/event/EventDispatcher');
-
-
-export class TreeNode<T = unknown> {
-
-	private _tree: Tree;
-
-	private _core
-
-	public parent(): TreeNode {
-
-		return this._tree.parenting
-
-	}
-
-}
-
-
 export class Tree<T = unknown> {
 
 	private _instanceSet: Set<T> = new Set();

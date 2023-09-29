@@ -12,18 +12,17 @@ export class ForgeTask {
 
     private _data: any;
 
-
     private _spawnServices: Map<string, IServiceAdapter> = new Map();
     private _forkServices: Map<string, IServiceAdapter> = new Map();
     private _workerServices: Map<string, IServiceAdapter> = new Map();
 
     public name: string;
 
-    constructor(data: any) {
+    constructor(config?: any) {
 
-        this._data = data;
+        if (config === undefined) return;
 
-        this.name = this._data.name;
+        this.parse(config);
 
     }
 
@@ -45,11 +44,7 @@ export class ForgeTask {
         if (this._spawnServices.has(key)) throw new Error(`Task(${this.name}) : Spawn process already exists "${key}"`);
 
         // validate then sanitize the config
-        const errors: string[] = [];
-        if (config.command === undefined) errors.push(`Task(${this.name}) : no command provided`);
-        if (isNaN(config.race) == true) errors.push(`Task(${this.name}) : race paramter is not a number`);
-
-        if (errors.length) throw new Error(errors.join("\n"));
+        
 
         // sanitize the config paramter
         const race: number = config.race;
@@ -134,21 +129,7 @@ export class ForgeTask {
 
     }
 
-    /* public async $signal(forgeStream: ForgeStream): Promise<void> {
-
-        for (const iAction of this._iActionArr) {
-
-            iAction.$signal(forgeStream.signal(), forgeStream.data());
-
-        }
-
-        this.$resolve(forgeStream);
-
-    } */
-
     public add(iAction: IAction): this {
-
-        // iAction.task(this);
 
         this._iActions.set(iAction.name, iAction);
 
@@ -158,13 +139,112 @@ export class ForgeTask {
 
     public parse(configObj): void {
 
+        console.log("configObj", configObj);
         this._data = configObj;
 
         this.name = configObj.name;
         this._enabled = configObj.enabled;
 
-        return;
+        /*
+        *
+        * 1. 
+        *   instantiate all the spawn processes from this data structure
+        * 
+        * "spawn" : {
+        *   "{name: string}": {
+        *           "command": "{string}",
+        *           "race": {number},
+        *           "reboot" : {boolean}
+        *           ...{extra_data_passed_to_process}
+        *       } 
+        *   },
+        *   ...
+        * }
+        * 
+        */
 
+        if (this._data.services === undefined) throw new Error(`No services assigned to "${this.name}"`);
+
+        const spawnObj: Record<string, { command: string, race: number, reboot?: boolean }> = this._data.services.spawn;
+        if (spawnObj) {
+
+            for (const [key, spawnConfig] of Object.entries(spawnObj)) {
+
+                // todo Replace these queries with `Enforce`
+                // Validate required parameters for command and race
+                const errors: string[] = [];
+                if (spawnConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for Spawn service "${key}"`);
+                if (isNaN(spawnConfig.race)) errors.push(`Invalid \`race\` parameter provided for Spawn service "${key}"`);
+
+                // if there are any errors throw them so develops can fix there config data
+                if (errors.length) throw new Error(errors.join("\n"));
+
+                // truthfully, we dont really use the return value
+                const spawnService: IServiceAdapter = this.spawn(key, spawnConfig);
+
+            }
+
+        }
+
+        /*
+        *
+        * 1. 
+        *   Instantiate all the actions from this data structure! Boom chica wow wow!!
+        *   All data is serialized the to the process via CLI interface
+        *   
+        * "actions": [
+        *   {
+        *       "name" : {name},
+        *       "{spawn|fork|worker}" : {string}
+        *   },
+        *   ...
+        * ]
+        * 
+        */
+
+        const actions: Record<string, { name: string, race?: number, spawn?: string, fork?: string, worker?: string }> = this._data.actions;
+        if (actions) {
+
+            for (const [key, actionConfig] of Object.entries(actions)) {
+
+                let iAction: IAction;
+                if ("spawn" in actionConfig) {
+
+                    const name: string = actionConfig.spawn;
+                    
+
+                    // todo Replace these queries with `Enforce`
+                    // Validate the data first
+                    const errors: string[] = [];
+                    if (actionConfig.spawn === undefined) errors.push(`Invalid name provided for SpawnAction : "${this.name}" for Task : "${this.name}""`);
+                    if (this._spawnServices.has(name) === false) errors.push(`No Spawn Service has been registered for "${name}"`);
+
+                    // ! Note: race needs to be sanitized
+                    if (errors.length) throw new Error("\n\n" + errors.join("\n") + "\n");
+
+                    // Each action wrap the process.                    
+                    const spawnService: IServiceAdapter = this._spawnServices.get(name);
+
+                    // get the race from the current or inherit from `actionConfig`
+                    const race: number = actionConfig.race || spawnService.race;
+                    iAction = new SpawnAction(spawnService, name, { ...actionConfig, race: race });
+
+                } else if ("fork" in actionConfig) {
+
+
+                } else if ("worker" in actionConfig) {
+
+
+
+                }
+
+                // add the action and off to the next one
+                this.add(iAction);
+
+            }
+
+        }
+        
         // 
 
         // process all the 
@@ -223,7 +303,22 @@ export class ForgeTask {
 
     }
 
-    /* public $resolve(forgeStream: ForgeStream, race?: number): Promise<unknown> {
+}
+
+
+/* public async $signal(forgeStream: ForgeStream): Promise<void> {
+
+        for (const iAction of this._iActionArr) {
+
+            iAction.$signal(forgeStream.signal(), forgeStream.data());
+
+        }
+
+        this.$resolve(forgeStream);
+
+    } */
+
+/* public $resolve(forgeStream: ForgeStream, race?: number): Promise<unknown> {
 
         console.log("resolving....");
 
@@ -267,5 +362,3 @@ export class ForgeTask {
         return false;
 
     } */
-
-}

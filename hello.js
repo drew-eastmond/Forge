@@ -15,6 +15,8 @@ const driver = new function (process, delegates) {
     let _$resetDelegate = delegates.$reset;
     let _$executeDelegate = delegates.$execute;
 
+    let _routeRoot;
+
     const _database = new Map();
 
     function _construct() {
@@ -35,6 +37,9 @@ const driver = new function (process, delegates) {
             console.log("key assigned", _key);
 
         }
+
+        _routeRoot = _data.route_root;
+        if (_routeRoot === undefined) throw new Error(`base need for routing : "${_routeRoot}"`);
 
         console.log("constructed", _this.args);
         _process.on("message", _this.$message);
@@ -272,13 +277,11 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
     _this.$route = async function (route, parameters) {
 
-        const base = "./static/task_1/"; // "./.src/.templates/html/";
-
         route = route || "index.html";
 
-        console.log("<red>resolveing</red>", path.resolve(base, route));
+        console.log("<cyan>resolving</cyan>", path.resolve(_routeRoot, route));
 
-        const buffer = await $fs.readFile(path.resolve(base, route))
+        const buffer = await $fs.readFile(path.resolve(_routeRoot, route))
             .catch(function () {
 
                 return Buffer.from("route error", "utf8");

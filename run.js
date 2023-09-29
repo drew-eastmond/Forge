@@ -1,34 +1,6 @@
-var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
-};
-var __accessCheck = (obj, member, msg) => {
-  if (!member.has(obj))
-    throw TypeError("Cannot " + msg);
-};
-var __privateGet = (obj, member, getter) => {
-  __accessCheck(obj, member, "read from private field");
-  return getter ? getter.call(obj) : member.get(obj);
-};
-var __privateAdd = (obj, member, value) => {
-  if (member.has(obj))
-    throw TypeError("Cannot add the same private member more than once");
-  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
-};
-var __privateSet = (obj, member, value, setter) => {
-  __accessCheck(obj, member, "write to private field");
-  setter ? setter.call(obj, value) : member.set(obj, value);
-  return value;
-};
-var __privateMethod = (obj, member, method) => {
-  __accessCheck(obj, member, "access private method");
-  return method;
 };
 
 // node_modules/.pnpm/depd@2.0.0/node_modules/depd/index.js
@@ -20661,11 +20633,11 @@ var require_negotiator = __commonJS({
     var preferredMediaTypes = require_mediaType();
     module2.exports = Negotiator;
     module2.exports.Negotiator = Negotiator;
-    function Negotiator(request) {
+    function Negotiator(request2) {
       if (!(this instanceof Negotiator)) {
-        return new Negotiator(request);
+        return new Negotiator(request2);
       }
-      this.request = request;
+      this.request = request2;
     }
     Negotiator.prototype.charset = function charset(available) {
       var set = this.charsets(available);
@@ -23504,7 +23476,7 @@ var require_readdirp = __commonJS({
         return (entry) => positive.some((f) => f(entry.basename));
       }
     };
-    var ReaddirpStream = class extends Readable {
+    var ReaddirpStream = class _ReaddirpStream extends Readable {
       static get defaultOptions() {
         return {
           root: ".",
@@ -23524,7 +23496,7 @@ var require_readdirp = __commonJS({
           autoDestroy: true,
           highWaterMark: options.highWaterMark || 4096
         });
-        const opts = { ...ReaddirpStream.defaultOptions, ...options };
+        const opts = { ..._ReaddirpStream.defaultOptions, ...options };
         const { root, type } = opts;
         this._fileFilter = normalizeFilter(opts.fileFilter);
         this._directoryFilter = normalizeFilter(opts.directoryFilter);
@@ -27527,86 +27499,111 @@ var require_ast = __commonJS({
     var qmark = "[^/]";
     var star = qmark + "*?";
     var starNoEmpty = qmark + "+?";
-    var _root, _hasMagic, _uflag, _parts, _parent, _parentIndex, _negs, _filledNegs, _options, _toString, _emptyExt, _fillNegs, fillNegs_fn, _parseAST, parseAST_fn, _partsToRegExp, partsToRegExp_fn, _parseGlob, parseGlob_fn;
-    var _AST = class {
+    var AST = class _AST {
+      type;
+      #root;
+      #hasMagic;
+      #uflag = false;
+      #parts = [];
+      #parent;
+      #parentIndex;
+      #negs;
+      #filledNegs = false;
+      #options;
+      #toString;
+      // set to true if it's an extglob with no children
+      // (which really means one child of '')
+      #emptyExt = false;
       constructor(type, parent, options = {}) {
-        __privateAdd(this, _fillNegs);
-        __privateAdd(this, _partsToRegExp);
-        __publicField(this, "type");
-        __privateAdd(this, _root, void 0);
-        __privateAdd(this, _hasMagic, void 0);
-        __privateAdd(this, _uflag, false);
-        __privateAdd(this, _parts, []);
-        __privateAdd(this, _parent, void 0);
-        __privateAdd(this, _parentIndex, void 0);
-        __privateAdd(this, _negs, void 0);
-        __privateAdd(this, _filledNegs, false);
-        __privateAdd(this, _options, void 0);
-        __privateAdd(this, _toString, void 0);
-        // set to true if it's an extglob with no children
-        // (which really means one child of '')
-        __privateAdd(this, _emptyExt, false);
         this.type = type;
         if (type)
-          __privateSet(this, _hasMagic, true);
-        __privateSet(this, _parent, parent);
-        __privateSet(this, _root, __privateGet(this, _parent) ? __privateGet(__privateGet(this, _parent), _root) : this);
-        __privateSet(this, _options, __privateGet(this, _root) === this ? options : __privateGet(__privateGet(this, _root), _options));
-        __privateSet(this, _negs, __privateGet(this, _root) === this ? [] : __privateGet(__privateGet(this, _root), _negs));
-        if (type === "!" && !__privateGet(__privateGet(this, _root), _filledNegs))
-          __privateGet(this, _negs).push(this);
-        __privateSet(this, _parentIndex, __privateGet(this, _parent) ? __privateGet(__privateGet(this, _parent), _parts).length : 0);
+          this.#hasMagic = true;
+        this.#parent = parent;
+        this.#root = this.#parent ? this.#parent.#root : this;
+        this.#options = this.#root === this ? options : this.#root.#options;
+        this.#negs = this.#root === this ? [] : this.#root.#negs;
+        if (type === "!" && !this.#root.#filledNegs)
+          this.#negs.push(this);
+        this.#parentIndex = this.#parent ? this.#parent.#parts.length : 0;
       }
       get hasMagic() {
-        if (__privateGet(this, _hasMagic) !== void 0)
-          return __privateGet(this, _hasMagic);
-        for (const p of __privateGet(this, _parts)) {
+        if (this.#hasMagic !== void 0)
+          return this.#hasMagic;
+        for (const p of this.#parts) {
           if (typeof p === "string")
             continue;
           if (p.type || p.hasMagic)
-            return __privateSet(this, _hasMagic, true);
+            return this.#hasMagic = true;
         }
-        return __privateGet(this, _hasMagic);
+        return this.#hasMagic;
       }
       // reconstructs the pattern
       toString() {
-        if (__privateGet(this, _toString) !== void 0)
-          return __privateGet(this, _toString);
+        if (this.#toString !== void 0)
+          return this.#toString;
         if (!this.type) {
-          return __privateSet(this, _toString, __privateGet(this, _parts).map((p) => String(p)).join(""));
+          return this.#toString = this.#parts.map((p) => String(p)).join("");
         } else {
-          return __privateSet(this, _toString, this.type + "(" + __privateGet(this, _parts).map((p) => String(p)).join("|") + ")");
+          return this.#toString = this.type + "(" + this.#parts.map((p) => String(p)).join("|") + ")";
         }
+      }
+      #fillNegs() {
+        if (this !== this.#root)
+          throw new Error("should only call on root");
+        if (this.#filledNegs)
+          return this;
+        this.toString();
+        this.#filledNegs = true;
+        let n;
+        while (n = this.#negs.pop()) {
+          if (n.type !== "!")
+            continue;
+          let p = n;
+          let pp = p.#parent;
+          while (pp) {
+            for (let i = p.#parentIndex + 1; !pp.type && i < pp.#parts.length; i++) {
+              for (const part of n.#parts) {
+                if (typeof part === "string") {
+                  throw new Error("string part in extglob AST??");
+                }
+                part.copyIn(pp.#parts[i]);
+              }
+            }
+            p = pp;
+            pp = p.#parent;
+          }
+        }
+        return this;
       }
       push(...parts) {
         for (const p of parts) {
           if (p === "")
             continue;
-          if (typeof p !== "string" && !(p instanceof _AST && __privateGet(p, _parent) === this)) {
+          if (typeof p !== "string" && !(p instanceof _AST && p.#parent === this)) {
             throw new Error("invalid part: " + p);
           }
-          __privateGet(this, _parts).push(p);
+          this.#parts.push(p);
         }
       }
       toJSON() {
-        const ret = this.type === null ? __privateGet(this, _parts).slice().map((p) => typeof p === "string" ? p : p.toJSON()) : [this.type, ...__privateGet(this, _parts).map((p) => p.toJSON())];
+        const ret = this.type === null ? this.#parts.slice().map((p) => typeof p === "string" ? p : p.toJSON()) : [this.type, ...this.#parts.map((p) => p.toJSON())];
         if (this.isStart() && !this.type)
           ret.unshift([]);
-        if (this.isEnd() && (this === __privateGet(this, _root) || __privateGet(__privateGet(this, _root), _filledNegs) && __privateGet(this, _parent)?.type === "!")) {
+        if (this.isEnd() && (this === this.#root || this.#root.#filledNegs && this.#parent?.type === "!")) {
           ret.push({});
         }
         return ret;
       }
       isStart() {
-        if (__privateGet(this, _root) === this)
+        if (this.#root === this)
           return true;
-        if (!__privateGet(this, _parent)?.isStart())
+        if (!this.#parent?.isStart())
           return false;
-        if (__privateGet(this, _parentIndex) === 0)
+        if (this.#parentIndex === 0)
           return true;
-        const p = __privateGet(this, _parent);
-        for (let i = 0; i < __privateGet(this, _parentIndex); i++) {
-          const pp = __privateGet(p, _parts)[i];
+        const p = this.#parent;
+        for (let i = 0; i < this.#parentIndex; i++) {
+          const pp = p.#parts[i];
           if (!(pp instanceof _AST && pp.type === "!")) {
             return false;
           }
@@ -27614,16 +27611,16 @@ var require_ast = __commonJS({
         return true;
       }
       isEnd() {
-        if (__privateGet(this, _root) === this)
+        if (this.#root === this)
           return true;
-        if (__privateGet(this, _parent)?.type === "!")
+        if (this.#parent?.type === "!")
           return true;
-        if (!__privateGet(this, _parent)?.isEnd())
+        if (!this.#parent?.isEnd())
           return false;
         if (!this.type)
-          return __privateGet(this, _parent)?.isEnd();
-        const pl = __privateGet(this, _parent) ? __privateGet(__privateGet(this, _parent), _parts).length : 0;
-        return __privateGet(this, _parentIndex) === pl - 1;
+          return this.#parent?.isEnd();
+        const pl = this.#parent ? this.#parent.#parts.length : 0;
+        return this.#parentIndex === pl - 1;
       }
       copyIn(part) {
         if (typeof part === "string")
@@ -27633,29 +27630,132 @@ var require_ast = __commonJS({
       }
       clone(parent) {
         const c = new _AST(this.type, parent);
-        for (const p of __privateGet(this, _parts)) {
+        for (const p of this.#parts) {
           c.copyIn(p);
         }
         return c;
       }
+      static #parseAST(str, ast, pos, opt) {
+        let escaping = false;
+        let inBrace = false;
+        let braceStart = -1;
+        let braceNeg = false;
+        if (ast.type === null) {
+          let i2 = pos;
+          let acc2 = "";
+          while (i2 < str.length) {
+            const c = str.charAt(i2++);
+            if (escaping || c === "\\") {
+              escaping = !escaping;
+              acc2 += c;
+              continue;
+            }
+            if (inBrace) {
+              if (i2 === braceStart + 1) {
+                if (c === "^" || c === "!") {
+                  braceNeg = true;
+                }
+              } else if (c === "]" && !(i2 === braceStart + 2 && braceNeg)) {
+                inBrace = false;
+              }
+              acc2 += c;
+              continue;
+            } else if (c === "[") {
+              inBrace = true;
+              braceStart = i2;
+              braceNeg = false;
+              acc2 += c;
+              continue;
+            }
+            if (!opt.noext && isExtglobType(c) && str.charAt(i2) === "(") {
+              ast.push(acc2);
+              acc2 = "";
+              const ext = new _AST(c, ast);
+              i2 = _AST.#parseAST(str, ext, i2, opt);
+              ast.push(ext);
+              continue;
+            }
+            acc2 += c;
+          }
+          ast.push(acc2);
+          return i2;
+        }
+        let i = pos + 1;
+        let part = new _AST(null, ast);
+        const parts = [];
+        let acc = "";
+        while (i < str.length) {
+          const c = str.charAt(i++);
+          if (escaping || c === "\\") {
+            escaping = !escaping;
+            acc += c;
+            continue;
+          }
+          if (inBrace) {
+            if (i === braceStart + 1) {
+              if (c === "^" || c === "!") {
+                braceNeg = true;
+              }
+            } else if (c === "]" && !(i === braceStart + 2 && braceNeg)) {
+              inBrace = false;
+            }
+            acc += c;
+            continue;
+          } else if (c === "[") {
+            inBrace = true;
+            braceStart = i;
+            braceNeg = false;
+            acc += c;
+            continue;
+          }
+          if (isExtglobType(c) && str.charAt(i) === "(") {
+            part.push(acc);
+            acc = "";
+            const ext = new _AST(c, part);
+            part.push(ext);
+            i = _AST.#parseAST(str, ext, i, opt);
+            continue;
+          }
+          if (c === "|") {
+            part.push(acc);
+            acc = "";
+            parts.push(part);
+            part = new _AST(null, ast);
+            continue;
+          }
+          if (c === ")") {
+            if (acc === "" && ast.#parts.length === 0) {
+              ast.#emptyExt = true;
+            }
+            part.push(acc);
+            acc = "";
+            ast.push(...parts, part);
+            return i;
+          }
+          acc += c;
+        }
+        ast.type = null;
+        ast.#hasMagic = void 0;
+        ast.#parts = [str.substring(pos - 1)];
+        return i;
+      }
       static fromGlob(pattern, options = {}) {
-        var _a;
         const ast = new _AST(null, void 0, options);
-        __privateMethod(_a = _AST, _parseAST, parseAST_fn).call(_a, pattern, ast, 0, options);
+        _AST.#parseAST(pattern, ast, 0, options);
         return ast;
       }
       // returns the regular expression if there's magic, or the unescaped
       // string if not.
       toMMPattern() {
-        if (this !== __privateGet(this, _root))
-          return __privateGet(this, _root).toMMPattern();
+        if (this !== this.#root)
+          return this.#root.toMMPattern();
         const glob2 = this.toString();
         const [re, body, hasMagic, uflag] = this.toRegExpSource();
-        const anyMagic = hasMagic || __privateGet(this, _hasMagic) || __privateGet(this, _options).nocase && !__privateGet(this, _options).nocaseMagicOnly && glob2.toUpperCase() !== glob2.toLowerCase();
+        const anyMagic = hasMagic || this.#hasMagic || this.#options.nocase && !this.#options.nocaseMagicOnly && glob2.toUpperCase() !== glob2.toLowerCase();
         if (!anyMagic) {
           return body;
         }
-        const flags = (__privateGet(this, _options).nocase ? "i" : "") + (uflag ? "u" : "");
+        const flags = (this.#options.nocase ? "i" : "") + (uflag ? "u" : "");
         return Object.assign(new RegExp(`^${re}$`, flags), {
           _src: re,
           _glob: glob2
@@ -27731,22 +27831,21 @@ var require_ast = __commonJS({
       // is ^(?!\.), we can just prepend (?!\.) to the pattern (either root
       // or start or whatever) and prepend ^ or / at the Regexp construction.
       toRegExpSource(allowDot) {
-        const dot = allowDot ?? !!__privateGet(this, _options).dot;
-        if (__privateGet(this, _root) === this)
-          __privateMethod(this, _fillNegs, fillNegs_fn).call(this);
+        const dot = allowDot ?? !!this.#options.dot;
+        if (this.#root === this)
+          this.#fillNegs();
         if (!this.type) {
           const noEmpty = this.isStart() && this.isEnd();
-          const src = __privateGet(this, _parts).map((p) => {
-            var _a;
-            const [re, _, hasMagic, uflag] = typeof p === "string" ? __privateMethod(_a = _AST, _parseGlob, parseGlob_fn).call(_a, p, __privateGet(this, _hasMagic), noEmpty) : p.toRegExpSource(allowDot);
-            __privateSet(this, _hasMagic, __privateGet(this, _hasMagic) || hasMagic);
-            __privateSet(this, _uflag, __privateGet(this, _uflag) || uflag);
+          const src = this.#parts.map((p) => {
+            const [re, _, hasMagic, uflag] = typeof p === "string" ? _AST.#parseGlob(p, this.#hasMagic, noEmpty) : p.toRegExpSource(allowDot);
+            this.#hasMagic = this.#hasMagic || hasMagic;
+            this.#uflag = this.#uflag || uflag;
             return re;
           }).join("");
           let start2 = "";
           if (this.isStart()) {
-            if (typeof __privateGet(this, _parts)[0] === "string") {
-              const dotTravAllowed = __privateGet(this, _parts).length === 1 && justDots.has(__privateGet(this, _parts)[0]);
+            if (typeof this.#parts[0] === "string") {
+              const dotTravAllowed = this.#parts.length === 1 && justDots.has(this.#parts[0]);
               if (!dotTravAllowed) {
                 const aps = addPatternStart;
                 const needNoTrav = (
@@ -27761,28 +27860,28 @@ var require_ast = __commonJS({
             }
           }
           let end = "";
-          if (this.isEnd() && __privateGet(__privateGet(this, _root), _filledNegs) && __privateGet(this, _parent)?.type === "!") {
+          if (this.isEnd() && this.#root.#filledNegs && this.#parent?.type === "!") {
             end = "(?:$|\\/)";
           }
           const final2 = start2 + src + end;
           return [
             final2,
             (0, unescape_js_1.unescape)(src),
-            __privateSet(this, _hasMagic, !!__privateGet(this, _hasMagic)),
-            __privateGet(this, _uflag)
+            this.#hasMagic = !!this.#hasMagic,
+            this.#uflag
           ];
         }
         const repeated = this.type === "*" || this.type === "+";
         const start = this.type === "!" ? "(?:(?!(?:" : "(?:";
-        let body = __privateMethod(this, _partsToRegExp, partsToRegExp_fn).call(this, dot);
+        let body = this.#partsToRegExp(dot);
         if (this.isStart() && this.isEnd() && !body && this.type !== "!") {
           const s = this.toString();
-          __privateSet(this, _parts, [s]);
+          this.#parts = [s];
           this.type = null;
-          __privateSet(this, _hasMagic, void 0);
+          this.#hasMagic = void 0;
           return [s, (0, unescape_js_1.unescape)(this.toString()), false, false];
         }
-        let bodyDotAllowed = !repeated || allowDot || dot || !startNoDot ? "" : __privateMethod(this, _partsToRegExp, partsToRegExp_fn).call(this, true);
+        let bodyDotAllowed = !repeated || allowDot || dot || !startNoDot ? "" : this.#partsToRegExp(true);
         if (bodyDotAllowed === body) {
           bodyDotAllowed = "";
         }
@@ -27790,7 +27889,7 @@ var require_ast = __commonJS({
           body = `(?:${body})(?:${bodyDotAllowed})*?`;
         }
         let final = "";
-        if (this.type === "!" && __privateGet(this, _emptyExt)) {
+        if (this.type === "!" && this.#emptyExt) {
           final = (this.isStart() && !dot ? startNoDot : "") + starNoEmpty;
         } else {
           const close = this.type === "!" ? (
@@ -27802,218 +27901,67 @@ var require_ast = __commonJS({
         return [
           final,
           (0, unescape_js_1.unescape)(body),
-          __privateSet(this, _hasMagic, !!__privateGet(this, _hasMagic)),
-          __privateGet(this, _uflag)
+          this.#hasMagic = !!this.#hasMagic,
+          this.#uflag
         ];
       }
-    };
-    var AST = _AST;
-    _root = new WeakMap();
-    _hasMagic = new WeakMap();
-    _uflag = new WeakMap();
-    _parts = new WeakMap();
-    _parent = new WeakMap();
-    _parentIndex = new WeakMap();
-    _negs = new WeakMap();
-    _filledNegs = new WeakMap();
-    _options = new WeakMap();
-    _toString = new WeakMap();
-    _emptyExt = new WeakMap();
-    _fillNegs = new WeakSet();
-    fillNegs_fn = function() {
-      if (this !== __privateGet(this, _root))
-        throw new Error("should only call on root");
-      if (__privateGet(this, _filledNegs))
-        return this;
-      this.toString();
-      __privateSet(this, _filledNegs, true);
-      let n;
-      while (n = __privateGet(this, _negs).pop()) {
-        if (n.type !== "!")
-          continue;
-        let p = n;
-        let pp = __privateGet(p, _parent);
-        while (pp) {
-          for (let i = __privateGet(p, _parentIndex) + 1; !pp.type && i < __privateGet(pp, _parts).length; i++) {
-            for (const part of __privateGet(n, _parts)) {
-              if (typeof part === "string") {
-                throw new Error("string part in extglob AST??");
-              }
-              part.copyIn(__privateGet(pp, _parts)[i]);
+      #partsToRegExp(dot) {
+        return this.#parts.map((p) => {
+          if (typeof p === "string") {
+            throw new Error("string type in extglob ast??");
+          }
+          const [re, _, _hasMagic, uflag] = p.toRegExpSource(dot);
+          this.#uflag = this.#uflag || uflag;
+          return re;
+        }).filter((p) => !(this.isStart() && this.isEnd()) || !!p).join("|");
+      }
+      static #parseGlob(glob2, hasMagic, noEmpty = false) {
+        let escaping = false;
+        let re = "";
+        let uflag = false;
+        for (let i = 0; i < glob2.length; i++) {
+          const c = glob2.charAt(i);
+          if (escaping) {
+            escaping = false;
+            re += (reSpecials.has(c) ? "\\" : "") + c;
+            continue;
+          }
+          if (c === "\\") {
+            if (i === glob2.length - 1) {
+              re += "\\\\";
+            } else {
+              escaping = true;
+            }
+            continue;
+          }
+          if (c === "[") {
+            const [src, needUflag, consumed, magic] = (0, brace_expressions_js_1.parseClass)(glob2, i);
+            if (consumed) {
+              re += src;
+              uflag = uflag || needUflag;
+              i += consumed - 1;
+              hasMagic = hasMagic || magic;
+              continue;
             }
           }
-          p = pp;
-          pp = __privateGet(p, _parent);
+          if (c === "*") {
+            if (noEmpty && glob2 === "*")
+              re += starNoEmpty;
+            else
+              re += star;
+            hasMagic = true;
+            continue;
+          }
+          if (c === "?") {
+            re += qmark;
+            hasMagic = true;
+            continue;
+          }
+          re += regExpEscape(c);
         }
+        return [re, (0, unescape_js_1.unescape)(glob2), !!hasMagic, uflag];
       }
-      return this;
     };
-    _parseAST = new WeakSet();
-    parseAST_fn = function(str, ast, pos, opt) {
-      var _a, _b;
-      let escaping = false;
-      let inBrace = false;
-      let braceStart = -1;
-      let braceNeg = false;
-      if (ast.type === null) {
-        let i2 = pos;
-        let acc2 = "";
-        while (i2 < str.length) {
-          const c = str.charAt(i2++);
-          if (escaping || c === "\\") {
-            escaping = !escaping;
-            acc2 += c;
-            continue;
-          }
-          if (inBrace) {
-            if (i2 === braceStart + 1) {
-              if (c === "^" || c === "!") {
-                braceNeg = true;
-              }
-            } else if (c === "]" && !(i2 === braceStart + 2 && braceNeg)) {
-              inBrace = false;
-            }
-            acc2 += c;
-            continue;
-          } else if (c === "[") {
-            inBrace = true;
-            braceStart = i2;
-            braceNeg = false;
-            acc2 += c;
-            continue;
-          }
-          if (!opt.noext && isExtglobType(c) && str.charAt(i2) === "(") {
-            ast.push(acc2);
-            acc2 = "";
-            const ext = new _AST(c, ast);
-            i2 = __privateMethod(_a = _AST, _parseAST, parseAST_fn).call(_a, str, ext, i2, opt);
-            ast.push(ext);
-            continue;
-          }
-          acc2 += c;
-        }
-        ast.push(acc2);
-        return i2;
-      }
-      let i = pos + 1;
-      let part = new _AST(null, ast);
-      const parts = [];
-      let acc = "";
-      while (i < str.length) {
-        const c = str.charAt(i++);
-        if (escaping || c === "\\") {
-          escaping = !escaping;
-          acc += c;
-          continue;
-        }
-        if (inBrace) {
-          if (i === braceStart + 1) {
-            if (c === "^" || c === "!") {
-              braceNeg = true;
-            }
-          } else if (c === "]" && !(i === braceStart + 2 && braceNeg)) {
-            inBrace = false;
-          }
-          acc += c;
-          continue;
-        } else if (c === "[") {
-          inBrace = true;
-          braceStart = i;
-          braceNeg = false;
-          acc += c;
-          continue;
-        }
-        if (isExtglobType(c) && str.charAt(i) === "(") {
-          part.push(acc);
-          acc = "";
-          const ext = new _AST(c, part);
-          part.push(ext);
-          i = __privateMethod(_b = _AST, _parseAST, parseAST_fn).call(_b, str, ext, i, opt);
-          continue;
-        }
-        if (c === "|") {
-          part.push(acc);
-          acc = "";
-          parts.push(part);
-          part = new _AST(null, ast);
-          continue;
-        }
-        if (c === ")") {
-          if (acc === "" && __privateGet(ast, _parts).length === 0) {
-            __privateSet(ast, _emptyExt, true);
-          }
-          part.push(acc);
-          acc = "";
-          ast.push(...parts, part);
-          return i;
-        }
-        acc += c;
-      }
-      ast.type = null;
-      __privateSet(ast, _hasMagic, void 0);
-      __privateSet(ast, _parts, [str.substring(pos - 1)]);
-      return i;
-    };
-    _partsToRegExp = new WeakSet();
-    partsToRegExp_fn = function(dot) {
-      return __privateGet(this, _parts).map((p) => {
-        if (typeof p === "string") {
-          throw new Error("string type in extglob ast??");
-        }
-        const [re, _, _hasMagic2, uflag] = p.toRegExpSource(dot);
-        __privateSet(this, _uflag, __privateGet(this, _uflag) || uflag);
-        return re;
-      }).filter((p) => !(this.isStart() && this.isEnd()) || !!p).join("|");
-    };
-    _parseGlob = new WeakSet();
-    parseGlob_fn = function(glob2, hasMagic, noEmpty = false) {
-      let escaping = false;
-      let re = "";
-      let uflag = false;
-      for (let i = 0; i < glob2.length; i++) {
-        const c = glob2.charAt(i);
-        if (escaping) {
-          escaping = false;
-          re += (reSpecials.has(c) ? "\\" : "") + c;
-          continue;
-        }
-        if (c === "\\") {
-          if (i === glob2.length - 1) {
-            re += "\\\\";
-          } else {
-            escaping = true;
-          }
-          continue;
-        }
-        if (c === "[") {
-          const [src, needUflag, consumed, magic] = (0, brace_expressions_js_1.parseClass)(glob2, i);
-          if (consumed) {
-            re += src;
-            uflag = uflag || needUflag;
-            i += consumed - 1;
-            hasMagic = hasMagic || magic;
-            continue;
-          }
-        }
-        if (c === "*") {
-          if (noEmpty && glob2 === "*")
-            re += starNoEmpty;
-          else
-            re += star;
-          hasMagic = true;
-          continue;
-        }
-        if (c === "?") {
-          re += qmark;
-          hasMagic = true;
-          continue;
-        }
-        re += regExpEscape(c);
-      }
-      return [re, (0, unescape_js_1.unescape)(glob2), !!hasMagic, uflag];
-    };
-    __privateAdd(AST, _parseAST);
-    __privateAdd(AST, _parseGlob);
     exports2.AST = AST;
   }
 });
@@ -28837,21 +28785,22 @@ var require_cjs2 = __commonJS({
         this.fill(0);
       }
     };
-    var _constructing;
-    var _Stack = class {
+    var Stack = class _Stack {
       heap;
       length;
+      // private constructor
+      static #constructing = false;
       static create(max) {
         const HeapCls = getUintArray(max);
         if (!HeapCls)
           return [];
-        __privateSet(_Stack, _constructing, true);
+        _Stack.#constructing = true;
         const s = new _Stack(max, HeapCls);
-        __privateSet(_Stack, _constructing, false);
+        _Stack.#constructing = false;
         return s;
       }
       constructor(max, HeapCls) {
-        if (!__privateGet(_Stack, _constructing)) {
+        if (!_Stack.#constructing) {
           throw new TypeError("instantiate Stack using Stack.create(n)");
         }
         this.heap = new HeapCls(max);
@@ -28864,11 +28813,7 @@ var require_cjs2 = __commonJS({
         return this.heap[--this.length];
       }
     };
-    var Stack = _Stack;
-    _constructing = new WeakMap();
-    // private constructor
-    __privateAdd(Stack, _constructing, false);
-    var LRUCache = class {
+    var LRUCache = class _LRUCache {
       // properties coming in from the options of these, only max and maxSize
       // really *need* to be protected. The rest can be modified, as they just
       // set defaults for various methods.
@@ -29120,7 +29065,7 @@ var require_cjs2 = __commonJS({
           if (shouldWarn(code)) {
             warned.add(code);
             const msg = "TTL caching without ttlAutopurge, max, or maxSize can result in unbounded memory consumption.";
-            emitWarning(msg, "UnboundedCacheWarning", code, LRUCache);
+            emitWarning(msg, "UnboundedCacheWarning", code, _LRUCache);
           }
         }
       }
@@ -31938,7 +31883,7 @@ var require_cjs4 = __commonJS({
       }
     };
     exports2.PathBase = PathBase;
-    var PathWin32 = class extends PathBase {
+    var PathWin32 = class _PathWin32 extends PathBase {
       /**
        * Separator for generating path strings.
        */
@@ -31960,7 +31905,7 @@ var require_cjs4 = __commonJS({
        * @internal
        */
       newChild(name, type = UNKNOWN, opts = {}) {
-        return new PathWin32(name, type, this.root, this.roots, this.nocase, this.childrenCache(), opts);
+        return new _PathWin32(name, type, this.root, this.roots, this.nocase, this.childrenCache(), opts);
       }
       /**
        * @internal
@@ -31992,7 +31937,7 @@ var require_cjs4 = __commonJS({
       }
     };
     exports2.PathWin32 = PathWin32;
-    var PathPosix = class extends PathBase {
+    var PathPosix = class _PathPosix extends PathBase {
       /**
        * separator for parsing path strings
        */
@@ -32026,7 +31971,7 @@ var require_cjs4 = __commonJS({
        * @internal
        */
       newChild(name, type = UNKNOWN, opts = {}) {
-        return new PathPosix(name, type, this.root, this.roots, this.nocase, this.childrenCache(), opts);
+        return new _PathPosix(name, type, this.root, this.roots, this.nocase, this.childrenCache(), opts);
       }
     };
     exports2.PathPosix = PathPosix;
@@ -32686,7 +32631,7 @@ var require_pattern = __commonJS({
     var minimatch_1 = require_cjs();
     var isPatternList = (pl) => pl.length >= 1;
     var isGlobList = (gl) => gl.length >= 1;
-    var Pattern = class {
+    var Pattern = class _Pattern {
       #patternList;
       #globList;
       #index;
@@ -32788,7 +32733,7 @@ var require_pattern = __commonJS({
           return this.#rest;
         if (!this.hasMore())
           return this.#rest = null;
-        this.#rest = new Pattern(this.#patternList, this.#globList, this.#index + 1, this.#platform);
+        this.#rest = new _Pattern(this.#patternList, this.#globList, this.#index + 1, this.#platform);
         this.#rest.#isAbsolute = this.#isAbsolute;
         this.#rest.#isUNC = this.#isUNC;
         this.#rest.#isDrive = this.#isDrive;
@@ -32946,13 +32891,13 @@ var require_processor = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Processor = exports2.SubWalks = exports2.MatchRecord = exports2.HasWalkedCache = void 0;
     var minimatch_1 = require_cjs();
-    var HasWalkedCache = class {
+    var HasWalkedCache = class _HasWalkedCache {
       store;
       constructor(store = /* @__PURE__ */ new Map()) {
         this.store = store;
       }
       copy() {
-        return new HasWalkedCache(new Map(this.store));
+        return new _HasWalkedCache(new Map(this.store));
       }
       hasWalked(target, pattern) {
         return this.store.get(target.fullpath())?.has(pattern.globString());
@@ -33013,7 +32958,7 @@ var require_processor = __commonJS({
       }
     };
     exports2.SubWalks = SubWalks;
-    var Processor = class {
+    var Processor = class _Processor {
       hasWalkedCache;
       matches = new MatchRecord();
       subwalks = new SubWalks();
@@ -33094,7 +33039,7 @@ var require_processor = __commonJS({
         return this.subwalks.keys();
       }
       child() {
-        return new Processor(this.opts, this.hasWalkedCache);
+        return new _Processor(this.opts, this.hasWalkedCache);
       }
       // return a new Processor containing the subwalks for each
       // child entry, and a set of matches, and
@@ -33796,6 +33741,7 @@ var require_commonjs = __commonJS({
 });
 
 // forge/_src_/core/Core.ts
+var __HashCount = 0;
 function EncodeBase64(json) {
   const jsonStringify = JSON.stringify(json);
   const buffer = Buffer.from(jsonStringify);
@@ -33868,7 +33814,7 @@ var AbstractArguments = class {
       const errorMessage = validation.error || `\x1B[31; 1mMissing or incorrect \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
       this._errors.push(errorMessage);
     } else if (validation.validator) {
-      const result = validation.validator(this._args);
+      const result = validation.validator(value, this._args);
       if (result && result instanceof Error) {
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
@@ -33999,9 +33945,9 @@ var ColourFormatting = class {
     return this._debugFormatter;
   }
 };
-var DebugFormatter = class {
+var DebugFormatter = class _DebugFormatter {
   static Init(options) {
-    const __DebugFormatter = new DebugFormatter();
+    const __DebugFormatter = new _DebugFormatter();
     console.parse = function(...rest) {
       console.log(...rest.map(function(log) {
         if (log === void 0)
@@ -34251,7 +34197,8 @@ var ForgeStream = class {
 };
 
 // forge/_src_/core/PoolManager.ts
-var _PoolManager = class {
+var PoolManager = class _PoolManager {
+  static __ClassMap = /* @__PURE__ */ new Map();
   // @-ts-expect-errors
   static Instantiate(constructor, ...rest) {
     let instance;
@@ -34307,8 +34254,6 @@ var _PoolManager = class {
     instanceSet.add(instance);
   }
 };
-var PoolManager = _PoolManager;
-__publicField(PoolManager, "__ClassMap", /* @__PURE__ */ new Map());
 
 // forge/_src_/core/Subscription.ts
 var Subscription = class {
@@ -34398,11 +34343,11 @@ var $fs2 = require("fs").promises;
 var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
   _key = QuickHash();
-  _race;
   _sessions = /* @__PURE__ */ new Map();
+  race;
   constructor(config) {
     super();
-    this._race = config.race;
+    this.race = config.race;
   }
   read(message) {
     try {
@@ -34435,7 +34380,7 @@ var AbstractServiceAdapter = class extends Subscription {
     throw new Error("Please override write(...) in subclasses");
   }
   $reset(data) {
-    return this.$signal("reset", data, this._race);
+    return this.$signal("reset", data, this.race);
   }
   $signal(signal, data, race) {
     const session = QuickHash();
@@ -34448,6 +34393,151 @@ var AbstractServiceAdapter = class extends Subscription {
     this._sessions.set(session, $race);
     this.write({ signal, session, key: this._key }, data);
     return $race[0];
+  }
+};
+var AbstractAction = class extends Subscription {
+  _task;
+  _iProcessAdapter;
+  _data;
+  _implement;
+  _async;
+  _enabled;
+  _stdio;
+  _startTime;
+  _race;
+  _cancelable;
+  _renderer;
+  _bindings = /* @__PURE__ */ new Map();
+  _sessions = /* @__PURE__ */ new Map();
+  dependencies;
+  stdout;
+  stderr;
+  name;
+  constructor(iServiceAdapter, implement, data) {
+    super();
+    this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
+    this._iProcessAdapter = iServiceAdapter;
+    this._iProcessAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+    this._implement = implement;
+    this._data = data;
+    this.name = this._resolveData("name", QuickHash());
+    this._async = this._resolveData("async", false);
+    this._enabled = this._resolveData("enabled", true);
+    this._stdio = this._resolveData("stdio", "pipe" /* Default */);
+    this._race = this._resolveData("race");
+    this.dependencies = this._resolveData("wait", []);
+    this.stdout = [];
+    this.stderr = [];
+  }
+  _subscribeBroadcast(notify, header, data) {
+    if (notify == "message") {
+      if (header.resolve) {
+        const resolve = header.resolve;
+        if (this._sessions.has(resolve)) {
+          const $promise = this._sessions.get(resolve);
+          $promise[1](data);
+          this._sessions.delete(resolve);
+        }
+      } else if (header.reject) {
+        const reject = header.reject;
+        if (this._sessions.has(reject)) {
+          const $promise = this._sessions.get(reject);
+          $promise[2](data);
+          this._sessions.delete(reject);
+        }
+      } else if (header.signal !== void 0) {
+        console.log("NOOOOOO");
+        this.notify(header.signal, data);
+      }
+    }
+  }
+  _resolveData(key, defaultValue) {
+    const value = this._data[key];
+    return value === void 0 ? defaultValue : value;
+  }
+  /* protected _then$signal(value: unknown): unknown {
+  
+          console.log("_then$signal");
+  
+          return value;
+  
+      }
+  
+      protected _catch$signal(error: unknown): void {
+  
+          console.log("Error", error);
+  
+      } */
+  task(forgeTask) {
+    this._task = forgeTask;
+  }
+  implement() {
+    return this._implement;
+  }
+  $signal(signal, data, race) {
+    return this._iProcessAdapter.$signal(signal, data, race);
+  }
+  async $reset(data) {
+    this._startTime = Date.now();
+    this.stdout = [];
+    this.stderr = [];
+    return this._iProcessAdapter.$reset(data);
+  }
+  async $stream(stdoutCallback, stderrCallback) {
+    stderrCallback = stderrCallback || stdoutCallback;
+    let completeDelay = 0;
+    for (const [message, delay] of this.stdout) {
+      setTimeout(function() {
+        const messages = message.split(/\n+/g);
+        for (const log of messages) {
+          if (log != "") {
+            stdoutCallback(log);
+          }
+        }
+      }, delay);
+      completeDelay = Math.max(delay, completeDelay);
+    }
+    for (const [error, delay] of this.stderr) {
+      setTimeout(function() {
+        const errors = error.split(/\n+/g);
+        for (const log of errors) {
+          if (log != "") {
+            stderrCallback(log);
+          }
+        }
+      }, delay);
+      completeDelay = Math.max(delay, completeDelay);
+    }
+    return new Promise(function(resolve) {
+      setTimeout(resolve, completeDelay);
+    });
+  }
+  write(...rest) {
+    throw new Error("AbstractAction.write( .. ) should be overriden");
+  }
+  async $load(iStorage) {
+    return this;
+  }
+  async $save(iStorage) {
+    return this;
+  }
+  help() {
+    return [
+      { label: "async", values: ["true | false", "true"], description: "does the `Action` completion event depends if execution completes" },
+      { label: "enabled", values: ["true | false", "true"], description: "weather the `Action` will execute" },
+      { label: "stdio", values: ["[ default, pipe, stdio & Dependency]", "default"], description: "An array of value combine to override the stdio to pipe from a dependency `Action`" },
+      { label: "race", values: ["0 - 9999999", "0"], description: "how long to give the `Action` to complete before aborting" },
+      { label: "rebound", values: ["0 - 5", "0"], description: "how many times to rebound $execute" },
+      { label: "render", values: ["internal", ""], description: "how many times to rebound $execute" }
+    ];
+  }
+  async $route(route, params) {
+    return this.$signal("route", { route, params }).then(async function(response) {
+      const { mime, contents } = JSON.parse(response);
+      return { mime, buffer: Buffer.from(contents, "base64") };
+    }).catch(function(error) {
+      return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
+    });
   }
 };
 
@@ -34492,6 +34582,38 @@ var SpawnService = class extends AbstractServiceAdapter {
     this._child.stdin.write(JSON.stringify(["forge://", ...data]) + "\n");
   }
 };
+var SpawnAction = class extends AbstractAction {
+  constructor(iService, implement, data) {
+    super(iService, implement, data);
+    this._bindings.set(this._onStdout, this._onStdout.bind(this));
+    this._bindings.set(this._onStdErr, this._onStdErr.bind(this));
+    console.log("Spawn Action constructed", String(this._iProcessAdapter), this._data);
+    return;
+  }
+  _onStdout(output) {
+    const outputStr = String(output);
+    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
+      try {
+        const parsedData = JSON.parse(line);
+        const [{ key, session }, data] = parsedData;
+      } catch (error) {
+      }
+      if (line != "") {
+        console.parse(`<cyan>${line}</cyan>`);
+      }
+    }
+    this.stdout.push([outputStr, Date.now() - this._startTime]);
+  }
+  _onStdErr(data) {
+    const outputStr = String(data);
+    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
+      if (line != "") {
+        console.parse(`<red>${line}</red>`);
+      }
+    }
+    this.stderr.push([String(data), Date.now() - this._startTime]);
+  }
+};
 
 // forge/_src_/forge/ForgeTask.ts
 var ForgeTask = class {
@@ -34502,9 +34624,10 @@ var ForgeTask = class {
   _forkServices = /* @__PURE__ */ new Map();
   _workerServices = /* @__PURE__ */ new Map();
   name;
-  constructor(data) {
-    this._data = data;
-    this.name = this._data.name;
+  constructor(config) {
+    if (config === void 0)
+      return;
+    this.parse(config);
   }
   data() {
     return this._data;
@@ -34515,13 +34638,6 @@ var ForgeTask = class {
   spawn(key, config) {
     if (this._spawnServices.has(key))
       throw new Error(`Task(${this.name}) : Spawn process already exists "${key}"`);
-    const errors = [];
-    if (config.command === void 0)
-      errors.push(`Task(${this.name}) : no command provided`);
-    if (isNaN(config.race) == true)
-      errors.push(`Task(${this.name}) : race paramter is not a number`);
-    if (errors.length)
-      throw new Error(errors.join("\n"));
     const race = config.race;
     const reboot = config.reboot || true;
     const spawnService = new SpawnService(config);
@@ -34556,71 +34672,233 @@ var ForgeTask = class {
     console.log(results, Date.now() - startTime);
     return results;
   }
-  /* public async $signal(forgeStream: ForgeStream): Promise<void> {
-  
-          for (const iAction of this._iActionArr) {
-  
-              iAction.$signal(forgeStream.signal(), forgeStream.data());
-  
-          }
-  
-          this.$resolve(forgeStream);
-  
-      } */
   add(iAction) {
     this._iActions.set(iAction.name, iAction);
     return this;
   }
   parse(configObj) {
+    console.log("configObj", configObj);
     this._data = configObj;
     this.name = configObj.name;
     this._enabled = configObj.enabled;
-    return;
+    if (this._data.services === void 0)
+      throw new Error(`No services assigned to "${this.name}"`);
+    const spawnObj = this._data.services.spawn;
+    if (spawnObj) {
+      for (const [key, spawnConfig] of Object.entries(spawnObj)) {
+        const errors = [];
+        if (spawnConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for Spawn service "${key}"`);
+        if (isNaN(spawnConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for Spawn service "${key}"`);
+        if (errors.length)
+          throw new Error(errors.join("\n"));
+        const spawnService = this.spawn(key, spawnConfig);
+      }
+    }
+    const actions = this._data.actions;
+    if (actions) {
+      for (const [key, actionConfig] of Object.entries(actions)) {
+        let iAction;
+        if ("spawn" in actionConfig) {
+          const name = actionConfig.spawn;
+          const errors = [];
+          if (actionConfig.spawn === void 0)
+            errors.push(`Invalid name provided for SpawnAction : "${this.name}" for Task : "${this.name}""`);
+          if (this._spawnServices.has(name) === false)
+            errors.push(`No Spawn Service has been registered for "${name}"`);
+          if (errors.length)
+            throw new Error("\n\n" + errors.join("\n") + "\n");
+          const spawnService = this._spawnServices.get(name);
+          const race = actionConfig.race || spawnService.race;
+          iAction = new SpawnAction(spawnService, name, { ...actionConfig, race });
+        } else if ("fork" in actionConfig) {
+        } else if ("worker" in actionConfig) {
+        }
+        this.add(iAction);
+      }
+    }
   }
-  /* public $resolve(forgeStream: ForgeStream, race?: number): Promise<unknown> {
+};
+
+// forge/_src_/core/collection/Tree.ts
+var Tree = class {
+  _instanceSet = /* @__PURE__ */ new Set();
+  _parentMap = /* @__PURE__ */ new Map();
+  _childMap = /* @__PURE__ */ new Map();
+  *[Symbol.iterator]() {
+    for (const instance of this._instanceSet) {
+      yield instance;
+    }
+  }
+  traverse(instance, traversal) {
+    traversal = traversal || /* @__PURE__ */ new Set();
+    traversal.add(instance);
+    const children = this._childMap.get(instance);
+    for (const child of children) {
+      if (traversal.has(child) === false) {
+        this.traverse(child, traversal);
+      }
+    }
+    return traversal;
+  }
+  add(instance, parent) {
+    parent = parent || this;
+    this._instanceSet.add(instance);
+    if (this._childMap.has(instance) === false) {
+      this._childMap.set(instance, /* @__PURE__ */ new Set());
+    }
+    this._parentMap.set(instance, parent);
+    return this;
+  }
+  remove(instance) {
+    this._instanceSet.delete(instance);
+    this._childMap.delete(instance);
+    this._parentMap.delete(instance);
+    return this;
+  }
+  parent(instance) {
+    return this._parentMap.get(instance);
+  }
+  children(instance) {
+    return this._childMap.get(instance);
+  }
+  siblings(instance) {
+    const parent = this._parentMap.get(instance);
+    const siblings = new Set(this._childMap.get(parent));
+    siblings.delete(instance);
+    return siblings;
+  }
+  compile() {
+    for (const entry of this._childMap) {
+      const set = entry[1];
+      set.clear();
+    }
+    for (const instance of this._instanceSet) {
+      const parent = this._parentMap.get(instance);
+      const children = this._childMap.get(parent);
+      children.add(instance);
+    }
+  }
+  ancestry(instance) {
+    const ancestry = [];
+    let parent = instance;
+    while (parent !== this && parent !== void 0) {
+      ancestry.unshift(parent);
+      parent = this._parentMap.get(parent);
+    }
+    return ancestry;
+  }
+  depth() {
+    let maxDepth = 0;
+    for (const instance of this._instanceSet) {
+      let depth = 1;
+      let parent = this._parentMap.get(instance);
+      while (parent !== this) {
+        parent = this._parentMap.get(parent);
+        depth++;
+      }
+      maxDepth = Math.max(depth, maxDepth);
+    }
+    return maxDepth;
+  }
+  has(instance) {
+    return this._instanceSet.has(instance);
+  }
+  clear() {
+    this._instanceSet.clear();
+    this._childMap.clear();
+    this._parentMap.clear();
+  }
+};
+
+// forge/_src_/forge/storage/ForgeStorage.ts
+var ForgeStore = class {
+  _id;
+  _iForgeStorage;
+  _buffer;
+  _attributes;
+  constructor(iForgeStorage, buffer, attributes) {
+    this._iForgeStorage = iForgeStorage;
+    this._id = iForgeStorage.next();
+    this._buffer = buffer;
+    this._attributes = attributes;
+  }
+  $buffer(buffer) {
+    if (buffer === void 0)
+      return this._buffer;
+    this._iForgeStorage.$update(this, this._buffer);
+  }
+  attributes() {
+    return this._attributes;
+  }
+  async $fork(buffer, attributes) {
+    return this._iForgeStorage.$fork(this, buffer, attributes);
+  }
+  async $save() {
+  }
+  async $load(buffer) {
+  }
+};
+var ForgeStorage = class {
+  _count = 0;
+  _idMap = /* @__PURE__ */ new Map();
+  _tree = new Tree();
+  constructor() {
+  }
+  $traverse(delegate, forgeStore) {
+    throw new Error("Method not implemented.");
+  }
+  *[Symbol.iterator]() {
+    for (const entry of this._tree) {
+      yield entry;
+    }
+  }
+  next() {
+    return this._count++;
+  }
+  get(id) {
+    return this._idMap.get(id);
+  }
+  /**
+   * 
+   * @param buffer
+   * @param attributes
+   */
+  async $create(buffer, attributes) {
+    const forgeStore = new ForgeStore(buffer, attributes);
+    this._tree.add(forgeStore);
+    return forgeStore;
+  }
+  async $fork(forgeStore, buffer, attributes) {
+    const childStore = new ForgeStore(this, buffer, attributes);
+    this._tree.add(childStore, forgeStore);
+    return childStore;
+  }
+  // update
+  async $update(forgeStore) {
+  }
+  // delete
+  async $delete(forgeStore) {
+    this._tree.remove(forgeStore);
+  }
+  /* public async $traverse($delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, ...rest: unknown[]): Promise<ForgeStore[]> {
   
-          console.log("resolving....");
+          const results: ForgeStore[] = [];
+          for (const forgeStore of this._tree) {
   
-          for (const [string, iAction] of forgeStream.actions()) {
-  
-              let resolved: boolean = true;
-              for (const dependencyObj of iAction.dependencies) {
-  
-                  const dependentAction = forgeStream.find(dependencyObj.task, this.name);
-                  if (forgeStream.executions().has(dependentAction) === false) resolved = false;
-  
-              }
-  
-              if (resolved === false) continue;
-  
-              iAction.$resolve(this);
+              if (await $delegate(forgeStore, ...rest) === true) results.push(forgeStore);
   
           }
   
-          
-  
-              
-  
-              // if no action was provided then the check if all 
-  
-              
-  
-  
-          /* for (const dependencyObj of this._dependencies) {
-  
-              const forgeName: string = (dependencyObj.task === undefined) ? this.task.name : dependencyObj.task;
-              const iAction = forgeStream.find(forgeName, this.name);
-  
-              // if no action was provided then the check if all 
-  
-              if (forgeStream.executions().has(iAction) === false)
-  
-          } 
-          
-  
-          return false;
+          return results;
   
       } */
+  connect(ForgeServer2) {
+    return this;
+  }
+  $flush() {
+  }
 };
 
 // forge/_src_/forge/server/Route.ts
@@ -34635,15 +34913,15 @@ var AbstractRoute = class {
     this._method = method;
     return this;
   }
-  async _$parseRequest(request) {
+  async _$parseRequest(request2) {
     return new Promise(function(resolve, reject) {
-      const buffers = [];
-      request.on("data", (chunk) => {
-        buffers.push(chunk);
+      const buffers2 = [];
+      request2.on("data", (chunk) => {
+        buffers2.push(chunk);
       }).on("end", () => {
-        const result = Buffer.concat(buffers).toString();
+        const result = Buffer.concat(buffers2).toString();
         const post = JSON.parse(result);
-        const get = request.query;
+        const get = request2.query;
         resolve({ get, post, request: { post, ...get } });
       });
     });
@@ -34661,55 +34939,8 @@ var AbstractRoute = class {
         break;
     }
   }
-  async $resolve(request, response, next) {
+  async $resolve(request2, response, next) {
     return;
-  }
-};
-var ActionRoute = class extends AbstractRoute {
-  _iAction;
-  constructor(route, iAction) {
-    super(route);
-    this._iAction = iAction;
-    this._$delegate = this.$resolve.bind(this);
-  }
-  async $resolve(request, response, next) {
-    return await this._iAction.$route(this._route, this._$parseRequest(request));
-  }
-};
-var DelegateRoute = class extends AbstractRoute {
-  constructor(route, $delegate, simplifyParams) {
-    super(route);
-    if (simplifyParams === true) {
-      this._$delegate = function(request, response, next) {
-        return $delegate(this._$parseRequest(request));
-      };
-    } else {
-      this._$delegate = $delegate;
-    }
-  }
-};
-var RedirectRoute = class extends AbstractRoute {
-  _base;
-  _timeout;
-  constructor(route, base, timeout) {
-    super(route);
-    this._base = base;
-    this._timeout = timeout;
-  }
-  async $resolve(request, response, next) {
-    const queryString = url.parse(request.url).query;
-    const redirectURL = this._base + this._route + queryString;
-    return fetch(redirectURL, {
-      method: request.method,
-      headers: {
-        "Content-Type": request.get("Content-Type"),
-        body: request.body
-      }
-    }).then(function(response2) {
-      return { mime: "text/html", buffer: new Buffer() };
-    }).catch(function() {
-      return { mime: "text/html", buffer: new Buffer() };
-    });
   }
 };
 
@@ -34727,6 +34958,7 @@ var ForgeServer = class {
   _routeSet = /* @__PURE__ */ new Set();
   // temporary for now. Connect to `ether` or `ForgeStorage`
   _database = /* @__PURE__ */ new Map();
+  _iForgeStorage;
   constructor(forge, port, base) {
     this._forge = forge;
     if (isNaN(port))
@@ -34736,7 +34968,7 @@ var ForgeServer = class {
   }
   async _$setupServer(port) {
     this._app = express();
-    this._app.use(function(request, response, next) {
+    this._app.use(function(request2, response, next) {
       response.setHeader("Access-Control-Allow-Origin", "*");
       response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content, Accept, Content-Type, Authorization");
       response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
@@ -34744,12 +34976,12 @@ var ForgeServer = class {
       response.setHeader("Cross-Prigin-Opener-Policy", "same-origin");
       next();
     });
-    this._app.all("/:task/:action/storage/save/*", async function(request, response, next) {
-      const taskName = request.params.task;
-      const actionName = request.params.action;
-      const key = request.params[0];
+    this._app.all("/:task/:action/storage/save/*", async function(request2, response, next) {
+      const taskName = request2.params.task;
+      const actionName = request2.params.action;
+      const key = request2.params[0];
       try {
-        const { mime, buffer } = await this._$parseRequestBody(request);
+        const { mime, buffer } = await this._$parseRequestBody(request2);
         await this.$save(`${taskName}/${actionName}`, key, mime, buffer);
         response.sendStatus(200).end();
       } catch (error) {
@@ -34757,10 +34989,10 @@ var ForgeServer = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/storage/load/*", async function(request, response, next) {
-      const taskName = request.params.task;
-      const actionName = request.params.action;
-      const key = request.params[0];
+    this._app.all("/:task/:action/storage/load/*", async function(request2, response, next) {
+      const taskName = request2.params.task;
+      const actionName = request2.params.action;
+      const key = request2.params[0];
       try {
         const { mime, buffer } = await this.$load(`${taskName}/${actionName}`, key);
         response.setHeader("Content-Type", mime).end(buffer);
@@ -34769,9 +35001,9 @@ var ForgeServer = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/storage/keys", async function(request, response, next) {
-      const taskName = request.params.task;
-      const actionName = request.params.action;
+    this._app.all("/:task/:action/storage/keys", async function(request2, response, next) {
+      const taskName = request2.params.task;
+      const actionName = request2.params.action;
       try {
         const partitionName = `${taskName}/${actionName}`;
         const keys = await this.$keys(partitionName);
@@ -34782,13 +35014,13 @@ var ForgeServer = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/*", async function(request, response, next) {
-      const route = request.params[0];
-      const taskName = request.params.task;
-      const actionName = request.params.action;
-      const file = request.params[0] || "index.html";
+    this._app.all("/:task/:action/*", async function(request2, response, next) {
+      const route = request2.params[0];
+      const taskName = request2.params.task;
+      const actionName = request2.params.action;
+      const file = request2.params[0] || "index.html";
       const fileName = path.resolve(taskName, file);
-      const query = request.query;
+      const query = request2.query;
       const tasks = this._forge.tasks();
       const forgeTask = tasks.get(taskName);
       if (forgeTask === void 0) {
@@ -34801,6 +35033,9 @@ var ForgeServer = class {
       const iAction = forgeTask.actions().get(actionName);
       console.parse("<green>actions</green>\n\n", forgeTask.actions().keys());
       if (iAction === void 0) {
+        console.parse(`<red>NO Actions ${actionName}</red>
+
+`);
         response.sendStatus(404);
         next();
         return;
@@ -34808,10 +35043,10 @@ var ForgeServer = class {
       const { mime, buffer } = await iAction.$route(route, query);
       response.setHeader("Content-Type", mime).end(buffer);
     }.bind(this));
-    this._app.all("*", async function(request, response, next) {
-      let file = request.params[0] == "/" ? "index.html" : "." + request.params[0];
+    this._app.all("*", async function(request2, response, next) {
+      let file = request2.params[0] == "/" ? "index.html" : "." + request2.params[0];
       const route = path.resolve(this._base, file);
-      console.log("params", request.params);
+      console.log("params", request2.params);
       console.log("base", this._base);
       console.log("all routes", route);
       console.log("");
@@ -34822,14 +35057,6 @@ var ForgeServer = class {
       });
     }.bind(this));
     $fs3.readFile("./backup.json").then(function(buffer) {
-      const loadedData = JSON.parse(String(buffer));
-      for (const [partitionName, partitionData] of Object.entries(loadedData)) {
-        const partition = /* @__PURE__ */ new Map();
-        for (const [key, { mime, buffer: buffer2 }] of Object.entries(partitionData)) {
-          partition.set(key, { mime, buffer: Buffer.from(buffer2, "base64") });
-        }
-        this._database.set(partitionName, partition);
-      }
     }.bind(this)).catch(function(error) {
       console.error(error);
     }).finally(function() {
@@ -34837,14 +35064,14 @@ var ForgeServer = class {
       this._app.listen(port);
     }.bind(this));
   }
-  async _$parseRequestBody(request) {
+  async _$parseRequestBody(request2) {
     return new Promise(function(resolve, reject) {
-      const buffers = [];
-      request.on("data", (chunk) => {
-        buffers.push(chunk);
+      const buffers2 = [];
+      request2.on("data", (chunk) => {
+        buffers2.push(chunk);
       }).on("end", () => {
-        const mime = request.get("Content-Type");
-        const buffer = Buffer.concat(buffers);
+        const mime = request2.get("Content-Type");
+        const buffer = Buffer.concat(buffers2);
         resolve({ mime, buffer });
       });
     });
@@ -34885,14 +35112,20 @@ var ForgeServer = class {
     return partition.get(key);
   }
   add(overload) {
-    switch (overload.constructor) {
-      case ActionRoute:
-      case RedirectRoute:
-      case DelegateRoute:
-        this._routeSet.add(overload);
-        break;
+    if (overload instanceof AbstractRoute) {
+      const iForgeServerRoute = overload;
+      this._routeSet.add(iForgeServerRoute);
+    } else if (overload instanceof ForgeStorage) {
+      const forgeStorage = overload;
+      this._iForgeStorage = forgeStorage;
+      this._iForgeStorage.connect(this);
+    } else {
+      throw new Error(`Unknown parameter added ${overload && overload.constructor}`);
     }
     return this;
+  }
+  use(delegate) {
+    this._app.use(delegate);
   }
 };
 
@@ -34945,7 +35178,7 @@ var Forge = class {
       config = config.replace(new RegExp(`{${access}}`, "g"), String(value));
     }
     const configObj = JSON.parse(config);
-    for (const taskObj of configObj.forge) {
+    for (const taskObj of configObj.tasks) {
       const forgeTask = new ForgeTask(taskObj);
       this.add(forgeTask);
     }
@@ -35008,7 +35241,7 @@ if (require.main === module && !module.parent) {
     compositeArguments.add("PORT", {
       required: true,
       default: 1234,
-      validator: function(value) {
+      validator: function(value, args) {
         return parseInt(value);
       }
     }).add("PORT", {
@@ -35017,7 +35250,8 @@ if (require.main === module && !module.parent) {
     const PORT = compositeArguments.get("PORT");
     const WWW_ROOT = compositeArguments.get("WWW_ROOT");
     const forge = new Forge();
-    forge.$serve(PORT, WWW_ROOT);
+    forge.parse(await $fs5.readFile(".forge", "utf-8"));
+    const forgeServer = await forge.$serve(PORT, WWW_ROOT);
   })();
 } else {
   console.log("required as a module");

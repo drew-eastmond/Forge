@@ -258,6 +258,8 @@ export class ForgeServer {
 
             if (iAction === undefined) {
 
+                console.parse(`<red>NO Actions ${actionName}</red>\n\n`);
+
                 response.sendStatus(404);
                 next();
 
@@ -304,20 +306,6 @@ export class ForgeServer {
         $fs.readFile("./backup.json")
             .then(function (buffer: Buffer) {
 
-                const loadedData = JSON.parse(String(buffer));
-                for (const [partitionName, partitionData] of Object.entries(loadedData)) {
-
-                    const partition: Map<string, StoreEntry> = new Map();
-
-                    for (const [key, { mime, buffer }] of Object.entries(partitionData)) {
-
-                        partition.set(key, { mime, buffer: Buffer.from(buffer, "base64") });
-
-                    }
-
-                    this._database.set(partitionName, partition);
-
-                }
 
             }.bind(this))
             .catch(function (error: unknown) {

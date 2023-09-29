@@ -80,7 +80,7 @@ export class Forge {
 
     }
 
-    private parse(config: string): void {
+    public parse(config: string): void {
 
         const variables = JSON.parse(config).variables;
 
@@ -99,7 +99,7 @@ export class Forge {
         * 2. Reparse the new config string and add all the supplied forege task
         */ 
         const configObj = JSON.parse(config);
-        for (const taskObj of configObj.forge) {
+        for (const taskObj of configObj.tasks) {
 
             const forgeTask: ForgeTask = new ForgeTask(taskObj);
             this.add(forgeTask);

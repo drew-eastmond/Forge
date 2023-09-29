@@ -13,11 +13,11 @@ const $fs = require("node:fs/promises");
 * imports
 *
 */
-import * as esbuild from "esbuild";
+import { build as esBuild, Platform, Format } from "esbuild";
 import { CLIArguments } from "./args/Argument";
 import { $UsePromise } from "./core/Core";
-import { DependencyHelper } from "./core/DependencyHElper";
-
+import { DependencyHelper } from "./DependencyHelper";
+import { DebugFormatter } from "./core/Debug";
 
 /*
 *
@@ -35,7 +35,6 @@ const REQUEST_TIMEOUT: number = 125;
 */
 const startTime: number = Date.now();
 
-
 /*
 *
 *  types / enums
@@ -47,6 +46,8 @@ type EsbuildResult = {
         inputs: unknown
     }
 }
+
+DebugFormatter.Init("node");
 
 /*
 *
@@ -61,15 +62,18 @@ function SanitizeFileUrl(...rest: string[]) {
 
 }
 
-async function $SaveMetaFile(fileManifest: string[], writeMeta: boolean) {
+async function $SaveMetaFile(entryFile: string, outFile: string, fileManifest: string[], writeMeta: boolean) {
 
     if (writeMeta === true) {
 
-        fs.writeFileSync(outFilePath.dir + "/" + outFilePath.name + ".meta", JSON.stringify(result.metafile));
+        const outFilePath = path.parse(outFile);
+        await $fs.writeFile(outFilePath.dir + "/" + outFilePath.name + ".meta", JSON.stringify(fileManifest));
 
     }
 
-    await fetch(`${API_BASE}/storage/save/${entryFile}/metadata`, {
+    const entryName: string = path.parse(entryFile).base;
+    const fetchURL: string = `${API_BASE}/storage/save/${entryName}/metadata`;
+    await fetch(fetchURL, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -84,10 +88,9 @@ async function $SaveMetaFile(fileManifest: string[], writeMeta: boolean) {
         })
         .catch(function (error: unknown) {
 
-            console.log(error);
+            console.parse(`<red>${error.message}</red> from <cyan>${fetchURL}<cyan>`);
 
         });
-
 
 }
 
@@ -173,103 +176,153 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 }
 
 
+(async function () {
+    /*
+    *
+    * 1. Parse the parameters from the CLI (command line)
+    *
+    */
+    const cliArguments = new CLIArguments();
+    cliArguments
+        .add("in", {
+            "required": true,
+            "validator": (args: Record<string, unknown>) => {
 
-/*
-*
-* 1. Parse the parameters from the CLI (command line)
-*
-*/
-const cliArguments = new CLIArguments();
-cliArguments
-    .add("in", {
-        "required": true,
-        "validator": (args) => { return Object.hasOwn(args, "in") },
-        "error": `\u001b[31;1mMissing or incorrect \u001b[36;1m--in--\u001b[0m\u001b[31;1m argument\u001b[0m`
-    })
-    .add("out", {
-        "required": true,
-        "validator": (args) => { return Object.hasOwn(args, "out") },
-        "error": `\u001b[31;1mMissing or incorrect \u001b[36;1m--out--\u001b[0m\u001b[31;1m argument\u001b[0m`
-    }).
-    add("format", {
-        "default": "cjs"
-    })
-    .add("bundled", {
-        "default": false
-    })
-    .add("platform", {
-        "default": "neutral"
-    })
-    .add("override", {
-        "default": false,
-        "validator": (args) => {
-            if (args.override) return true;
+                return Object.hasOwn(args, "in");
 
-            if (fs.existsSync(args.out) === false) return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
+            },
+            "error": `\u001b[31;1mMissing or incorrect \u001b[36;1m--in--\u001b[0m\u001b[31;1m argument\u001b[0m`
+        })
+        .add("out", {
+            "required": true,
+            "validator": (args: Record<string, unknown>) => {
 
-            return true;
+                return Object.hasOwn(args, "out");
 
-        },
-    })
-    .add("write_meta", {
-        "default": false
-    })
-    .add("watch", {
-        default: false
-    })
-    .compile();
+            },
+            "error": `\u001b[31;1mMissing or incorrect \u001b[36;1m--out--\u001b[0m\u001b[31;1m argument\u001b[0m`
+        }).
+        add("format", {
+            "default": "cjs"
+        })
+        .add("bundled", {
+            "default": false
+        })
+        .add("platform", {
+            "default": "neutral",
+            "validator": (value: unknown, args: Record<string, unknown>) => {
 
+                switch (args as unknown as string) {
+                    case "node":
+                    case "neutral":
+                    case "browser":
+                        return true;
 
-/*
-*
-* 2. extract the relevant CLI values (command line)
-*
-*/
-const entryFile: string = cliArguments.get("in") as string; // entry file location
-const outFile: string = cliArguments.get("out") as string; // build location
-const override: boolean = cliArguments.get("override") as boolean; // prevent overwriting build location in case of accident
-const format: string = cliArguments.get("format") as string; // esbuild format ( "cjs" | "esm" | "iife" )
-const bundled: boolean = cliArguments.get("bundled") as boolean; // bundle into one build file or leave as imports, basically do nothing
-const platform: string = cliArguments.get("platform") as string; // esbuild format ( "node" | "neutral" | "broswer" )
-const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
-const watch: boolean = cliArguments.get("watch") as boolean; 
+                }
 
-// parse the folder and filename from the --out-- CLI arguments
-const outFilePath = path.parse(outFile);
+                return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
 
+            }
+        })
+        .add("override", {
+            "default": false,
+            "validator": (args: Record<string, unknown>) => {
 
-/*
-*
-* 3. build this bad boy
-*
-*/
-const result: EsbuildResult = await esbuild.build({
-    entryPoints: [entryFile],
-    bundle: bundled,
-    platform: platform,
-    write: false, // dont produce a build file, but give me the build in as a result
-    format: format,
-    metafile: true,
-    loader: { '.ts': 'tsx', '.js': 'jsx' },
-    outdir: outFilePath.dir,
-    // plugins: [yourPlugin]
-});
+                if (args.override) return true;
 
-const fileManifest: string[] = Object.keys(result.metafile.inputs);
+                if (fs.existsSync(args.out) === false) return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
 
-let code: string;
-for (const out of result.outputFiles) {
+                return true;
 
-    code = out.text;
-    break;
+            }
+        })
+        .add("write_meta", {
+            "default": false
+        })
+        .add("watch", {
+            "default": false
+        })
+        .add("plugins", {
+            "default": [],
+            "validator": (args: Record<string, unknown>) => {
 
-}
+                if (args.plugins === undefined) return [];
 
 
-await $SaveMetaFile(fileManifest, writeMeta);
 
-code = await $SortDependencies(code, entryFile, fileManifest.filter(function (value) {
+                // if (fs.existsSync(args.out) === false) return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
 
-    return /node_modules/.test(value) === false;
+                return true;
 
-}));
+            },
+        })
+        .add("external", {
+            "default" : []
+        })
+        .compile();
+
+
+    /*
+    *
+    * 2. extract the relevant CLI values (command line)
+    *
+    */
+    const entryFile: string = cliArguments.get("in") as string; // entry file location
+    const outFile: string = cliArguments.get("out") as string; // build location
+    const override: boolean = cliArguments.get("override") as boolean; // prevent overwriting build location in case of accident
+    const format: Format = cliArguments.get("format") as Format; // esbuild format ( "cjs" | "esm" | "iife" )
+    const bundled: boolean = cliArguments.get("bundled") as boolean; // bundle into one build file or leave as imports, basically do nothing
+    const platform: Platform = cliArguments.get("platform") as Platform; // esbuild format ( "node" | "neutral" | "broswer" )
+    const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
+    const watch: boolean = cliArguments.get("watch") as boolean;
+    const externals: string[] = cliArguments.get("external") as string[];
+
+    // parse the folder and filename from the --out-- CLI arguments
+    const outFilePath = path.parse(outFile);
+
+
+    /*
+    *
+    * ! 3. build this bad boy! THe Star of the show
+    *
+    */
+    const result: EsbuildResult = await esBuild({
+        entryPoints: [entryFile],
+        bundle: bundled,
+        platform: platform,
+        write: false, // dont produce a build file, but give me the build in as a result
+        format: format,
+        metafile: true,
+        loader: { '.ts': 'tsx', '.js': 'jsx' },
+        outdir: outFilePath.dir,
+        // plugins: [yourPlugin]
+        external: ["esbuild"]
+    });
+
+    const fileManifest: string[] = Object.keys(result.metafile.inputs);
+
+    let code: string;
+    for (const out of result.outputFiles) {
+
+        code = out.text;
+        break;
+
+    }
+
+    await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta || true)
+
+    code = await $SortDependencies(code, entryFile, fileManifest.filter(function (value) {
+
+        return /node_modules/.test(value) === false;
+
+    }));
+
+    await $fs.writeFile(outFile, code);
+
+    console.parse(`<green>Build Successful (${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
+\t* ${(bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${bundled}\n
+\t* <cyan>format</cyan> : ${format}\n
+\t* <cyan>platform</cyan> : ${platform}
+`);
+
+}());

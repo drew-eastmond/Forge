@@ -22,6 +22,8 @@ export enum ActionRouter {
 
 export interface IServiceAdapter extends ISubscription {
 
+    race: number;
+
     read(message): void;
     write(...data: Serialize[]): void;
 
@@ -35,15 +37,15 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     protected _key: string = QuickHash();
 
-    protected _race: number;
-
     protected readonly _sessions: Map<string, $Promise<unknown>> = new Map();
+
+    public race: number;
 
     constructor(config: { race: number }) {
 
         super();
 
-        this._race = config.race;
+        this.race = config.race;
 
     }
 
@@ -106,7 +108,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     public $reset(data: Serialize): Promise<Serialize> {
 
-        return this.$signal("reset", data, this._race);
+        return this.$signal("reset", data, this.race);
 
     }
 

@@ -4,7 +4,7 @@ type ValidationEntry = {
     default?: unknown,
     required?: boolean,
     error?: string,
-    validator?: (value: unknown) => unknown;
+    validator?: (value: unknown, args: Record<string, unknown>) => unknown;
 }
 
 export interface IArguments {
@@ -42,7 +42,7 @@ class AbstractArguments implements IArguments {
 
         } else if (validation.validator) {
 
-            const result: unknown = validation.validator(this._args);
+            const result: unknown = validation.validator(value, this._args);
             if (result && result instanceof Error) {
                 
                 const errorMessage: string = validation.error || `\u001b[31; 1mValidation Failed for \u001b[36; 1m--${key}--\u001b[0m\u001b[31; 1m argument\u001b[0m)`

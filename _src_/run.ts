@@ -22,7 +22,7 @@ if (require.main === module && !module.parent) {
 			.add("PORT", {
 				required: true,
 				default: 1234,
-				validator: function(value: unknown): unknown {
+				validator: function (value: unknown, args: Record<string, unknown>): unknown {
 					
 					return parseInt(value as string);
 					
@@ -44,6 +44,9 @@ if (require.main === module && !module.parent) {
 		* 3. intiatiate a `Forge` instance
 		*/
 		const forge: Forge = new Forge();
+		forge
+			.parse(await $fs.readFile(".forge", "utf-8"));
+
 		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
 
 	}());

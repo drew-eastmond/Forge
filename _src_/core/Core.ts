@@ -6,6 +6,8 @@ export type TimeoutClear = ReturnType<typeof setTimeout>;
 
 export type Serialize = Object | string | ArrayBufferLike | Blob | ArrayBufferView | unknown[] | Buffer | null;
 
+let __HashCount: number = 0;
+
 function __CatchException(error: unknown): unknown {
 
 	return error;
