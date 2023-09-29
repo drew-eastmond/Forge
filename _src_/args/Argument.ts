@@ -5,6 +5,7 @@ type ValidationEntry = {
     required?: boolean,
     error?: string,
     validator?: (value: unknown, args: Record<string, unknown>) => unknown;
+    sanitize?: (value: unknown, args: Record<string, unknown>) => unknown;
 }
 
 export interface IArguments {
@@ -28,7 +29,17 @@ class AbstractArguments implements IArguments {
     constructor() {
 
     }
-    
+
+    /**
+     * 
+     * Does studd
+     * 
+     * @param key {string}
+     * @param value {unknown}
+     * @param validation {ValidationEntry}
+     * @returns {unknown}
+     */
+
     protected _validateEntry(key: string, value: unknown, validation: ValidationEntry): unknown {
 
         // assign all default values
@@ -55,6 +66,12 @@ class AbstractArguments implements IArguments {
         }
 
         return value;
+
+    }
+
+    protected _sanitizeEntry(key: string, value: unknown, validation: ValidationEntry): unknown {
+
+        this._validateEntry()
 
     }
 
