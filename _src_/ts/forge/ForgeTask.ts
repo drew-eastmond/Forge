@@ -202,32 +202,34 @@ export class ForgeTask {
         * 
         */
 
-        const actions: Record<string, { name: string, race?: number, spawn?: string, fork?: string, worker?: string }> = this._data.actions;
-        if (actions) {
+        const actionConfigs: { name: string, implement: string, race?: number, spawn?: string, fork?: string, worker?: string }[] = this._data.actions;
+        if (actionConfigs) {
 
-            for (const [key, actionConfig] of Object.entries(actions)) {
+            for (const actionConfig of actionConfigs) {
 
                 let iAction: IAction;
                 if ("spawn" in actionConfig) {
 
-                    const name: string = actionConfig.spawn;
+                    const implement: string = actionConfig.implement;
+                    const serviceName: string = actionConfig.spawn;
                     
-
                     // todo Replace these queries with `Enforce`
                     // Validate the data first
                     const errors: string[] = [];
-                    if (actionConfig.spawn === undefined) errors.push(`Invalid name provided for SpawnAction : "${this.name}" for Task : "${this.name}""`);
-                    if (this._spawnServices.has(name) === false) errors.push(`No Spawn Service has been registered for "${name}"`);
+                    // if (actionConfig.spawn === undefined) errors.push(`Invalid name provided for SpawnAction : "${this.name}" for Task : "${this.name}""`);
 
+                    if (implement === undefined) errors.push(`Action "implement" is undefined for ${serviceName}"`);
+                    if (this._spawnServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for "${serviceName}"`);
+                    
                     // ! Note: race needs to be sanitized
                     if (errors.length) throw new Error("\n\n" + errors.join("\n") + "\n");
 
                     // Each action wrap the process.                    
-                    const spawnService: IServiceAdapter = this._spawnServices.get(name);
+                    const spawnService: IServiceAdapter = this._spawnServices.get(serviceName);
 
                     // get the race from the current or inherit from `actionConfig`
                     const race: number = actionConfig.race || spawnService.race;
-                    iAction = new SpawnAction(spawnService, name, { ...actionConfig, race: race });
+                    iAction = new SpawnAction(spawnService, implement, { ...actionConfig, race: race });
 
                 } else if ("fork" in actionConfig) {
 

@@ -33740,7 +33740,7 @@ var require_commonjs = __commonJS({
   }
 });
 
-// forge/_src_/core/Core.ts
+// forge/_src_/ts/core/Core.ts
 var __HashCount = 0;
 function EncodeBase64(json) {
   const jsonStringify = JSON.stringify(json);
@@ -33800,23 +33800,47 @@ function $UseRace(delay, capture) {
   return [promise, resolveCallback, rejectCallback];
 }
 
-// forge/_src_/args/Argument.ts
+// forge/_src_/ts/core/Argument.ts
 var AbstractArguments = class {
   _args = {};
   _validationMap = /* @__PURE__ */ new Map();
   _errors = [];
   constructor() {
   }
-  _validateEntry(key, value, validation) {
+  /**
+   * This function will 
+   *      1. Inject a default if no value is provided
+   *      2. Test if it is a required parameter, or add to internal errors 
+   *      3. Sanitize the value via the `validation.validator` delegate
+   * 
+   * @param key {string} The key extracted from parsing
+   * @param value {unknown} The value extracted from parsing
+   * @param validation {ValidationEntry} Provides info for default, is required, and a validator to sanitize the 
+   * @returns {unknown} If the `validation` param has a delegate then it will sanitize value.
+   */
+  _validate(key, value, validation) {
     if (validation.default !== void 0)
       value = value === void 0 ? validation.default : value;
     if (validation.required && value === void 0) {
-      const errorMessage = validation.error || `\x1B[31; 1mMissing or incorrect \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
+      const errorMessage = validation.error || `\x1B[31; 1mRequired value for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
       this._errors.push(errorMessage);
-    } else if (validation.validator) {
-      const result = validation.validator(value, this._args);
-      if (result && result instanceof Error) {
+    }
+    if (validation.validate) {
+      const result = validation.validate(value, this._args);
+      if (result === false || result === void 0) {
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
+        this._errors.push(errorMessage);
+      } else if (result instanceof Error) {
+        const error = result;
+        const errorMessage = error.message;
+        this._errors.push(errorMessage);
+      }
+    }
+    if (validation.sanitize) {
+      const result = validation.sanitize(value, this._args);
+      if (result && result instanceof Error) {
+        const error = result;
+        const errorMessage = error.message || `\x1B[31; 1mSanitation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       }
       return result;
@@ -33826,23 +33850,35 @@ var AbstractArguments = class {
   get(key) {
     return key === void 0 ? this._args : this._args[key];
   }
-  add(key, config) {
+  /**
+   * Assigns a validation check to specific arguments via the key provided
+   * 
+   * @param key 
+   * @param validationEntry {ValidationEntry}
+   * @returns {this} return this so you can daisy chain calls
+   */
+  add(key, validationEntry) {
     this._validationMap.set(key, {
-      default: config.default,
-      validator: config.validator,
-      required: config.required || false,
-      error: config.error
+      default: validationEntry.default,
+      sanitize: validationEntry.sanitize,
+      required: validationEntry.required || false,
+      error: validationEntry.error
     });
     return this;
   }
+  /**
+   * Subclasses are responsible for assigning a data source (CLI, .Env, Remote/Server) into a arguments {Record<string, unknown>}
+   *      1. After using `add` member to set all the validation entries. 
+   *      2. `compile` will validate/sanitize each entry. If there any errors then join all errors messages into a single Error and throw it!
+   */
   compile() {
     for (const [key, validation] of this._validationMap) {
       const value = this._args[key];
-      this._validateEntry(key, value, validation);
+      this._args[key] = this._validate(key, value, validation);
     }
     if (this._errors.length) {
       console.log(this._errors);
-      throw "Errors";
+      throw new Error(this._errors.join("\n"));
     }
   }
 };
@@ -33875,12 +33911,25 @@ var EnvArguments = class extends AbstractArguments {
   get(key) {
     return key === void 0 ? { ...this._args, ...process.env } : this._args[key] || process.env[key];
   }
-  compile() {
-    for (const [key, validation] of this._validationMap) {
-      const value = this.get(key);
-      this._args[key] = validation.validator(value);
-    }
-  }
+  /* public compile(): void {
+  
+          /*
+          * 1. We only have to parse entries in the `this._validationMap` 
+          * /
+          for (const [key, validation] of this._validationMap) {
+           
+              const value: unknown = this.get(key);
+              this._args[key] = validation.sanitize(value);
+  
+          }
+  
+      } */
+  // todo change to rexexp 
+  /**
+   * Simple split alorithm to populate the arguemnt store
+   * @param contents {string} Content pulled from a .env or similiar formatted content; or you know... DIY if your a smart ass!
+   * @returns {this} Daisy chain this bad boi!
+   */
   parse(contents) {
     for (const line of contents.split(/\n/)) {
       const [key, value] = line.split("=");
@@ -33904,13 +33953,19 @@ var CompositeArguments = class extends AbstractArguments {
     }
     super.compile();
   }
+  /**
+   * Invokes the `EnvArgument.parse ( ... )` 
+   * 
+   * @param contents 
+   * @returns {this}
+   */
   parse(contents) {
     this._envArguments.parse(contents);
     return this;
   }
 };
 
-// forge/_src_/core/Debug.ts
+// forge/_src_/ts/core/Debug.ts
 var ColourFormatting = class {
   _debugFormatter;
   stack;
@@ -34070,7 +34125,7 @@ var DebugFormatter = class _DebugFormatter {
   }
 };
 
-// forge/_src_/io/ForgeIO.ts
+// forge/_src_/ts/io/ForgeIO.ts
 var $fs = require("node:fs/promises");
 var ForgeIO = class {
   static async $DirectoryExists(path3) {
@@ -34087,7 +34142,7 @@ var ForgeIO = class {
   }
 };
 
-// forge/_src_/forge/ForgeStream.ts
+// forge/_src_/ts/forge/ForgeStream.ts
 var ForgeStream = class {
   _tasks = /* @__PURE__ */ new Map();
   _iActions = /* @__PURE__ */ new Map();
@@ -34196,7 +34251,7 @@ var ForgeStream = class {
   }
 };
 
-// forge/_src_/core/PoolManager.ts
+// forge/_src_/ts/core/PoolManager.ts
 var PoolManager = class _PoolManager {
   static __ClassMap = /* @__PURE__ */ new Map();
   // @-ts-expect-errors
@@ -34255,52 +34310,76 @@ var PoolManager = class _PoolManager {
   }
 };
 
-// forge/_src_/core/Subscription.ts
+// forge/_src_/ts/core/Subscription.ts
+var Unsubscribe = new class {
+}();
 var Subscription = class {
   _subscriberMap = /* @__PURE__ */ new Map();
+  _countMap = /* @__PURE__ */ new Map();
+  _unsubscribeSet = /* @__PURE__ */ new Set();
   init() {
     this._subscriberMap.clear();
   }
+  /**
+   * Allows the intsance to be return to a pool.
+   * 
+   * @param rest {...unknown[]} I used the ...rest parameter for inheritance
+   * @implements {IPoolable}
+   */
   reclaim() {
     this._subscriberMap.clear();
     PoolManager.Reclaim(this);
   }
+  /**
+   * Checks the subscriber store for the 
+   * `hasSubscription` is mindful of subclasses that use `has` member
+   * 
+   * @param value {Notification} Value to cast to string and compare.
+   * @returns {boolean}
+   */
   hasSubscription(value) {
     for (const [callback, notify] of this._subscriberMap) {
-      if (notify == value) {
+      if (String(notify) == String(value)) {
         return true;
       }
     }
     return false;
   }
-  subscribe(notify, callback, once) {
-    if (once === true) {
-      const onceCallback = callback;
-      callback = function(...rest) {
-        this._subscriberMap.delete(onceCallback);
-        return onceCallback(...rest);
-      }.bind(this);
-    }
-    this._subscriberMap.set(callback, notify);
+  /**
+   * 
+   * 
+   * @param notify {Notification} A key used to invoke the supplied delegate.
+   * @param delegate {Function} The delegate called
+   * @param once {boolean} Deletes the notication entry once it been dispatched
+   */
+  subscribe(notify, delegate, count) {
+    if (count !== void 0)
+      this._countMap.set(delegate, count);
+    this._subscriberMap.set(delegate, notify);
   }
-  unsubscribe(callback) {
-    this._subscriberMap.delete(callback);
+  unsubscribe(delegate) {
+    this._subscriberMap.delete(delegate);
   }
   notify(notify, ...rest) {
-    const callbacks = Array.from(this._subscriberMap);
-    for (const [callback, query] of callbacks) {
+    for (const [delegate, query] of this._subscriberMap) {
       if (query instanceof RegExp && notify.constructor == String) {
         if (query.test(notify)) {
-          const result = callback(notify, ...rest);
-          if (result === this.unsubscribe)
-            this.unsubscribe(callback);
+          const result = delegate(notify, ...rest);
+          if (result === Unsubscribe) {
+            this._unsubscribeSet.add(delegate);
+          } else if (this._onceMap.has(delegate)) {
+          }
         }
       } else if (query === notify) {
-        const result = callback(notify, ...rest);
-        if (result === this.unsubscribe)
-          this.unsubscribe(callback);
+        const result = delegate(notify, ...rest);
+        if (result === Unsubscribe || this._onceMap.has(delegate))
+          this._unsubscribeSet.add(delegate);
       }
     }
+    for (const delegate of this._unsubscribeSet) {
+      this._subscriberMap.delete(delegate);
+    }
+    this._unsubscribeSet.clear();
   }
   async $notify(notify, ...rest) {
     for (const [callback, query] of this._subscriberMap) {
@@ -34338,7 +34417,7 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/forge/action/AbstractAction.ts
+// forge/_src_/ts/forge/action/AbstractAction.ts
 var $fs2 = require("fs").promises;
 var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
@@ -34400,6 +34479,7 @@ var AbstractAction = class extends Subscription {
   _iProcessAdapter;
   _data;
   _implement;
+  _watch;
   _async;
   _enabled;
   _stdio;
@@ -34420,6 +34500,17 @@ var AbstractAction = class extends Subscription {
     this._iProcessAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
     this._implement = implement;
     this._data = data;
+    if (data.watch) {
+      const watch = String(data.watch);
+      let globStr = watch;
+      if (/\*\*[\/\\]\*.*$/.test(watch)) {
+        globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\/\\\\].+?)$");
+      } else if (/[\/\\]\*/.test(watch)) {
+        globStr = globStr.replace(/\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
+      }
+      console.parse(`<blue>${globStr}</blue>`);
+      this._watch = new RegExp(globStr);
+    }
     this.name = this._resolveData("name", QuickHash());
     this._async = this._resolveData("async", false);
     this._enabled = this._resolveData("enabled", true);
@@ -34475,6 +34566,11 @@ var AbstractAction = class extends Subscription {
     return this._implement;
   }
   $signal(signal, data, race) {
+    if (signal == "watch") {
+      console.log(this._watch, this._watch.test(String(data)), data);
+      if (this._watch && this._watch.test(String(data)) === false)
+        throw new Error(`"watch"" Signal Ignored`);
+    }
     return this._iProcessAdapter.$signal(signal, data, race);
   }
   async $reset(data) {
@@ -34541,7 +34637,7 @@ var AbstractAction = class extends Subscription {
   }
 };
 
-// forge/_src_/forge/action/SpawnAction.ts
+// forge/_src_/ts/forge/action/SpawnAction.ts
 var { spawn, fork: fork2, exec, execSync } = require("child_process");
 var SpawnService = class extends AbstractServiceAdapter {
   _child;
@@ -34615,7 +34711,7 @@ var SpawnAction = class extends AbstractAction {
   }
 };
 
-// forge/_src_/forge/ForgeTask.ts
+// forge/_src_/ts/forge/ForgeTask.ts
 var ForgeTask = class {
   _iActions = /* @__PURE__ */ new Map();
   _enabled;
@@ -34696,22 +34792,23 @@ var ForgeTask = class {
         const spawnService = this.spawn(key, spawnConfig);
       }
     }
-    const actions = this._data.actions;
-    if (actions) {
-      for (const [key, actionConfig] of Object.entries(actions)) {
+    const actionConfigs = this._data.actions;
+    if (actionConfigs) {
+      for (const actionConfig of actionConfigs) {
         let iAction;
         if ("spawn" in actionConfig) {
-          const name = actionConfig.spawn;
+          const implement = actionConfig.implement;
+          const serviceName = actionConfig.spawn;
           const errors = [];
-          if (actionConfig.spawn === void 0)
-            errors.push(`Invalid name provided for SpawnAction : "${this.name}" for Task : "${this.name}""`);
-          if (this._spawnServices.has(name) === false)
-            errors.push(`No Spawn Service has been registered for "${name}"`);
+          if (implement === void 0)
+            errors.push(`Action "implement" is undefined for ${serviceName}"`);
+          if (this._spawnServices.has(serviceName) === false)
+            errors.push(`No Spawn Service has been registered for "${serviceName}"`);
           if (errors.length)
             throw new Error("\n\n" + errors.join("\n") + "\n");
-          const spawnService = this._spawnServices.get(name);
+          const spawnService = this._spawnServices.get(serviceName);
           const race = actionConfig.race || spawnService.race;
-          iAction = new SpawnAction(spawnService, name, { ...actionConfig, race });
+          iAction = new SpawnAction(spawnService, implement, { ...actionConfig, race });
         } else if ("fork" in actionConfig) {
         } else if ("worker" in actionConfig) {
         }
@@ -34721,7 +34818,48 @@ var ForgeTask = class {
   }
 };
 
-// forge/_src_/core/collection/Tree.ts
+// forge/_src_/ts/core/timing/Debounce.ts
+var Debouncer = class {
+  _callbackMap = /* @__PURE__ */ new Map();
+  constructor() {
+  }
+  _onTimeout = function() {
+    const now = Date.now();
+    const callbacks = [];
+    for (const [callback, debounceEntry] of this._callbackMap) {
+      const expiry = debounceEntry.previous + debounceEntry.delay;
+      if (expiry < now) {
+        clearTimeout(debounceEntry.timeout);
+        callback(...debounceEntry.parameters);
+        callbacks.push(callback);
+      }
+    }
+    for (const callback of callbacks) {
+      this._callbackMap.delete(callback);
+    }
+  }.bind(this);
+  debounce(callback, parameters, delay) {
+    if (this._callbackMap.has(callback)) {
+      const now = Date.now();
+      const debounceEntry = this._callbackMap.get(callback);
+      if (now < debounceEntry.previous + debounceEntry.delay) {
+        clearTimeout(debounceEntry.timeout);
+      }
+      debounceEntry.timeout = setTimeout();
+    } else {
+      const timeout = setTimeout(this._onTimeout);
+      this._callbackMap.set(callback, { previous: Date.now(), parameters, delay, timeout });
+    }
+  }
+  reset() {
+    for (const [callback, debounceEntry] of this._callbackMap) {
+      clearTimeout(debounceEntry.timeout);
+    }
+    this._callbackMap.clear();
+  }
+};
+
+// forge/_src_/ts/core/collection/Tree.ts
 var Tree = class {
   _instanceSet = /* @__PURE__ */ new Set();
   _parentMap = /* @__PURE__ */ new Map();
@@ -34742,13 +34880,8 @@ var Tree = class {
     }
     return traversal;
   }
-  add(instance, parent) {
-    parent = parent || this;
+  add(instance) {
     this._instanceSet.add(instance);
-    if (this._childMap.has(instance) === false) {
-      this._childMap.set(instance, /* @__PURE__ */ new Set());
-    }
-    this._parentMap.set(instance, parent);
     return this;
   }
   remove(instance) {
@@ -34806,21 +34939,21 @@ var Tree = class {
     return this._instanceSet.has(instance);
   }
   clear() {
+    const instances = Array.from(this._instanceSet);
     this._instanceSet.clear();
     this._childMap.clear();
     this._parentMap.clear();
+    return instances;
   }
 };
 
-// forge/_src_/forge/storage/ForgeStorage.ts
+// forge/_src_/ts/forge/storage/ForgeStorage.ts
 var ForgeStore = class {
   _id;
   _iForgeStorage;
   _buffer;
   _attributes;
-  constructor(iForgeStorage, buffer, attributes) {
-    this._iForgeStorage = iForgeStorage;
-    this._id = iForgeStorage.next();
+  constructor(buffer, attributes) {
     this._buffer = buffer;
     this._attributes = attributes;
   }
@@ -34831,6 +34964,11 @@ var ForgeStore = class {
   }
   attributes() {
     return this._attributes;
+  }
+  iForgeStorage(iForgeStorage) {
+    this._iForgeStorage = iForgeStorage;
+    this._id = iForgeStorage.next(this);
+    return this;
   }
   async $fork(buffer, attributes) {
     return this._iForgeStorage.$fork(this, buffer, attributes);
@@ -34901,7 +35039,7 @@ var ForgeStorage = class {
   }
 };
 
-// forge/_src_/forge/server/Route.ts
+// forge/_src_/ts/forge/server/Route.ts
 var AbstractRoute = class {
   _route;
   _method = RequestMethod.All;
@@ -34944,7 +35082,7 @@ var AbstractRoute = class {
   }
 };
 
-// forge/_src_/forge/server/ForgeServer.ts
+// forge/_src_/ts/forge/server/ForgeServer.ts
 var express = require_express2();
 var url2 = require("url");
 var path = require("path");
@@ -34954,7 +35092,7 @@ var ForgeServer = class {
   _forge;
   _app;
   _base;
-  _saveTimeout;
+  _debouncer = new Debouncer();
   _routeSet = /* @__PURE__ */ new Set();
   // temporary for now. Connect to `ether` or `ForgeStorage`
   _database = /* @__PURE__ */ new Map();
@@ -34966,6 +35104,17 @@ var ForgeServer = class {
     this._base = path.resolve(base);
     this._$setupServer(port);
   }
+  _saveBackup = function(...rest) {
+    const saveObj = {};
+    for (const [partitionName, partition] of this._database) {
+      saveObj[partitionName] = {};
+      for (const [key, { mime, buffer }] of partition) {
+        saveObj[partitionName][key] = { mime, buffer: buffer.toString("base64") };
+      }
+    }
+    $fs3.writeFile("./backup.json", JSON.stringify(saveObj));
+    console.parse("<red>saved</red>");
+  }.bind(this);
   async _$setupServer(port) {
     this._app = express();
     this._app.use(function(request2, response, next) {
@@ -35056,12 +35205,26 @@ var ForgeServer = class {
         return "404";
       });
     }.bind(this));
+    this._app.listen(port);
+    const database = this._database;
     $fs3.readFile("./backup.json").then(function(buffer) {
+      console.parse("<magenta>BACK UP FILE LOADED\n</magenta>");
+      database.clear();
+      const loadObj = JSON.parse(String(buffer));
+      for (const [partitionName, storeEntries] of Object.entries(loadObj)) {
+        if (database.has(partitionName) === false) {
+          database.set(partitionName, /* @__PURE__ */ new Map());
+        }
+        const partition = this._database.get(partitionName);
+        for (const [key, { mime, buffer: buffer2 }] of Object.entries(storeEntries)) {
+          partition.set(key, { mime, buffer: Buffer.from(DecodeBase64(buffer2)) });
+        }
+      }
+      console.log(database);
     }.bind(this)).catch(function(error) {
       console.error(error);
     }).finally(function() {
       console.parse(`<green>Server start at ${port}</green>`);
-      this._app.listen(port);
     }.bind(this));
   }
   async _$parseRequestBody(request2) {
@@ -35089,18 +35252,7 @@ var ForgeServer = class {
     }
     const partition = this._database.get(partitionName);
     partition.set(key, { mime, buffer });
-    clearTimeout(this._saveTimeout);
-    this._saveTimeout = setTimeout(function() {
-      const saveObj = {};
-      for (const [partitionName2, partition2] of this._database) {
-        saveObj[partitionName2] = {};
-        for (const [key2, { mime: mime2, buffer: buffer2 }] of partition2) {
-          saveObj[partitionName2][key2] = { mime: mime2, buffer: buffer2.toString("base64") };
-        }
-      }
-      $fs3.writeFile("./backup.json", JSON.stringify(saveObj));
-      console.parse("<red>saved</red>");
-    }.bind(this), 2500);
+    this._debouncer.debounce(this._saveBackup, [this._database], 2500);
   }
   async $load(partitionName, key) {
     if (this._database.has(partitionName) === false) {
@@ -35129,7 +35281,7 @@ var ForgeServer = class {
   }
 };
 
-// forge/_src_/forge/Forge.ts
+// forge/_src_/ts/forge/Forge.ts
 var { spawn: spawn2, fork: fork3, exec: exec2, execSync: execSync2 } = require("child_process");
 var chokidar = require_chokidar();
 var $fs4 = require("fs").promises;
@@ -35140,8 +35292,6 @@ var path2 = require("path");
 var Forge = class {
   static Search(pattern) {
   }
-  _app;
-  // i have no what type express() returns;
   _debounceTimeout;
   _debounceDelay = 1e3;
   _lastUpdate = Date.now();
@@ -35200,9 +35350,9 @@ var Forge = class {
       this.parse($fs4.readFileSync(file, "utf8"));
     }
   }
-  watch() {
+  watch(root, options) {
     const _update = this._update;
-    const watcher = chokidar.watch(["**/*"], [".src/**/*"], { "ignored": this._ignoreArr });
+    const watcher = chokidar.watch(["./src/**/*"], { "ignored": this._ignoreArr });
     watcher.on("ready", function() {
       console.log("watch is ready!");
       watcher.on("all", function(event, file) {
@@ -35230,9 +35380,13 @@ var Forge = class {
     this._forgeServer = new ForgeServer(this, port, base);
     return this._forgeServer;
   }
+  async $load() {
+  }
+  async $save() {
+  }
 };
 
-// forge/_src_/run.ts
+// forge/_src_/ts/run.ts
 var $fs5 = require("node:fs/promises");
 DebugFormatter.Init({ platform: "node" });
 if (require.main === module && !module.parent) {
@@ -35241,7 +35395,7 @@ if (require.main === module && !module.parent) {
     compositeArguments.add("PORT", {
       required: true,
       default: 1234,
-      validator: function(value, args) {
+      sanitize: function(value, args) {
         return parseInt(value);
       }
     }).add("PORT", {
@@ -35252,6 +35406,8 @@ if (require.main === module && !module.parent) {
     const forge = new Forge();
     forge.parse(await $fs5.readFile(".forge", "utf-8"));
     const forgeServer = await forge.$serve(PORT, WWW_ROOT);
+    forge.$signal("construct", { "so l can get my": "satifacation" });
+    forge.watch();
   })();
 } else {
   console.log("required as a module");

@@ -179,7 +179,7 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
                 default:
 
-                    _this.write({ reject: session, key: _key }, { "unknown signal for" : "me" });
+                    _this.write({ reject: session, key: _key }, { "unknown signal for" : "me", signal });
 
             }
 

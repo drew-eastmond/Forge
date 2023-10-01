@@ -23,9 +23,7 @@ export class Forge {
         
         
         
-    } 
-
-    private _app: unknown; // i have no what type express() returns;
+    }
 
     private _debounceTimeout: TimeoutClear;
     private _debounceDelay: number = 1000;
@@ -139,11 +137,11 @@ export class Forge {
 
     }
 
-    public watch(): void {
+    public watch(root: string, options): void {
 
         const _update: Function = this._update;
 
-        const watcher = chokidar.watch(["**/*"], [".src/**/*"], { 'ignored': this._ignoreArr });
+        const watcher = chokidar.watch(["./src/**/*"], { 'ignored': this._ignoreArr });
 
         watcher.on("ready", function () {
 
@@ -155,6 +153,12 @@ export class Forge {
             }.bind(this));
 
         }.bind(this));
+
+        /* for (const [key, forgeTask] of this._taskMap) {
+
+            forgeTask.watch();
+
+        } */
 
     }
 
@@ -203,7 +207,20 @@ export class Forge {
 
     }
 
+    public async $load(): void {
+
+    }
+
+    public async $save(): void {
+
+
+
+    }
+
 }
+
+
+
 
 /*
 

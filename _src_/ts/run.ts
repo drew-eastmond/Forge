@@ -1,6 +1,6 @@
 const $fs = require("node:fs/promises");
 
-import { CompositeArguments } from "./args/Argument";
+import { CompositeArguments } from "./core/Argument";
 import { DebugFormatter } from "./core/Debug";
 import { Forge } from "./forge/Forge";
 import { ForgeServer } from "./forge/server/ForgeServer";
@@ -22,7 +22,7 @@ if (require.main === module && !module.parent) {
 			.add("PORT", {
 				required: true,
 				default: 1234,
-				validator: function (value: unknown, args: Record<string, unknown>): unknown {
+				sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
 					
 					return parseInt(value as string);
 					
@@ -48,6 +48,10 @@ if (require.main === module && !module.parent) {
 			.parse(await $fs.readFile(".forge", "utf-8"));
 
 		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
+
+		forge.$signal("construct", { "so l can get my": "satifacation" });
+
+		forge.watch();
 
 	}());
 

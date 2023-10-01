@@ -14,7 +14,7 @@ const $fs = require("node:fs/promises");
 *
 */
 import { build as esBuild, Platform, Format } from "esbuild";
-import { CLIArguments } from "./args/Argument";
+import { CLIArguments } from "./core/Argument";
 import { $UsePromise } from "./core/Core";
 import { DependencyHelper } from "./DependencyHelper";
 import { DebugFormatter } from "./core/Debug";
@@ -47,7 +47,7 @@ type EsbuildResult = {
     }
 }
 
-DebugFormatter.Init("node");
+DebugFormatter.Init({ platform: "node" });
 
 /*
 *
@@ -123,7 +123,6 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             const header: string = compiledSegments[0];
 
             const segmentMap: Map<string, string> = new Map();
-            const fileObj = {};
             for (let i = 1; i < compiledSegments.length; i += 2) {
 
                 for (const file of fileManifest) {
@@ -185,32 +184,32 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
     const cliArguments = new CLIArguments();
     cliArguments
         .add("in", {
-            "required": true,
-            "validator": (args: Record<string, unknown>) => {
+            required: true,
+            validate: (args: Record<string, unknown>) => {
 
                 return Object.hasOwn(args, "in");
 
             },
-            "error": `\u001b[31;1mMissing or incorrect \u001b[36;1m--in--\u001b[0m\u001b[31;1m argument\u001b[0m`
+            error: `\u001b[31;1mMissing or incorrect \u001b[36;1m--in--\u001b[0m\u001b[31;1m argument\u001b[0m`
         })
         .add("out", {
-            "required": true,
-            "validator": (args: Record<string, unknown>) => {
+            required: true,
+            validate: (args: Record<string, unknown>) => {
 
                 return Object.hasOwn(args, "out");
 
             },
-            "error": `\u001b[31;1mMissing or incorrect \u001b[36;1m--out--\u001b[0m\u001b[31;1m argument\u001b[0m`
+            error: `\u001b[31;1mMissing or incorrect \u001b[36;1m--out--\u001b[0m\u001b[31;1m argument\u001b[0m`
         }).
         add("format", {
-            "default": "cjs"
+            default: "cjs"
         })
         .add("bundled", {
-            "default": false
+            default: false
         })
         .add("platform", {
-            "default": "neutral",
-            "validator": (value: unknown, args: Record<string, unknown>) => {
+            default: "neutral",
+            validate: (value: unknown, args: Record<string, unknown>) => {
 
                 switch (args as unknown as string) {
                     case "node":
@@ -220,13 +219,14 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
                 }
 
-                return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
+                return false;
+                // return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
 
             }
         })
         .add("override", {
-            "default": false,
-            "validator": (args: Record<string, unknown>) => {
+            default: false,
+            sanitize: (args: Record<string, unknown>) => {
 
                 if (args.override) return true;
 
@@ -237,14 +237,14 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             }
         })
         .add("write_meta", {
-            "default": false
+            default: false
         })
         .add("watch", {
-            "default": false
+            default: false
         })
         .add("plugins", {
-            "default": [],
-            "validator": (args: Record<string, unknown>) => {
+            default: [],
+            sanitize: (args: Record<string, unknown>) => {
 
                 if (args.plugins === undefined) return [];
 
@@ -257,7 +257,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             },
         })
         .add("external", {
-            "default" : []
+            default : []
         })
         .compile();
 

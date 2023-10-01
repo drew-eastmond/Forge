@@ -4,11 +4,12 @@ const path = require("path");
 const $fs = require("fs").promises;
 const mimeTypes = require("mime-types");
 
-import { $Promise, $UsePromise, TimeoutClear } from "../../core/Core";
+import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
+import { Debouncer } from "../../core/timing/Debounce";
 import { IAction } from "../action/AbstractAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
-import { ForgeStorage, IForgeStorage } from "../storage/ForgeStorage";
+import { ForgeStorage, ForgeStore, IForgeStorage } from "../storage/ForgeStorage";
 import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./Route";
 
 /*
@@ -120,7 +121,7 @@ export class ForgeServer {
 
     private _base: string;
 
-    private _saveTimeout: TimeoutClear;
+    private _debouncer: Debouncer = new Debouncer();
 
     private readonly _routeSet: Set<IForgeServerRoute> = new Set();
 
@@ -140,6 +141,26 @@ export class ForgeServer {
         this._$setupServer(port);
 
     }
+
+    private _saveBackup = function (...rest: unknown[]) {
+
+        const saveObj = {};
+        for (const [partitionName, partition] of this._database) {
+
+            saveObj[partitionName] = {};
+
+            for (const [key, { mime, buffer }] of partition) {
+
+                saveObj[partitionName][key] = { mime, buffer: buffer.toString("base64") };
+
+            }
+
+        }
+
+        $fs.writeFile("./backup.json", JSON.stringify(saveObj));
+        console.parse("<red>saved</red>")
+
+    }.bind(this);
 
     private async _$setupServer(port: number): Promise<void> {
 
@@ -303,9 +324,49 @@ export class ForgeServer {
 
         }.bind(this));
 
+
+        this._app.listen(port);
+
+        const database: Map<string, Map<string, StoreEntry>> = this._database;
         $fs.readFile("./backup.json")
             .then(function (buffer: Buffer) {
 
+                console.parse("<magenta>BACK UP FILE LOADED\n</magenta>");
+
+                database.clear();
+
+                const loadObj: Record<string, Record<string, { mime: string, buffer: string }>> = JSON.parse(String(buffer));
+                for (const [partitionName, storeEntries] of Object.entries(loadObj)) {
+
+                    if (database.has(partitionName) === false) {
+
+                        database.set(partitionName, new Map());
+
+                    }
+
+                    const partition: Map<string, StoreEntry> = this._database.get(partitionName);
+                    for (const [key, { mime, buffer }] of Object.entries(storeEntries)) {
+
+                        partition.set(key, { mime, buffer: Buffer.from(DecodeBase64(buffer)) });
+
+                    }                    
+
+                }
+
+                console.log(database);
+
+
+                /* for (const [partitionName, partition] of this._database) {
+
+                    saveObj[partitionName] = {};
+
+                    for (const [key, { mime, buffer }] of partition) {
+
+                        saveObj[partitionName][key] = { mime, buffer: buffer.toString("base64") };
+
+                    }
+
+                } */
 
             }.bind(this))
             .catch(function (error: unknown) {
@@ -316,7 +377,7 @@ export class ForgeServer {
             .finally(function () {
 
                 console.parse(`<green>Server start at ${port}</green>`);
-                this._app.listen(port);
+                
 
             }.bind(this));
 
@@ -373,26 +434,8 @@ export class ForgeServer {
         const partition: Map<string, StoreEntry> = this._database.get(partitionName);
         partition.set(key, { mime, buffer });
 
-        clearTimeout(this._saveTimeout);
-        this._saveTimeout = setTimeout(function () {
 
-            const saveObj = {};
-            for (const [partitionName, partition] of this._database) {
-
-                saveObj[partitionName] = {};
-
-                for (const [key, { mime, buffer }] of partition) {
-
-                    saveObj[partitionName][key] = { mime, buffer: buffer.toString("base64") };
-
-                }
-
-            }
-
-            $fs.writeFile("./backup.json", JSON.stringify(saveObj));
-            console.parse("<red>saved</red>")
-
-        }.bind(this), 2500);
+        this._debouncer.debounce(this._saveBackup, [this._database], 2500);
 
     }
 

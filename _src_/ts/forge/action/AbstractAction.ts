@@ -153,8 +153,6 @@ export interface IAction {
 
     implement(): string;
 
-    // task(forgeTask: ForgeTask): void;
-
     $reset(data: Serialize): Promise<Serialize>;
 
     $stream(stdoutCallback: (message: string | string[]) => void, stderrCallback?: (error: string | string[]) => void): Promise<void>
@@ -173,6 +171,7 @@ export class AbstractAction extends Subscription implements IAction {
     protected _iProcessAdapter: IServiceAdapter;
     protected _data: any;
     protected _implement: string;
+    protected _watch: RegExp;
 
     protected _async: boolean;
     protected _enabled: boolean;
@@ -206,6 +205,35 @@ export class AbstractAction extends Subscription implements IAction {
         
         this._implement = implement;
         this._data = data;
+
+        // ! data.watch is a special case. Convert from a glob to 
+        if (data.watch) {
+            
+            const watch: string = String(data.watch);
+            let globStr: string = watch;
+
+            if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
+
+                globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\\/\\\\].+?)$")
+
+            } else if (/[\/\\]\*/.test(watch)) {
+
+                globStr = globStr.replace(/\*\*[\/\\]\*/g, "[\\\/\\\\](.+?)")
+
+            } 
+            // glob replacemetn for "**/*"
+                // .replace(/[\/\\]/g, "[\\\\\/]")
+                // .replace(/\*/, "\\*")
+                
+                // replace "*"
+            // globStr = globStr
+            //    .replace(/[\/\\]\*/g, "(\\\\*)"); 
+
+            console.parse(`<blue>${globStr}</blue>`);
+            this._watch = new RegExp(globStr);
+
+
+        }
 
         this.name = this._resolveData("name", QuickHash()) as string;
 
@@ -301,6 +329,16 @@ export class AbstractAction extends Subscription implements IAction {
     public $signal(signal: string, data: Serialize): Promise<unknown>;
     public $signal(signal: string, data: Serialize, race: number): Promise<unknown>;
     public $signal(signal: string, data?: Serialize, race?: number): Promise<unknown> {
+
+        // optimize the `watch` signals only if a watch value is provided
+        if (signal == "watch") {
+
+            console.log(this._watch, this._watch.test(String(data)), data);
+            if (this._watch && this._watch.test(String(data)) === false) {
+
+                console.warn(`"watch"" Signal Ignored`);
+
+        }
 
         return this._iProcessAdapter.$signal(signal, data, race);
 
