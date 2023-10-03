@@ -3,6 +3,7 @@ import { Expiry } from "../../core/Expiry";
 import { ISubscription, Subscription } from "../../core/Subscription";
 import { ForgeStream } from "../ForgeStream";
 import { ForgeTask } from "../ForgeTask";
+import { IServiceAdapter } from "../service/AbstractServiceAdapter";
 
 const $fs = require("fs").promises;
 
@@ -19,131 +20,6 @@ export enum ActionRouter {
     Local = "local",
     Remote = "remote"
 }
-
-export interface IServiceAdapter extends ISubscription {
-
-    race: number;
-
-    read(message): void;
-    write(...data: Serialize[]): void;
-
-    $reset(data: Serialize): Promise<Serialize>;
-
-    $signal(signal: string, data: Serialize, race: number): Promise<Serialize>;
-
-}
-
-export class AbstractServiceAdapter extends Subscription implements IServiceAdapter {
-
-    protected _key: string = QuickHash();
-
-    protected readonly _sessions: Map<string, $Promise<unknown>> = new Map();
-
-    public race: number;
-
-    constructor(config: { race: number }) {
-
-        super();
-
-        this.race = config.race;
-
-    }
-
-    public read(message: any): boolean {
-
-        try {
-
-            // first test is to destructure the message
-            const [protocol, header, data] = message;
-
-            // console.log(protocol, header, data);
-
-            if (protocol != __ForgeProtocol) return;
-            if (header.key != this._key) return;
-
-            if ("resolve" in header) {
-
-                const $race: $Promise = this._sessions.get(header.resolve);
-                $race[1](data);
-                this.notify("resolve", header, data);
-
-
-            } else if ("reject" in header) {
-
-                console.log("rejected", protocol, header, data);
-                
-                const $race: $Promise = this._sessions.get(header.reject);
-                $race[2](data);
-                this.notify("reject", header, data);
-
-            } else if ("broadcast" in header) {
-
-                const { notify } = header;
-                this.notify("broadcast", notify, data);
-
-            } else {
-
-                this.notify("message", message);
-
-            }
-
-            return true;
-
-        } catch (error: unknown) {
-
-            // just catch teh error
-            // console.log("read error", error)
-
-        }
-
-        return false;
-
-    }
-
-    public write(...data: Serialize[]): void {
-
-        throw new Error("Please override write(...) in subclasses");
-
-    }
-
-    public $reset(data: Serialize): Promise<Serialize> {
-
-        return this.$signal("reset", data, this.race);
-
-    }
-
-    public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
-
-        // console.log(signal, data, race);
-
-        const session: string = QuickHash();
-
-        const sessions: Map<string, $Promise> = this._sessions;
-
-        const $race: $Promise<unknown> = $UseRace(race);
-        $race[0]
-            .catch(function (error: unknown) {
-
-                // console.parse("<yellow>$signal exception caught :</yellow>", error);
-
-            })
-            .finally(function () {
-
-                sessions.delete(session);
-
-            });
-
-
-        this._sessions.set(session, $race);
-
-        this.write({ signal, session, key: this._key }, data);
-
-        return $race[0];
-
-    }
-
-}
-
 
 export interface IAction {
 
@@ -168,7 +44,7 @@ export class AbstractAction extends Subscription implements IAction {
 
     private _task: ForgeTask;
 
-    protected _iProcessAdapter: IServiceAdapter;
+    protected _iServiceAdapter: IServiceAdapter;
     protected _data: any;
     protected _implement: string;
     protected _watch: RegExp;
@@ -200,16 +76,16 @@ export class AbstractAction extends Subscription implements IAction {
 
         this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
 
-        this._iProcessAdapter = iServiceAdapter;
-        this._iProcessAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+        this._iServiceAdapter = iServiceAdapter;
+        this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
         
         this._implement = implement;
         this._data = data;
 
         // ! data.watch is a special case. Convert from a glob to 
-        if (data.watch) {
+        if ("_watch_" in data) {
             
-            const watch: string = String(data.watch);
+            const watch: string = String(data._watch_);
             let globStr: string = watch;
 
             if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
@@ -218,7 +94,7 @@ export class AbstractAction extends Subscription implements IAction {
 
             } else if (/[\/\\]\*/.test(watch)) {
 
-                globStr = globStr.replace(/\*\*[\/\\]\*/g, "[\\\/\\\\](.+?)")
+                globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\\/\\\\](.+?)")
 
             } 
             // glob replacemetn for "**/*"
@@ -235,14 +111,15 @@ export class AbstractAction extends Subscription implements IAction {
 
         }
 
-        this.name = this._resolveData("name", QuickHash()) as string;
+        this.name = this._resolveData("_name_", QuickHash()) as string;
 
         this._async = this._resolveData("async", false) as boolean;
         this._enabled = this._resolveData("enabled", true) as boolean;
 
         this._stdio = this._resolveData("stdio", ActionStdioType.Default) as ActionStdioType;
 
-        this._race = this._resolveData("race") as number;
+
+        this._race = this._resolveData("_race_", this._iServiceAdapter.race) as number;
 
         this.dependencies = this._resolveData("wait", []) as { task: string, action: string }[];
 
@@ -253,7 +130,7 @@ export class AbstractAction extends Subscription implements IAction {
 
     protected _subscribeBroadcast(notify: string, header: any, data: any): void {
 
-        // console.log(">>>>", notify, header, data);
+        console.log(">>>>", notify, header, data);
 
         if (notify == "message") {
 
@@ -333,14 +210,21 @@ export class AbstractAction extends Subscription implements IAction {
         // optimize the `watch` signals only if a watch value is provided
         if (signal == "watch") {
 
-            console.log(this._watch, this._watch.test(String(data)), data);
-            if (this._watch && this._watch.test(String(data)) === false) {
+            console.log("watucing");
+
+            const { file, event } = data as { file: string, event: string };
+
+            console.log(this._watch, this._watch.test(file), data);
+            if (this._watch && this._watch.test(file) === false) {
 
                 console.warn(`"watch"" Signal Ignored`);
+                return Promise.reject({ watch: "ignored" });
+
+            }
 
         }
 
-        return this._iProcessAdapter.$signal(signal, data, race);
+        return this._iServiceAdapter.$signal(signal, { ...this._data, ...data as object }, race);
 
     }
 
@@ -352,7 +236,7 @@ export class AbstractAction extends Subscription implements IAction {
         this.stdout = [];
         this.stderr = [];
 
-        return this._iProcessAdapter.$reset(data);
+        return this._iServiceAdapter.$reset(data);
 
     }
 

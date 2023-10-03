@@ -1,8 +1,10 @@
 import { Serialize } from "../core/Core";
-import { IAction, IServiceAdapter } from "./action/AbstractAction";
+import { IAction } from "./action/AbstractAction";
 import { ForkAction } from "./action/ForkAction";
-import { SpawnAction, SpawnService } from "./action/SpawnAction";
+import { SpawnAction } from "./action/SpawnAction";
 import { ForgeStream } from "./ForgeStream";
+import { IServiceAdapter } from "./service/AbstractServiceAdapter";
+import { SpawnService } from "./service/SpawnService";
 
 export class ForgeTask {
 
@@ -41,34 +43,10 @@ export class ForgeTask {
     public spawn(key: string, config: { command: string, race: number, reboot?: boolean }): IServiceAdapter {
 
         // no duplicate entries
-        if (this._spawnServices.has(key)) throw new Error(`Task(${this.name}) : Spawn process already exists "${key}"`);
-
-        // validate then sanitize the config
-        
-
-        // sanitize the config paramter
-        const race: number = config.race;
-        const reboot: boolean = config.reboot || true;
+        if (this._spawnServices.has(key)) throw new Error(`Task(${this.name}) : IServiceAdapter (spawn) already exists "${key}"`);
 
         const spawnService: SpawnService = new SpawnService(config);
-
-            
-
-            // const commands: string[] = command.split(/\s+/g);
-            // const child = spawn(commands[0], commands.slice(1), { stdio: "pipe" });
-
-            // process.stdin.pipe(this._child.stdin);
-            // this._child.stdin.setEncoding("utf-8");
-
-            /* child.on("exit", function () {
-
-                console.log("spawn exited");
-
-            }); */
-
         this._spawnServices.set(key, spawnService);
-
-
 
         return spawnService;
 
@@ -78,24 +56,10 @@ export class ForgeTask {
     public fork(key: string, command: string): any;
     public fork(key: string, command?: string): any {
 
-        if (this._forkServices.has(key) && command === undefined) throw new Error(`Task has no Fork by the key : "${key}"`);
+        if (this._forkServices.has(key) && command === undefined) throw new Error(`Task(${this.name}) : IServiceAdapter (fork) already exists "${key}"`);
 
-        if (command) {
-
-            const commands: string[] = command.split(/\s+/g);
-            const child = fork(commands[0], commands.slice(1), { stdio: "pipe" });
-
-            child.on("exit", function () {
-
-                console.log("spawn exited");
-
-            });
-
-            this._forkServices.set(key, child);
-
-
-        }
-
+        
+        
         return this._forkServices;
 
     }
@@ -139,11 +103,12 @@ export class ForgeTask {
 
     public parse(configObj): void {
 
-        console.log("configObj", configObj);
         this._data = configObj;
 
         this.name = configObj.name;
         this._enabled = configObj.enabled;
+
+        const errors: string[] = [];
 
         /*
         *
@@ -172,7 +137,7 @@ export class ForgeTask {
 
                 // todo Replace these queries with `Enforce`
                 // Validate required parameters for command and race
-                const errors: string[] = [];
+                
                 if (spawnConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for Spawn service "${key}"`);
                 if (isNaN(spawnConfig.race)) errors.push(`Invalid \`race\` parameter provided for Spawn service "${key}"`);
 
@@ -194,58 +159,74 @@ export class ForgeTask {
         *   
         * "actions": [
         *   {
-        *       "name" : {name},
-        *       "{spawn|fork|worker}" : {string}
+        *       "_name_" : {name},
+        *       "{_spawn_|_fork_|_worker_|_exec_}" : {string}
         *   },
         *   ...
         * ]
         * 
         */
 
-        const actionConfigs: { name: string, implement: string, race?: number, spawn?: string, fork?: string, worker?: string }[] = this._data.actions;
+        const actionConfigs: { _name_: string, _implement_: string, _race_?: number, _spawn_?: string, fork?: string, worker?: string }[] = this._data.actions;
         if (actionConfigs) {
 
             for (const actionConfig of actionConfigs) {
 
                 let iAction: IAction;
-                if ("spawn" in actionConfig) {
 
-                    const implement: string = actionConfig.implement;
-                    const serviceName: string = actionConfig.spawn;
+                //try {
+
+                    const name: string = actionConfig._name_;
+                    const implement: string = actionConfig._implement_;
+
+                    if (name === undefined) errors.push(`Action "_name_" is undefined for ${this.constructor.name} : ${this.name}"`);
+                    if (implement === undefined) errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
                     
+                if ("_spawn_" in actionConfig) {
+
+                    const serviceName: string = actionConfig._spawn_;
+
                     // todo Replace these queries with `Enforce`
-                    // Validate the data first
-                    const errors: string[] = [];
-                    // if (actionConfig.spawn === undefined) errors.push(`Invalid name provided for SpawnAction : "${this.name}" for Task : "${this.name}""`);
-
-                    if (implement === undefined) errors.push(`Action "implement" is undefined for ${serviceName}"`);
-                    if (this._spawnServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for "${serviceName}"`);
-                    
-                    // ! Note: race needs to be sanitized
-                    if (errors.length) throw new Error("\n\n" + errors.join("\n") + "\n");
-
-                    // Each action wrap the process.                    
+                    // retrieve the service. Assert that the Service exists or add en error
+                    if (this._spawnServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
                     const spawnService: IServiceAdapter = this._spawnServices.get(serviceName);
 
                     // get the race from the current or inherit from `actionConfig`
-                    const race: number = actionConfig.race || spawnService.race;
-                    iAction = new SpawnAction(spawnService, implement, { ...actionConfig, race: race });
 
-                } else if ("fork" in actionConfig) {
+                    this.add(new SpawnAction(spawnService, implement, actionConfig));
 
-
-                } else if ("worker" in actionConfig) {
+                } else if ("_fork_" in actionConfig) {
 
 
+                } else if ("_worker_" in actionConfig) {
+
+
+
+                } else if ("_exec_") {
 
                 }
 
-                // add the action and off to the next one
-                this.add(iAction);
+                    
+
+
+                //} catch (error: unknown) {
+
+                    // handle this properly later
+                //    throw error;
+
+                //}
+
+                
+
+                
 
             }
 
         }
+
+        // ! Note: race needs to be sanitized
+        console.log("errors", errors);
+        if (errors.length) throw new Error("\n\n" + errors.join("\n") + "\n");
         
         // 
 

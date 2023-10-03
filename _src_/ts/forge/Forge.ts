@@ -7,15 +7,51 @@ const url = require("url");
 const path = require("path");
 
 import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } from "../core/Core";
+import { Debouncer } from "../core/timing/Debounce";
 import { ForgeIO } from "../io/ForgeIO";
-import { IAction } from "./action/AbstractAction";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask } from "./ForgeTask";
 import { ForgeServer } from "./server/ForgeServer";
 
 // relay class defitions
 
+class WatchManager {
 
+    private _forge: Forge;
+
+    private _delay: number;
+    private _debouncer: Debouncer = new Debouncer();
+
+    private readonly _watchEntries: Set<{ event: string, file: string }> = new Set(); 
+
+    constructor(forge: Forge, delay: number) {
+
+        this._forge = forge;
+        this._delay = delay;
+
+    }
+
+    private async _debounceWatch (): Promise<void> {
+
+        const watchEntries: { file: String, event: string }[] = Array.from(this._watchEntries);
+        this._watchEntries.clear();
+        for (const watchEntry of watchEntries) {
+
+            await this._forge.$signal("watch", watchEntry);
+
+        }
+
+    }
+
+    public add(file: string, event: string): void {
+
+        this._watchEntries.set(file, event);
+
+        this._debouncer.debounce(this._debounceWatch, [], this._delay);
+
+    }
+
+}
 
 export class Forge {
 
@@ -25,8 +61,8 @@ export class Forge {
         
     }
 
-    private _debounceTimeout: TimeoutClear;
-    private _debounceDelay: number = 1000;
+    
+    private _watchFiles;
     private _lastUpdate: number = Date.now();
 
     private _forgeServer: ForgeServer;
@@ -42,39 +78,6 @@ export class Forge {
     private readonly _forgeStream: ForgeStream = new ForgeStream();
 
     constructor() {
-
-    }
-
-    private _update(file: string) {
-
-        const now: number = Date.now();
-
-        console.log(now, this._lastUpdate + this._debounceDelay);
-
-        if (now < this._lastUpdate + this._debounceDelay) {
-
-            this._lastUpdate = now;
-
-            clearInterval(this._debounceTimeout);
-            this._debounceTimeout = setTimeout(this._update, this._debounceDelay);
-
-            return;
-
-        }
-
-        console.log(now - this._lastUpdate);
-
-        this._lastUpdate = now;
-
-        const startTime = Date.now();
-
-        for (const [name, forgeTask] of this._taskMap) {
-
-            // forgeTask.$watch(file);
-
-        }
-
-        console.log(`\n\n\trun time: ${Date.now() - startTime}ms : "${file}"`);
 
     }
 
@@ -137,28 +140,24 @@ export class Forge {
 
     }
 
-    public watch(root: string, options): void {
+    public watch(root: string, options: { ignore: string[], debounce?: number }): void {
 
-        const _update: Function = this._update;
+        // const debounceDelay: number = options.debounce;
+        // const watchDelegate: Function = this._update;
+        // const debouncer: Debouncer = this._watchDebouncer;
+        // const watchedFiles: Set = this._watchFileSet;
 
         const watcher = chokidar.watch(["./src/**/*"], { 'ignored': this._ignoreArr });
 
+        const forge: Forge = this;
         watcher.on("ready", function () {
-
-            console.log("watch is ready!");
             watcher.on("all", function (event: string, file : string) {
 
-                this.$signal("watch", file);
+                forge.$signal("watch", {file, event});
 
-            }.bind(this));
+            });
 
-        }.bind(this));
-
-        /* for (const [key, forgeTask] of this._taskMap) {
-
-            forgeTask.watch();
-
-        } */
+        });
 
     }
 
@@ -220,7 +219,40 @@ export class Forge {
 }
 
 
+/*
 
+private _update(file: string) {
+
+        const now: number = Date.now();
+
+        console.log(now, this._lastUpdate + this._debounceDelay);
+
+        if (now < this._lastUpdate + this._debounceDelay) {
+
+            this._lastUpdate = now;
+
+            clearInterval(this._debounceTimeout);
+            this._debounceTimeout = setTimeout(this._update, this._debounceDelay);
+
+            return;
+
+        }
+
+        console.log(now - this._lastUpdate);
+
+        this._lastUpdate = now;
+
+        const startTime = Date.now();
+
+        for (const [name, forgeTask] of this._taskMap) {
+
+            // forgeTask.$watch(file);
+
+        }
+
+        console.log(`\n\n\trun time: ${Date.now() - startTime}ms : "${file}"`);
+
+    }
 
 /*
 

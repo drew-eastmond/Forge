@@ -29,7 +29,7 @@ export function EncodeBase64(json: Record<string, unknown>): string {
 
 export function DecodeBase64(value: string): any {
 
-	const buff = new Buffer(value, "base64");
+	const buff = Buffer.from(value, "base64");
 	return buff.toString("ascii");
 
 }

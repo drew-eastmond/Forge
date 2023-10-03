@@ -1,14 +1,16 @@
-type DebounceEntry = { previous: number, parameters: unknown[], timeout: TimeoutClear | number, delay: number };
+type DebounceEntry = { parameters: unknown[], timeout: TimeoutClear | number, delegate: Function };
 
 export class Debouncer {
 
-    private _callbackMap: Map<Function, DebounceEntry> = new Map();
+    private readonly _callbackMap: Map<Function, DebounceEntry> = new Map();
 
     constructor() {
 
+
+
     }
 
-    private _onTimeout = function() {
+    /* private _onBounce = function() {
 
         const now: number = Date.now();
 
@@ -32,29 +34,33 @@ export class Debouncer {
 
         }
 
-    }.bind(this);
+    }.bind(this); */
 
-	public debounce(callback: Function, parameters: unknown[], delay: number): void {
+    public debounce(delegate: Function, parameters: unknown[], delay: number): void {
 
-		if (this._callbackMap.has(callback)) {
+		if (this._callbackMap.has(delegate) === false) {
+			
+            const debounceEntry: DebounceEntry = {
+                parameters,
+                timeout: null,
+                delegate: null
+            };
 
-			const now: number = Date.now();
-			const debounceEntry: DebounceEntry = this._callbackMap.get(callback);
+            debounceEntry.delegate = function () {
 
-			if (now < debounceEntry.previous + debounceEntry.delay) {
+                delegate(...debounceEntry.parameters);
 
-				clearTimeout(debounceEntry.timeout);
+            };
 
-			}
+            this._callbackMap.set(delegate, debounceEntry);
 
-            debounceEntry.timeout = setTimeout();
+        }
 
-		} else {
+        const debounceEntry: DebounceEntry = this._callbackMap.get(delegate);
+        debounceEntry.parameters = parameters;
 
-			const timeout: TimeoutClear = setTimeout(this._onTimeout);
-			this._callbackMap.set(callback, { previous: Date.now(), parameters, delay, timeout });
-
-		}
+        clearTimeout(debounceEntry.timeout);
+        debounceEntry.timeout = setTimeout(debounceEntry.delegate, delay);
 
 	}
 
@@ -65,6 +71,12 @@ export class Debouncer {
             clearTimeout(debounceEntry.timeout);
 
         }
+
+    }
+
+    public clear(): void {
+
+        this.reset();
         this._callbackMap.clear();
 
     }

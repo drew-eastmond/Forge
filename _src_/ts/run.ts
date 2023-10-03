@@ -1,3 +1,4 @@
+const fs = require("fs");
 const $fs = require("node:fs/promises");
 
 import { CompositeArguments } from "./core/Argument";
@@ -28,8 +29,13 @@ if (require.main === module && !module.parent) {
 					
 				}
 			})
-			.add("PORT", {
-				required: true
+			.add("WWW_ROOT", {
+				required: true,
+				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
+
+					return (fs.existsSync(value));
+
+				}
 			})
 			.parse(await $fs.readFile("./.env", "utf-8"))
 			.compile();
@@ -51,7 +57,7 @@ if (require.main === module && !module.parent) {
 
 		forge.$signal("construct", { "so l can get my": "satifacation" });
 
-		forge.watch();
+		forge.watch("./src/", {});
 
 	}());
 

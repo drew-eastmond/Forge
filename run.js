@@ -1274,8 +1274,8 @@ var require_node = __commonJS({
           }
           break;
         case "FILE":
-          var fs = require("fs");
-          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
+          var fs2 = require("fs");
+          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -17703,7 +17703,7 @@ var require_view = __commonJS({
     "use strict";
     var debug = require_src()("express:view");
     var path3 = require("path");
-    var fs = require("fs");
+    var fs2 = require("fs");
     var dirname = path3.dirname;
     var basename = path3.basename;
     var extname = path3.extname;
@@ -17769,7 +17769,7 @@ var require_view = __commonJS({
     function tryStat(path4) {
       debug('stat "%s"', path4);
       try {
-        return fs.statSync(path4);
+        return fs2.statSync(path4);
       } catch (e) {
         return void 0;
       }
@@ -18124,7 +18124,7 @@ var require_types = __commonJS({
 var require_mime = __commonJS({
   "node_modules/.pnpm/mime@1.6.0/node_modules/mime/mime.js"(exports2, module2) {
     var path3 = require("path");
-    var fs = require("fs");
+    var fs2 = require("fs");
     function Mime() {
       this.types = /* @__PURE__ */ Object.create(null);
       this.extensions = /* @__PURE__ */ Object.create(null);
@@ -18145,7 +18145,7 @@ var require_mime = __commonJS({
     };
     Mime.prototype.load = function(file) {
       this._loading = file;
-      var map = {}, content = fs.readFileSync(file, "ascii"), lines = content.split(/[\r\n]+/);
+      var map = {}, content = fs2.readFileSync(file, "ascii"), lines = content.split(/[\r\n]+/);
       lines.forEach(function(line) {
         var fields = line.replace(/\s*#.*|^\s*|\s*$/g, "").split(/\s+/);
         map[fields.shift()] = fields;
@@ -18383,7 +18383,7 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs = require("fs");
+    var fs2 = require("fs");
     var mime = require_mime();
     var ms = require_ms2();
     var onFinished = require_on_finished();
@@ -18717,7 +18717,7 @@ var require_send = __commonJS({
       var i = 0;
       var self = this;
       debug('stat "%s"', path4);
-      fs.stat(path4, function onstat(err, stat) {
+      fs2.stat(path4, function onstat(err, stat) {
         if (err && err.code === "ENOENT" && !extname(path4) && path4[path4.length - 1] !== sep) {
           return next(err);
         }
@@ -18734,7 +18734,7 @@ var require_send = __commonJS({
         }
         var p = path4 + "." + self._extensions[i++];
         debug('stat "%s"', p);
-        fs.stat(p, function(err2, stat) {
+        fs2.stat(p, function(err2, stat) {
           if (err2)
             return next(err2);
           if (stat.isDirectory())
@@ -18755,7 +18755,7 @@ var require_send = __commonJS({
         }
         var p = join(path4, self._index[i]);
         debug('stat "%s"', p);
-        fs.stat(p, function(err2, stat) {
+        fs2.stat(p, function(err2, stat) {
           if (err2)
             return next(err2);
           if (stat.isDirectory())
@@ -18769,7 +18769,7 @@ var require_send = __commonJS({
     SendStream.prototype.stream = function stream(path4, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs.createReadStream(path4, options);
+      var stream2 = fs2.createReadStream(path4, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -21897,6 +21897,384 @@ var require_express2 = __commonJS({
   }
 });
 
+// node_modules/.pnpm/safe-buffer@5.1.2/node_modules/safe-buffer/index.js
+var require_safe_buffer2 = __commonJS({
+  "node_modules/.pnpm/safe-buffer@5.1.2/node_modules/safe-buffer/index.js"(exports2, module2) {
+    var buffer = require("buffer");
+    var Buffer2 = buffer.Buffer;
+    function copyProps(src, dst) {
+      for (var key in src) {
+        dst[key] = src[key];
+      }
+    }
+    if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
+      module2.exports = buffer;
+    } else {
+      copyProps(buffer, exports2);
+      exports2.Buffer = SafeBuffer;
+    }
+    function SafeBuffer(arg, encodingOrOffset, length) {
+      return Buffer2(arg, encodingOrOffset, length);
+    }
+    copyProps(Buffer2, SafeBuffer);
+    SafeBuffer.from = function(arg, encodingOrOffset, length) {
+      if (typeof arg === "number") {
+        throw new TypeError("Argument must not be a number");
+      }
+      return Buffer2(arg, encodingOrOffset, length);
+    };
+    SafeBuffer.alloc = function(size, fill, encoding) {
+      if (typeof size !== "number") {
+        throw new TypeError("Argument must be a number");
+      }
+      var buf = Buffer2(size);
+      if (fill !== void 0) {
+        if (typeof encoding === "string") {
+          buf.fill(fill, encoding);
+        } else {
+          buf.fill(fill);
+        }
+      } else {
+        buf.fill(0);
+      }
+      return buf;
+    };
+    SafeBuffer.allocUnsafe = function(size) {
+      if (typeof size !== "number") {
+        throw new TypeError("Argument must be a number");
+      }
+      return Buffer2(size);
+    };
+    SafeBuffer.allocUnsafeSlow = function(size) {
+      if (typeof size !== "number") {
+        throw new TypeError("Argument must be a number");
+      }
+      return buffer.SlowBuffer(size);
+    };
+  }
+});
+
+// node_modules/.pnpm/bytes@3.0.0/node_modules/bytes/index.js
+var require_bytes2 = __commonJS({
+  "node_modules/.pnpm/bytes@3.0.0/node_modules/bytes/index.js"(exports2, module2) {
+    "use strict";
+    module2.exports = bytes;
+    module2.exports.format = format;
+    module2.exports.parse = parse;
+    var formatThousandsRegExp = /\B(?=(\d{3})+(?!\d))/g;
+    var formatDecimalsRegExp = /(?:\.0*|(\.[^0]+)0+)$/;
+    var map = {
+      b: 1,
+      kb: 1 << 10,
+      mb: 1 << 20,
+      gb: 1 << 30,
+      tb: (1 << 30) * 1024
+    };
+    var parseRegExp = /^((-|\+)?(\d+(?:\.\d+)?)) *(kb|mb|gb|tb)$/i;
+    function bytes(value, options) {
+      if (typeof value === "string") {
+        return parse(value);
+      }
+      if (typeof value === "number") {
+        return format(value, options);
+      }
+      return null;
+    }
+    function format(value, options) {
+      if (!Number.isFinite(value)) {
+        return null;
+      }
+      var mag = Math.abs(value);
+      var thousandsSeparator = options && options.thousandsSeparator || "";
+      var unitSeparator = options && options.unitSeparator || "";
+      var decimalPlaces = options && options.decimalPlaces !== void 0 ? options.decimalPlaces : 2;
+      var fixedDecimals = Boolean(options && options.fixedDecimals);
+      var unit = options && options.unit || "";
+      if (!unit || !map[unit.toLowerCase()]) {
+        if (mag >= map.tb) {
+          unit = "TB";
+        } else if (mag >= map.gb) {
+          unit = "GB";
+        } else if (mag >= map.mb) {
+          unit = "MB";
+        } else if (mag >= map.kb) {
+          unit = "KB";
+        } else {
+          unit = "B";
+        }
+      }
+      var val = value / map[unit.toLowerCase()];
+      var str = val.toFixed(decimalPlaces);
+      if (!fixedDecimals) {
+        str = str.replace(formatDecimalsRegExp, "$1");
+      }
+      if (thousandsSeparator) {
+        str = str.replace(formatThousandsRegExp, thousandsSeparator);
+      }
+      return str + unitSeparator + unit;
+    }
+    function parse(val) {
+      if (typeof val === "number" && !isNaN(val)) {
+        return val;
+      }
+      if (typeof val !== "string") {
+        return null;
+      }
+      var results = parseRegExp.exec(val);
+      var floatValue;
+      var unit = "b";
+      if (!results) {
+        floatValue = parseInt(val, 10);
+        unit = "b";
+      } else {
+        floatValue = parseFloat(results[1]);
+        unit = results[4].toLowerCase();
+      }
+      return Math.floor(map[unit] * floatValue);
+    }
+  }
+});
+
+// node_modules/.pnpm/compressible@2.0.18/node_modules/compressible/index.js
+var require_compressible = __commonJS({
+  "node_modules/.pnpm/compressible@2.0.18/node_modules/compressible/index.js"(exports2, module2) {
+    "use strict";
+    var db = require_mime_db();
+    var COMPRESSIBLE_TYPE_REGEXP = /^text\/|\+(?:json|text|xml)$/i;
+    var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
+    module2.exports = compressible;
+    function compressible(type) {
+      if (!type || typeof type !== "string") {
+        return false;
+      }
+      var match = EXTRACT_TYPE_REGEXP.exec(type);
+      var mime = match && match[1].toLowerCase();
+      var data = db[mime];
+      if (data && data.compressible !== void 0) {
+        return data.compressible;
+      }
+      return COMPRESSIBLE_TYPE_REGEXP.test(mime) || void 0;
+    }
+  }
+});
+
+// node_modules/.pnpm/on-headers@1.0.2/node_modules/on-headers/index.js
+var require_on_headers = __commonJS({
+  "node_modules/.pnpm/on-headers@1.0.2/node_modules/on-headers/index.js"(exports2, module2) {
+    "use strict";
+    module2.exports = onHeaders;
+    function createWriteHead(prevWriteHead, listener) {
+      var fired = false;
+      return function writeHead(statusCode) {
+        var args = setWriteHeadHeaders.apply(this, arguments);
+        if (!fired) {
+          fired = true;
+          listener.call(this);
+          if (typeof args[0] === "number" && this.statusCode !== args[0]) {
+            args[0] = this.statusCode;
+            args.length = 1;
+          }
+        }
+        return prevWriteHead.apply(this, args);
+      };
+    }
+    function onHeaders(res, listener) {
+      if (!res) {
+        throw new TypeError("argument res is required");
+      }
+      if (typeof listener !== "function") {
+        throw new TypeError("argument listener must be a function");
+      }
+      res.writeHead = createWriteHead(res.writeHead, listener);
+    }
+    function setHeadersFromArray(res, headers) {
+      for (var i = 0; i < headers.length; i++) {
+        res.setHeader(headers[i][0], headers[i][1]);
+      }
+    }
+    function setHeadersFromObject(res, headers) {
+      var keys = Object.keys(headers);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (k)
+          res.setHeader(k, headers[k]);
+      }
+    }
+    function setWriteHeadHeaders(statusCode) {
+      var length = arguments.length;
+      var headerIndex = length > 1 && typeof arguments[1] === "string" ? 2 : 1;
+      var headers = length >= headerIndex + 1 ? arguments[headerIndex] : void 0;
+      this.statusCode = statusCode;
+      if (Array.isArray(headers)) {
+        setHeadersFromArray(this, headers);
+      } else if (headers) {
+        setHeadersFromObject(this, headers);
+      }
+      var args = new Array(Math.min(length, headerIndex));
+      for (var i = 0; i < args.length; i++) {
+        args[i] = arguments[i];
+      }
+      return args;
+    }
+  }
+});
+
+// node_modules/.pnpm/compression@1.7.4/node_modules/compression/index.js
+var require_compression = __commonJS({
+  "node_modules/.pnpm/compression@1.7.4/node_modules/compression/index.js"(exports2, module2) {
+    "use strict";
+    var accepts = require_accepts();
+    var Buffer2 = require_safe_buffer2().Buffer;
+    var bytes = require_bytes2();
+    var compressible = require_compressible();
+    var debug = require_src()("compression");
+    var onHeaders = require_on_headers();
+    var vary = require_vary();
+    var zlib = require("zlib");
+    module2.exports = compression2;
+    module2.exports.filter = shouldCompress;
+    var cacheControlNoTransformRegExp = /(?:^|,)\s*?no-transform\s*?(?:,|$)/;
+    function compression2(options) {
+      var opts = options || {};
+      var filter = opts.filter || shouldCompress;
+      var threshold = bytes.parse(opts.threshold);
+      if (threshold == null) {
+        threshold = 1024;
+      }
+      return function compression3(req, res, next) {
+        var ended = false;
+        var length;
+        var listeners = [];
+        var stream;
+        var _end = res.end;
+        var _on = res.on;
+        var _write = res.write;
+        res.flush = function flush() {
+          if (stream) {
+            stream.flush();
+          }
+        };
+        res.write = function write(chunk, encoding) {
+          if (ended) {
+            return false;
+          }
+          if (!this._header) {
+            this._implicitHeader();
+          }
+          return stream ? stream.write(toBuffer(chunk, encoding)) : _write.call(this, chunk, encoding);
+        };
+        res.end = function end(chunk, encoding) {
+          if (ended) {
+            return false;
+          }
+          if (!this._header) {
+            if (!this.getHeader("Content-Length")) {
+              length = chunkLength(chunk, encoding);
+            }
+            this._implicitHeader();
+          }
+          if (!stream) {
+            return _end.call(this, chunk, encoding);
+          }
+          ended = true;
+          return chunk ? stream.end(toBuffer(chunk, encoding)) : stream.end();
+        };
+        res.on = function on(type, listener) {
+          if (!listeners || type !== "drain") {
+            return _on.call(this, type, listener);
+          }
+          if (stream) {
+            return stream.on(type, listener);
+          }
+          listeners.push([type, listener]);
+          return this;
+        };
+        function nocompress(msg) {
+          debug("no compression: %s", msg);
+          addListeners(res, _on, listeners);
+          listeners = null;
+        }
+        onHeaders(res, function onResponseHeaders() {
+          if (!filter(req, res)) {
+            nocompress("filtered");
+            return;
+          }
+          if (!shouldTransform(req, res)) {
+            nocompress("no transform");
+            return;
+          }
+          vary(res, "Accept-Encoding");
+          if (Number(res.getHeader("Content-Length")) < threshold || length < threshold) {
+            nocompress("size below threshold");
+            return;
+          }
+          var encoding = res.getHeader("Content-Encoding") || "identity";
+          if (encoding !== "identity") {
+            nocompress("already encoded");
+            return;
+          }
+          if (req.method === "HEAD") {
+            nocompress("HEAD request");
+            return;
+          }
+          var accept = accepts(req);
+          var method = accept.encoding(["gzip", "deflate", "identity"]);
+          if (method === "deflate" && accept.encoding(["gzip"])) {
+            method = accept.encoding(["gzip", "identity"]);
+          }
+          if (!method || method === "identity") {
+            nocompress("not acceptable");
+            return;
+          }
+          debug("%s compression", method);
+          stream = method === "gzip" ? zlib.createGzip(opts) : zlib.createDeflate(opts);
+          addListeners(stream, stream.on, listeners);
+          res.setHeader("Content-Encoding", method);
+          res.removeHeader("Content-Length");
+          stream.on("data", function onStreamData(chunk) {
+            if (_write.call(res, chunk) === false) {
+              stream.pause();
+            }
+          });
+          stream.on("end", function onStreamEnd() {
+            _end.call(res);
+          });
+          _on.call(res, "drain", function onResponseDrain() {
+            stream.resume();
+          });
+        });
+        next();
+      };
+    }
+    function addListeners(stream, on, listeners) {
+      for (var i = 0; i < listeners.length; i++) {
+        on.apply(stream, listeners[i]);
+      }
+    }
+    function chunkLength(chunk, encoding) {
+      if (!chunk) {
+        return 0;
+      }
+      return !Buffer2.isBuffer(chunk) ? Buffer2.byteLength(chunk, encoding) : chunk.length;
+    }
+    function shouldCompress(req, res) {
+      var type = res.getHeader("Content-Type");
+      if (type === void 0 || !compressible(type)) {
+        debug("%s not compressible", type);
+        return false;
+      }
+      return true;
+    }
+    function shouldTransform(req, res) {
+      var cacheControl = res.getHeader("Cache-Control");
+      return !cacheControl || !cacheControlNoTransformRegExp.test(cacheControl);
+    }
+    function toBuffer(chunk, encoding) {
+      return !Buffer2.isBuffer(chunk) ? Buffer2.from(chunk, encoding) : chunk;
+    }
+  }
+});
+
 // node_modules/.pnpm/picomatch@2.3.1/node_modules/picomatch/lib/constants.js
 var require_constants = __commonJS({
   "node_modules/.pnpm/picomatch@2.3.1/node_modules/picomatch/lib/constants.js"(exports2, module2) {
@@ -23427,15 +23805,15 @@ var require_picomatch2 = __commonJS({
 var require_readdirp = __commonJS({
   "node_modules/.pnpm/readdirp@3.6.0/node_modules/readdirp/index.js"(exports2, module2) {
     "use strict";
-    var fs = require("fs");
+    var fs2 = require("fs");
     var { Readable } = require("stream");
     var sysPath = require("path");
     var { promisify } = require("util");
     var picomatch = require_picomatch2();
-    var readdir = promisify(fs.readdir);
-    var stat = promisify(fs.stat);
-    var lstat = promisify(fs.lstat);
-    var realpath = promisify(fs.realpath);
+    var readdir = promisify(fs2.readdir);
+    var stat = promisify(fs2.stat);
+    var lstat = promisify(fs2.lstat);
+    var realpath = promisify(fs2.realpath);
     var BANG = "!";
     var RECURSIVE_ERROR_CODE = "READDIRP_RECURSIVE_ERROR";
     var NORMAL_FLOW_ERRORS = /* @__PURE__ */ new Set(["ENOENT", "EPERM", "EACCES", "ELOOP", RECURSIVE_ERROR_CODE]);
@@ -23511,7 +23889,7 @@ var require_readdirp = __commonJS({
         this._wantsFile = [FILE_TYPE, FILE_DIR_TYPE, EVERYTHING_TYPE].includes(type);
         this._wantsEverything = type === EVERYTHING_TYPE;
         this._root = sysPath.resolve(root);
-        this._isDirent = "Dirent" in fs && !opts.alwaysStat;
+        this._isDirent = "Dirent" in fs2 && !opts.alwaysStat;
         this._statsProp = this._isDirent ? "dirent" : "stats";
         this._rdOptions = { encoding: "utf8", withFileTypes: this._isDirent };
         this.parents = [this._exploreDir(root, 1)];
@@ -25390,7 +25768,7 @@ var require_constants3 = __commonJS({
 var require_nodefs_handler = __commonJS({
   "node_modules/.pnpm/chokidar@3.5.3/node_modules/chokidar/lib/nodefs-handler.js"(exports2, module2) {
     "use strict";
-    var fs = require("fs");
+    var fs2 = require("fs");
     var sysPath = require("path");
     var { promisify } = require("util");
     var isBinaryPath = require_is_binary_path();
@@ -25413,11 +25791,11 @@ var require_nodefs_handler = __commonJS({
       STAR
     } = require_constants3();
     var THROTTLE_MODE_WATCH = "watch";
-    var open = promisify(fs.open);
-    var stat = promisify(fs.stat);
-    var lstat = promisify(fs.lstat);
-    var close = promisify(fs.close);
-    var fsrealpath = promisify(fs.realpath);
+    var open = promisify(fs2.open);
+    var stat = promisify(fs2.stat);
+    var lstat = promisify(fs2.lstat);
+    var close = promisify(fs2.close);
+    var fsrealpath = promisify(fs2.realpath);
     var statMethods = { lstat, stat };
     var foreach = (val, fn) => {
       if (val instanceof Set) {
@@ -25464,7 +25842,7 @@ var require_nodefs_handler = __commonJS({
         }
       };
       try {
-        return fs.watch(path3, options, handleEvent);
+        return fs2.watch(path3, options, handleEvent);
       } catch (error) {
         errHandler(error);
       }
@@ -25551,7 +25929,7 @@ var require_nodefs_handler = __commonJS({
       if (copts && (copts.persistent < options.persistent || copts.interval > options.interval)) {
         listeners = cont.listeners;
         rawEmitters = cont.rawEmitters;
-        fs.unwatchFile(fullPath);
+        fs2.unwatchFile(fullPath);
         cont = void 0;
       }
       if (cont) {
@@ -25562,7 +25940,7 @@ var require_nodefs_handler = __commonJS({
           listeners: listener,
           rawEmitters: rawEmitter,
           options,
-          watcher: fs.watchFile(fullPath, options, (curr, prev) => {
+          watcher: fs2.watchFile(fullPath, options, (curr, prev) => {
             foreach(cont.rawEmitters, (rawEmitter2) => {
               rawEmitter2(EV_CHANGE, fullPath, { curr, prev });
             });
@@ -25579,7 +25957,7 @@ var require_nodefs_handler = __commonJS({
         delFromSet(cont, KEY_RAW, rawEmitter);
         if (isEmptySet(cont.listeners)) {
           FsWatchFileInstances.delete(fullPath);
-          fs.unwatchFile(fullPath);
+          fs2.unwatchFile(fullPath);
           cont.options = cont.watcher = void 0;
           Object.freeze(cont);
         }
@@ -25899,7 +26277,7 @@ var require_nodefs_handler = __commonJS({
 var require_fsevents_handler = __commonJS({
   "node_modules/.pnpm/chokidar@3.5.3/node_modules/chokidar/lib/fsevents-handler.js"(exports2, module2) {
     "use strict";
-    var fs = require("fs");
+    var fs2 = require("fs");
     var sysPath = require("path");
     var { promisify } = require("util");
     var fsevents;
@@ -25944,9 +26322,9 @@ var require_fsevents_handler = __commonJS({
       IDENTITY_FN
     } = require_constants3();
     var Depth = (value) => isNaN(value) ? {} : { depth: value };
-    var stat = promisify(fs.stat);
-    var lstat = promisify(fs.lstat);
-    var realpath = promisify(fs.realpath);
+    var stat = promisify(fs2.stat);
+    var lstat = promisify(fs2.lstat);
+    var realpath = promisify(fs2.realpath);
     var statMethods = { stat, lstat };
     var FSEventsWatchers = /* @__PURE__ */ new Map();
     var consolidateThreshhold = 10;
@@ -26319,7 +26697,7 @@ var require_chokidar = __commonJS({
   "node_modules/.pnpm/chokidar@3.5.3/node_modules/chokidar/index.js"(exports2) {
     "use strict";
     var { EventEmitter } = require("events");
-    var fs = require("fs");
+    var fs2 = require("fs");
     var sysPath = require("path");
     var { promisify } = require("util");
     var readdirp = require_readdirp();
@@ -26364,8 +26742,8 @@ var require_chokidar = __commonJS({
       isMacos,
       isIBMi
     } = require_constants3();
-    var stat = promisify(fs.stat);
-    var readdir = promisify(fs.readdir);
+    var stat = promisify(fs2.stat);
+    var readdir = promisify(fs2.readdir);
     var arrify = (value = []) => Array.isArray(value) ? value : [value];
     var flatten = (list, result = []) => {
       list.forEach((item) => {
@@ -26907,7 +27285,7 @@ var require_chokidar = __commonJS({
         }
         const now = /* @__PURE__ */ new Date();
         const awaitWriteFinish = (prevStat) => {
-          fs.stat(fullPath, (err, curStat) => {
+          fs2.stat(fullPath, (err, curStat) => {
             if (err || !this._pendingWrites.has(path3)) {
               if (err && err.code !== "ENOENT")
                 awfEmit(err);
@@ -32009,8 +32387,8 @@ var require_cjs4 = __commonJS({
        *
        * @internal
        */
-      constructor(cwd = process.cwd(), pathImpl, sep, { nocase, childrenCacheSize = 16 * 1024, fs = defaultFS } = {}) {
-        this.#fs = fsFromOption(fs);
+      constructor(cwd = process.cwd(), pathImpl, sep, { nocase, childrenCacheSize = 16 * 1024, fs: fs2 = defaultFS } = {}) {
+        this.#fs = fsFromOption(fs2);
         if (cwd instanceof URL || cwd.startsWith("file://")) {
           cwd = (0, url_1.fileURLToPath)(cwd);
         }
@@ -32569,8 +32947,8 @@ var require_cjs4 = __commonJS({
       /**
        * @internal
        */
-      newRoot(fs) {
-        return new PathWin32(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs });
+      newRoot(fs2) {
+        return new PathWin32(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs: fs2 });
       }
       /**
        * Return true if the provided path string is an absolute path
@@ -32599,8 +32977,8 @@ var require_cjs4 = __commonJS({
       /**
        * @internal
        */
-      newRoot(fs) {
-        return new PathPosix(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs });
+      newRoot(fs2) {
+        return new PathPosix(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs: fs2 });
       }
       /**
        * Return true if the provided path string is an absolute path
@@ -33749,7 +34127,7 @@ function EncodeBase64(json) {
   return base64data;
 }
 function DecodeBase64(value) {
-  const buff = new Buffer(value, "base64");
+  const buff = Buffer.from(value, "base64");
   return buff.toString("ascii");
 }
 function FlattenObject(obj, accessor) {
@@ -34125,6 +34503,64 @@ var DebugFormatter = class _DebugFormatter {
   }
 };
 
+// forge/_src_/ts/core/timing/Debounce.ts
+var Debouncer = class {
+  _callbackMap = /* @__PURE__ */ new Map();
+  constructor() {
+  }
+  /* private _onBounce = function() {
+  
+          const now: number = Date.now();
+  
+          const callbacks: Function[] = []; 
+          for (const [callback, debounceEntry] of this._callbackMap) {
+              
+              const expiry: number = debounceEntry.previous + debounceEntry.delay;
+              if (expiry < now) {
+  
+                  clearTimeout(debounceEntry.timeout);
+                  callback(...debounceEntry.parameters);
+  				callbacks.push(callback);
+  
+  			}
+  
+          }
+  
+          for (const callback of callbacks) {
+  
+              this._callbackMap.delete(callback);
+  
+          }
+  
+      }.bind(this); */
+  debounce(delegate, parameters, delay) {
+    if (this._callbackMap.has(delegate) === false) {
+      const debounceEntry2 = {
+        parameters,
+        timeout: null,
+        delegate: null
+      };
+      debounceEntry2.delegate = function() {
+        delegate(...debounceEntry2.parameters);
+      };
+      this._callbackMap.set(delegate, debounceEntry2);
+    }
+    const debounceEntry = this._callbackMap.get(delegate);
+    debounceEntry.parameters = parameters;
+    clearTimeout(debounceEntry.timeout);
+    debounceEntry.timeout = setTimeout(debounceEntry.delegate, delay);
+  }
+  reset() {
+    for (const [callback, debounceEntry] of this._callbackMap) {
+      clearTimeout(debounceEntry.timeout);
+    }
+  }
+  clear() {
+    this.reset();
+    this._callbackMap.clear();
+  }
+};
+
 // forge/_src_/ts/io/ForgeIO.ts
 var $fs = require("node:fs/promises");
 var ForgeIO = class {
@@ -34419,64 +34855,9 @@ var Subscription = class {
 
 // forge/_src_/ts/forge/action/AbstractAction.ts
 var $fs2 = require("fs").promises;
-var __ForgeProtocol = "forge://";
-var AbstractServiceAdapter = class extends Subscription {
-  _key = QuickHash();
-  _sessions = /* @__PURE__ */ new Map();
-  race;
-  constructor(config) {
-    super();
-    this.race = config.race;
-  }
-  read(message) {
-    try {
-      const [protocol, header, data] = message;
-      if (protocol != __ForgeProtocol)
-        return;
-      if (header.key != this._key)
-        return;
-      if ("resolve" in header) {
-        const $race = this._sessions.get(header.resolve);
-        $race[1](data);
-        this.notify("resolve", header, data);
-      } else if ("reject" in header) {
-        console.log("rejected", protocol, header, data);
-        const $race = this._sessions.get(header.reject);
-        $race[2](data);
-        this.notify("reject", header, data);
-      } else if ("broadcast" in header) {
-        const { notify } = header;
-        this.notify("broadcast", notify, data);
-      } else {
-        this.notify("message", message);
-      }
-      return true;
-    } catch (error) {
-    }
-    return false;
-  }
-  write(...data) {
-    throw new Error("Please override write(...) in subclasses");
-  }
-  $reset(data) {
-    return this.$signal("reset", data, this.race);
-  }
-  $signal(signal, data, race) {
-    const session = QuickHash();
-    const sessions = this._sessions;
-    const $race = $UseRace(race);
-    $race[0].catch(function(error) {
-    }).finally(function() {
-      sessions.delete(session);
-    });
-    this._sessions.set(session, $race);
-    this.write({ signal, session, key: this._key }, data);
-    return $race[0];
-  }
-};
 var AbstractAction = class extends Subscription {
   _task;
-  _iProcessAdapter;
+  _iServiceAdapter;
   _data;
   _implement;
   _watch;
@@ -34496,31 +34877,32 @@ var AbstractAction = class extends Subscription {
   constructor(iServiceAdapter, implement, data) {
     super();
     this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
-    this._iProcessAdapter = iServiceAdapter;
-    this._iProcessAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+    this._iServiceAdapter = iServiceAdapter;
+    this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
     this._implement = implement;
     this._data = data;
-    if (data.watch) {
-      const watch = String(data.watch);
+    if ("_watch_" in data) {
+      const watch = String(data._watch_);
       let globStr = watch;
-      if (/\*\*[\/\\]\*.*$/.test(watch)) {
+      if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
         globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\/\\\\].+?)$");
       } else if (/[\/\\]\*/.test(watch)) {
-        globStr = globStr.replace(/\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
+        globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
       }
       console.parse(`<blue>${globStr}</blue>`);
       this._watch = new RegExp(globStr);
     }
-    this.name = this._resolveData("name", QuickHash());
+    this.name = this._resolveData("_name_", QuickHash());
     this._async = this._resolveData("async", false);
     this._enabled = this._resolveData("enabled", true);
     this._stdio = this._resolveData("stdio", "pipe" /* Default */);
-    this._race = this._resolveData("race");
+    this._race = this._resolveData("_race_", this._iServiceAdapter.race);
     this.dependencies = this._resolveData("wait", []);
     this.stdout = [];
     this.stderr = [];
   }
   _subscribeBroadcast(notify, header, data) {
+    console.log(">>>>", notify, header, data);
     if (notify == "message") {
       if (header.resolve) {
         const resolve = header.resolve;
@@ -34567,17 +34949,21 @@ var AbstractAction = class extends Subscription {
   }
   $signal(signal, data, race) {
     if (signal == "watch") {
-      console.log(this._watch, this._watch.test(String(data)), data);
-      if (this._watch && this._watch.test(String(data)) === false)
-        throw new Error(`"watch"" Signal Ignored`);
+      console.log("watucing");
+      const { file, event } = data;
+      console.log(this._watch, this._watch.test(file), data);
+      if (this._watch && this._watch.test(file) === false) {
+        console.warn(`"watch"" Signal Ignored`);
+        return Promise.reject({ watch: "ignored" });
+      }
     }
-    return this._iProcessAdapter.$signal(signal, data, race);
+    return this._iServiceAdapter.$signal(signal, { ...this._data, ...data }, race);
   }
   async $reset(data) {
     this._startTime = Date.now();
     this.stdout = [];
     this.stderr = [];
-    return this._iProcessAdapter.$reset(data);
+    return this._iServiceAdapter.$reset(data);
   }
   async $stream(stdoutCallback, stderrCallback) {
     stderrCallback = stderrCallback || stdoutCallback;
@@ -34638,7 +35024,99 @@ var AbstractAction = class extends Subscription {
 };
 
 // forge/_src_/ts/forge/action/SpawnAction.ts
-var { spawn, fork: fork2, exec, execSync } = require("child_process");
+var SpawnAction = class extends AbstractAction {
+  constructor(iService, implement, data) {
+    super(iService, implement, data);
+    this._bindings.set(this._onStdout, this._onStdout.bind(this));
+    this._bindings.set(this._onStdErr, this._onStdErr.bind(this));
+    console.log("Spawn Action constructed", String(this._iServiceAdapter), this._data);
+    return;
+  }
+  _onStdout(output) {
+    const outputStr = String(output);
+    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
+      try {
+        const parsedData = JSON.parse(line);
+        const [{ key, session }, data] = parsedData;
+      } catch (error) {
+      }
+      if (line != "") {
+        console.parse(`<cyan>${line}</cyan>`);
+      }
+    }
+    this.stdout.push([outputStr, Date.now() - this._startTime]);
+  }
+  _onStdErr(data) {
+    const outputStr = String(data);
+    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
+      if (line != "") {
+        console.parse(`<red>${line}</red>`);
+      }
+    }
+    this.stderr.push([String(data), Date.now() - this._startTime]);
+  }
+};
+
+// forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
+var __ForgeProtocol = "forge://";
+var AbstractServiceAdapter = class extends Subscription {
+  _key = QuickHash();
+  _sessions = /* @__PURE__ */ new Map();
+  _bindings = /* @__PURE__ */ new Map();
+  race;
+  constructor(config) {
+    super();
+    this.race = config.race;
+  }
+  read(message) {
+    try {
+      const [protocol, header, data] = message;
+      if (protocol != __ForgeProtocol)
+        return;
+      if (header.key != this._key)
+        return;
+      if ("resolve" in header) {
+        const $race = this._sessions.get(header.resolve);
+        $race[1](data);
+        this.notify("resolve", header, data);
+      } else if ("reject" in header) {
+        console.log("rejected", protocol, header, data);
+        const $race = this._sessions.get(header.reject);
+        $race[2](data);
+        this.notify("reject", header, data);
+      } else if ("broadcast" in header) {
+        const { notify } = header;
+        this.notify("broadcast", notify, data);
+      } else {
+        this.notify("message", message);
+      }
+      return true;
+    } catch (error) {
+    }
+    return false;
+  }
+  write(...data) {
+    throw new Error("Please override write(...) in subclasses");
+  }
+  $reset(data) {
+    return this.$signal("reset", data, this.race);
+  }
+  $signal(signal, data, race) {
+    const session = QuickHash();
+    const sessions = this._sessions;
+    const $race = $UseRace(race);
+    $race[0].catch(function(error) {
+    }).finally(function() {
+      sessions.delete(session);
+    });
+    this._sessions.set(session, $race);
+    this.write({ signal, session, key: this._key }, data);
+    return $race[0];
+  }
+};
+
+// forge/_src_/ts/forge/service/SpawnService.ts
+var { spawn, fork, exec, execSync } = require("child_process");
 var SpawnService = class extends AbstractServiceAdapter {
   _child;
   _command;
@@ -34678,38 +35156,6 @@ var SpawnService = class extends AbstractServiceAdapter {
     this._child.stdin.write(JSON.stringify(["forge://", ...data]) + "\n");
   }
 };
-var SpawnAction = class extends AbstractAction {
-  constructor(iService, implement, data) {
-    super(iService, implement, data);
-    this._bindings.set(this._onStdout, this._onStdout.bind(this));
-    this._bindings.set(this._onStdErr, this._onStdErr.bind(this));
-    console.log("Spawn Action constructed", String(this._iProcessAdapter), this._data);
-    return;
-  }
-  _onStdout(output) {
-    const outputStr = String(output);
-    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
-      try {
-        const parsedData = JSON.parse(line);
-        const [{ key, session }, data] = parsedData;
-      } catch (error) {
-      }
-      if (line != "") {
-        console.parse(`<cyan>${line}</cyan>`);
-      }
-    }
-    this.stdout.push([outputStr, Date.now() - this._startTime]);
-  }
-  _onStdErr(data) {
-    const outputStr = String(data);
-    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
-      if (line != "") {
-        console.parse(`<red>${line}</red>`);
-      }
-    }
-    this.stderr.push([String(data), Date.now() - this._startTime]);
-  }
-};
 
 // forge/_src_/ts/forge/ForgeTask.ts
 var ForgeTask = class {
@@ -34733,24 +35179,14 @@ var ForgeTask = class {
   }
   spawn(key, config) {
     if (this._spawnServices.has(key))
-      throw new Error(`Task(${this.name}) : Spawn process already exists "${key}"`);
-    const race = config.race;
-    const reboot = config.reboot || true;
+      throw new Error(`Task(${this.name}) : IServiceAdapter (spawn) already exists "${key}"`);
     const spawnService = new SpawnService(config);
     this._spawnServices.set(key, spawnService);
     return spawnService;
   }
   fork(key, command) {
     if (this._forkServices.has(key) && command === void 0)
-      throw new Error(`Task has no Fork by the key : "${key}"`);
-    if (command) {
-      const commands = command.split(/\s+/g);
-      const child = fork(commands[0], commands.slice(1), { stdio: "pipe" });
-      child.on("exit", function() {
-        console.log("spawn exited");
-      });
-      this._forkServices.set(key, child);
-    }
+      throw new Error(`Task(${this.name}) : IServiceAdapter (fork) already exists "${key}"`);
     return this._forkServices;
   }
   worker(key, command) {
@@ -34773,16 +35209,15 @@ var ForgeTask = class {
     return this;
   }
   parse(configObj) {
-    console.log("configObj", configObj);
     this._data = configObj;
     this.name = configObj.name;
     this._enabled = configObj.enabled;
+    const errors = [];
     if (this._data.services === void 0)
       throw new Error(`No services assigned to "${this.name}"`);
     const spawnObj = this._data.services.spawn;
     if (spawnObj) {
       for (const [key, spawnConfig] of Object.entries(spawnObj)) {
-        const errors = [];
         if (spawnConfig.command === void 0)
           errors.push(`Invalid \`command\` parameter provided for Spawn service "${key}"`);
         if (isNaN(spawnConfig.race))
@@ -34796,66 +35231,27 @@ var ForgeTask = class {
     if (actionConfigs) {
       for (const actionConfig of actionConfigs) {
         let iAction;
-        if ("spawn" in actionConfig) {
-          const implement = actionConfig.implement;
-          const serviceName = actionConfig.spawn;
-          const errors = [];
-          if (implement === void 0)
-            errors.push(`Action "implement" is undefined for ${serviceName}"`);
+        const name = actionConfig._name_;
+        const implement = actionConfig._implement_;
+        if (name === void 0)
+          errors.push(`Action "_name_" is undefined for ${this.constructor.name} : ${this.name}"`);
+        if (implement === void 0)
+          errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
+        if ("_spawn_" in actionConfig) {
+          const serviceName = actionConfig._spawn_;
           if (this._spawnServices.has(serviceName) === false)
-            errors.push(`No Spawn Service has been registered for "${serviceName}"`);
-          if (errors.length)
-            throw new Error("\n\n" + errors.join("\n") + "\n");
+            errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
           const spawnService = this._spawnServices.get(serviceName);
-          const race = actionConfig.race || spawnService.race;
-          iAction = new SpawnAction(spawnService, implement, { ...actionConfig, race });
-        } else if ("fork" in actionConfig) {
-        } else if ("worker" in actionConfig) {
+          this.add(new SpawnAction(spawnService, implement, actionConfig));
+        } else if ("_fork_" in actionConfig) {
+        } else if ("_worker_" in actionConfig) {
+        } else if ("_exec_") {
         }
-        this.add(iAction);
       }
     }
-  }
-};
-
-// forge/_src_/ts/core/timing/Debounce.ts
-var Debouncer = class {
-  _callbackMap = /* @__PURE__ */ new Map();
-  constructor() {
-  }
-  _onTimeout = function() {
-    const now = Date.now();
-    const callbacks = [];
-    for (const [callback, debounceEntry] of this._callbackMap) {
-      const expiry = debounceEntry.previous + debounceEntry.delay;
-      if (expiry < now) {
-        clearTimeout(debounceEntry.timeout);
-        callback(...debounceEntry.parameters);
-        callbacks.push(callback);
-      }
-    }
-    for (const callback of callbacks) {
-      this._callbackMap.delete(callback);
-    }
-  }.bind(this);
-  debounce(callback, parameters, delay) {
-    if (this._callbackMap.has(callback)) {
-      const now = Date.now();
-      const debounceEntry = this._callbackMap.get(callback);
-      if (now < debounceEntry.previous + debounceEntry.delay) {
-        clearTimeout(debounceEntry.timeout);
-      }
-      debounceEntry.timeout = setTimeout();
-    } else {
-      const timeout = setTimeout(this._onTimeout);
-      this._callbackMap.set(callback, { previous: Date.now(), parameters, delay, timeout });
-    }
-  }
-  reset() {
-    for (const [callback, debounceEntry] of this._callbackMap) {
-      clearTimeout(debounceEntry.timeout);
-    }
-    this._callbackMap.clear();
+    console.log("errors", errors);
+    if (errors.length)
+      throw new Error("\n\n" + errors.join("\n") + "\n");
   }
 };
 
@@ -35084,6 +35480,7 @@ var AbstractRoute = class {
 
 // forge/_src_/ts/forge/server/ForgeServer.ts
 var express = require_express2();
+var compression = require_compression();
 var url2 = require("url");
 var path = require("path");
 var $fs3 = require("fs").promises;
@@ -35117,6 +35514,7 @@ var ForgeServer = class {
   }.bind(this);
   async _$setupServer(port) {
     this._app = express();
+    this._app.use(compression());
     this._app.use(function(request2, response, next) {
       response.setHeader("Access-Control-Allow-Origin", "*");
       response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content, Accept, Content-Type, Authorization");
@@ -35208,7 +35606,6 @@ var ForgeServer = class {
     this._app.listen(port);
     const database = this._database;
     $fs3.readFile("./backup.json").then(function(buffer) {
-      console.parse("<magenta>BACK UP FILE LOADED\n</magenta>");
       database.clear();
       const loadObj = JSON.parse(String(buffer));
       for (const [partitionName, storeEntries] of Object.entries(loadObj)) {
@@ -35220,7 +35617,8 @@ var ForgeServer = class {
           partition.set(key, { mime, buffer: Buffer.from(DecodeBase64(buffer2)) });
         }
       }
-      console.log(database);
+      console.parse(`<magenta>BACK UP FILE LOADED database { ${Array.from(database.keys())} }
+</magenta>`);
     }.bind(this)).catch(function(error) {
       console.error(error);
     }).finally(function() {
@@ -35282,7 +35680,7 @@ var ForgeServer = class {
 };
 
 // forge/_src_/ts/forge/Forge.ts
-var { spawn: spawn2, fork: fork3, exec: exec2, execSync: execSync2 } = require("child_process");
+var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
 var chokidar = require_chokidar();
 var $fs4 = require("fs").promises;
 var glob = require_commonjs();
@@ -35292,8 +35690,7 @@ var path2 = require("path");
 var Forge = class {
   static Search(pattern) {
   }
-  _debounceTimeout;
-  _debounceDelay = 1e3;
+  _watchFiles;
   _lastUpdate = Date.now();
   _forgeServer;
   _workerMap = /* @__PURE__ */ new Map();
@@ -35302,24 +35699,6 @@ var Forge = class {
   _fileSet = /* @__PURE__ */ new Set();
   _forgeStream = new ForgeStream();
   constructor() {
-  }
-  _update(file) {
-    const now = Date.now();
-    console.log(now, this._lastUpdate + this._debounceDelay);
-    if (now < this._lastUpdate + this._debounceDelay) {
-      this._lastUpdate = now;
-      clearInterval(this._debounceTimeout);
-      this._debounceTimeout = setTimeout(this._update, this._debounceDelay);
-      return;
-    }
-    console.log(now - this._lastUpdate);
-    this._lastUpdate = now;
-    const startTime = Date.now();
-    for (const [name, forgeTask] of this._taskMap) {
-    }
-    console.log(`
-
-	run time: ${Date.now() - startTime}ms : "${file}"`);
   }
   parse(config) {
     const variables = JSON.parse(config).variables;
@@ -35351,14 +35730,13 @@ var Forge = class {
     }
   }
   watch(root, options) {
-    const _update = this._update;
     const watcher = chokidar.watch(["./src/**/*"], { "ignored": this._ignoreArr });
+    const forge = this;
     watcher.on("ready", function() {
-      console.log("watch is ready!");
       watcher.on("all", function(event, file) {
-        this.$signal("watch", file);
-      }.bind(this));
-    }.bind(this));
+        forge.$signal("watch", { file, event });
+      });
+    });
   }
   async $reset(data) {
     data = data || {};
@@ -35387,6 +35765,7 @@ var Forge = class {
 };
 
 // forge/_src_/ts/run.ts
+var fs = require("fs");
 var $fs5 = require("node:fs/promises");
 DebugFormatter.Init({ platform: "node" });
 if (require.main === module && !module.parent) {
@@ -35398,8 +35777,11 @@ if (require.main === module && !module.parent) {
       sanitize: function(value, args) {
         return parseInt(value);
       }
-    }).add("PORT", {
-      required: true
+    }).add("WWW_ROOT", {
+      required: true,
+      validate: function(value, args) {
+        return fs.existsSync(value);
+      }
     }).parse(await $fs5.readFile("./.env", "utf-8")).compile();
     const PORT = compositeArguments.get("PORT");
     const WWW_ROOT = compositeArguments.get("WWW_ROOT");
@@ -35407,7 +35789,7 @@ if (require.main === module && !module.parent) {
     forge.parse(await $fs5.readFile(".forge", "utf-8"));
     const forgeServer = await forge.$serve(PORT, WWW_ROOT);
     forge.$signal("construct", { "so l can get my": "satifacation" });
-    forge.watch();
+    forge.watch("./src/", {});
   })();
 } else {
   console.log("required as a module");
@@ -35817,6 +36199,40 @@ express/index.js:
    * express
    * Copyright(c) 2009-2013 TJ Holowaychuk
    * Copyright(c) 2013 Roman Shtylman
+   * Copyright(c) 2014-2015 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
+bytes/index.js:
+  (*!
+   * bytes
+   * Copyright(c) 2012-2014 TJ Holowaychuk
+   * Copyright(c) 2015 Jed Watson
+   * MIT Licensed
+   *)
+
+compressible/index.js:
+  (*!
+   * compressible
+   * Copyright(c) 2013 Jonathan Ong
+   * Copyright(c) 2014 Jeremiah Senkpiel
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
+on-headers/index.js:
+  (*!
+   * on-headers
+   * Copyright(c) 2014 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
+compression/index.js:
+  (*!
+   * compression
+   * Copyright(c) 2010 Sencha Inc.
+   * Copyright(c) 2011 TJ Holowaychuk
+   * Copyright(c) 2014 Jonathan Ong
    * Copyright(c) 2014-2015 Douglas Christopher Wilson
    * MIT Licensed
    *)

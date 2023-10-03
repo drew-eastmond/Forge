@@ -1,4 +1,5 @@
 const express = require("express");
+const compression = require("compression");
 const url = require("url");
 const path = require("path");
 const $fs = require("fs").promises;
@@ -166,6 +167,8 @@ export class ForgeServer {
 
         this._app = express();
 
+        this._app.use(compression());
+
         this._app.use(function (request, response, next: Function) {
 
             response.setHeader("Access-Control-Allow-Origin", "*");
@@ -331,7 +334,7 @@ export class ForgeServer {
         $fs.readFile("./backup.json")
             .then(function (buffer: Buffer) {
 
-                console.parse("<magenta>BACK UP FILE LOADED\n</magenta>");
+                
 
                 database.clear();
 
@@ -353,7 +356,7 @@ export class ForgeServer {
 
                 }
 
-                console.log(database);
+                console.parse(`<magenta>BACK UP FILE LOADED database { ${Array.from(database.keys())} }\n</magenta>`);
 
 
                 /* for (const [partitionName, partition] of this._database) {

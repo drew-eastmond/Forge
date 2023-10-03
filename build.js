@@ -3,7 +3,7 @@ var import_esbuild = require("esbuild");
 
 // forge/_src_/ts/core/Core.ts
 function DecodeBase64(value) {
-  const buff = new Buffer(value, "base64");
+  const buff = Buffer.from(value, "base64");
   return buff.toString("ascii");
 }
 
@@ -439,7 +439,8 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     let output = header;
     for (const nodeData of dependencyHelper) {
       const file = nodeData.title;
-      output += segmentMap.get(file);
+      output += `// (Forge) ${file}
+` + segmentMap.get(file);
     }
     return output;
   }).catch(function(error) {
@@ -477,7 +478,7 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     }
   }).add("override", {
     default: false,
-    sanitize: (args) => {
+    sanitize: (value, args) => {
       if (args.override)
         return true;
       if (fs.existsSync(args.out) === false)
@@ -491,13 +492,16 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     default: false
   }).add("plugins", {
     default: [],
-    sanitize: (args) => {
+    sanitize: (value, args) => {
       if (args.plugins === void 0)
         return [];
       return true;
     }
   }).add("external", {
-    default: []
+    default: [],
+    sanitize: (value, args) => {
+      return String(value).split(/\s,/g);
+    }
   }).compile();
   const entryFile = cliArguments.get("in");
   const outFile = cliArguments.get("out");
@@ -508,6 +512,7 @@ async function $SortDependencies(code, storeKey, fileManifest) {
   const writeMeta = cliArguments.get("write_meta");
   const watch = cliArguments.get("watch");
   const externals = cliArguments.get("external");
+  console.log("externals", externals);
   const outFilePath = path.parse(outFile);
   const result = await (0, import_esbuild.build)({
     entryPoints: [entryFile],
@@ -519,8 +524,10 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     metafile: true,
     loader: { ".ts": "tsx", ".js": "jsx" },
     outdir: outFilePath.dir,
+    treeShaking: true
+    // keepNames: true,
     // plugins: [yourPlugin]
-    external: ["esbuild"]
+    // external: []
   });
   const fileManifest = Object.keys(result.metafile.inputs);
   let code;
@@ -528,7 +535,7 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     code = out.text;
     break;
   }
-  await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta || true);
+  await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta);
   code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
     return /node_modules/.test(value) === false;
   }));

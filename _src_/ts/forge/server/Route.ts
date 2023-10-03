@@ -150,12 +150,12 @@ export class RedirectRoute extends AbstractRoute {
         })
             .then(function (response: Response) {
 
-                return { mime: "text/html", buffer: new Buffer() };
+                return { mime: "text/html", buffer: Buffer.from([]) };
 
             })
             .catch(function () {
 
-                return { mime: "text/html", buffer: new Buffer() };
+                return { mime: "text/html", buffer: Buffer.from([]) };
 
             }) as unknown as { mime: string, buffer: Buffer };
 

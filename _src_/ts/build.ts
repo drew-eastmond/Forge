@@ -144,7 +144,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             for (const nodeData of dependencyHelper) {
 
                 const file: string = nodeData.title;
-                output += segmentMap.get(file); // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+                output += `// (Forge) ${file}\n` + segmentMap.get(file); // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
 
             }
 
@@ -226,7 +226,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
         })
         .add("override", {
             default: false,
-            sanitize: (args: Record<string, unknown>) => {
+            sanitize: (value: unknown, args: Record<string, unknown>) => {
 
                 if (args.override) return true;
 
@@ -244,7 +244,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
         })
         .add("plugins", {
             default: [],
-            sanitize: (args: Record<string, unknown>) => {
+            sanitize: (value: unknown, args: Record<string, unknown>) => {
 
                 if (args.plugins === undefined) return [];
 
@@ -257,7 +257,12 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             },
         })
         .add("external", {
-            default : []
+            default: [],
+            sanitize: (value: unknown, args: Record<string, unknown>) => {
+
+                return String(value).split(/\s,/g);
+
+            },
         })
         .compile();
 
@@ -276,6 +281,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
     const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
     const watch: boolean = cliArguments.get("watch") as boolean;
     const externals: string[] = cliArguments.get("external") as string[];
+    console.log("externals", externals);
 
     // parse the folder and filename from the --out-- CLI arguments
     const outFilePath = path.parse(outFile);
@@ -295,8 +301,11 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
         metafile: true,
         loader: { '.ts': 'tsx', '.js': 'jsx' },
         outdir: outFilePath.dir,
+
+        treeShaking: true,
+        // keepNames: true,
         // plugins: [yourPlugin]
-        external: ["esbuild"]
+        // external: []
     });
 
     const fileManifest: string[] = Object.keys(result.metafile.inputs);
@@ -309,7 +318,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
     }
 
-    await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta || true)
+    await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta)
 
     code = await $SortDependencies(code, entryFile, fileManifest.filter(function (value) {
 
