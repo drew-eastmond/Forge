@@ -3,42 +3,69 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 
 const __ForgeProtocol: string = "forge://";
 
+export type ServiceAdpaterConfig = {
+    command: string,
+    key: string,
+    race: number,
+    reboot?: boolean
+}
+
 export interface IServiceAdapter extends ISubscription {
+    get race(): number;
 
-    race: number;
-
-    read(message): void;
-    write(...data: Serialize[]): void;
+    read(message: [string, Record<string, unknown>, Serialize]): void;
+    write(header: Record<string, unknown>, ...data: Serialize[]): void;
 
     $reset(data: Serialize): Promise<Serialize>;
 
     $signal(signal: string, data: Serialize, race: number): Promise<Serialize>;
 
+    $reboot();
+
 }
 
 export class AbstractServiceAdapter extends Subscription implements IServiceAdapter {
 
-    protected _key: string = QuickHash();
+    protected _key: string;
+    protected _race: number;
+    protected _reboot: boolean;
 
     protected readonly _sessions: Map<string, $Promise<unknown>> = new Map();
     protected readonly _bindings: Map<Function, Function> = new Map();
 
-    public race: number;
+    
 
-    constructor(config: { race: number }) {
+    constructor(config: ServiceAdpaterConfig) {
 
         super();
 
-        this.race = config.race;
+        this._key = config.key || QuickHash();
+        this._race = config.race;
+        
+    }
+
+    get race(): number {
+
+        return this._race;
 
     }
 
-    public read(message: any): boolean {
+    public read(message: [string, Record<string, unknown>, Serialize]): boolean {
 
         try {
 
             // first test is to destructure the message
-            const [protocol, header, data] = message;
+            const [protocol, header, ...data] = message;
+
+            // broadcast dont have to have validate the key. 
+            if ("broadcast" in header) {
+
+                // I know the destructure is excessive, but it make reading code far more easier.
+                const { notify } = header;
+                this.notify("broadcast", notify, data);
+                return true;
+
+            }
 
             // console.log(protocol, header, data);
 
@@ -47,27 +74,21 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
             if ("resolve" in header) {
 
-                const $race: $Promise = this._sessions.get(header.resolve);
+                const $race: $Promise = this._sessions.get(header.resolve as string);
                 $race[1](data);
                 this.notify("resolve", header, data);
-
 
             } else if ("reject" in header) {
 
                 console.log("rejected", protocol, header, data);
                 
-                const $race: $Promise = this._sessions.get(header.reject);
+                const $race: $Promise = this._sessions.get(header.reject as string);
                 $race[2](data);
                 this.notify("reject", header, data);
 
-            } else if ("broadcast" in header) {
-
-                const { notify } = header;
-                this.notify("broadcast", notify, data);
-
             } else {
 
-                this.notify("message", message);
+                this.notify("message", header, data);
 
             }
 
@@ -76,7 +97,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
         } catch (error: unknown) {
 
             // just catch teh error
-            // console.log("read error", error)
+            console.log("read error", error)
 
         }
 
@@ -84,7 +105,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     }
 
-    public write(...data: Serialize[]): void {
+    public write(header: Record<string, unknown>, ...data: Serialize[]): void {
 
         throw new Error("Please override write(...) in subclasses");
 
@@ -106,9 +127,14 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const $race: $Promise<unknown> = $UseRace(race);
         $race[0]
+            .then(function () {
+
+                console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
+                // console.log(data);
+            })
             .catch(function (error: unknown) {
 
-                //console.parse("<yellow>$signal exception caught :</yellow>", error);
+                console.parse("<yellow>$signal exception caught :</yellow>", error);
 
             })
             .finally(function () {
@@ -123,6 +149,10 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
         this.write({ signal, session, key: this._key }, data);
 
         return $race[0];
+
+    }
+
+    public async $reboot(): Promise<void> {
 
     }
 

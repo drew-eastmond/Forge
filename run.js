@@ -34789,6 +34789,8 @@ var Subscription = class {
    * @param once {boolean} Deletes the notication entry once it been dispatched
    */
   subscribe(notify, delegate, count) {
+    if (delegate === void 0)
+      throw new Error(`Subscription.subscribe( ... ) : delegate passed is not a function ${delegate}`);
     if (count !== void 0)
       this._countMap.set(delegate, count);
     this._subscriberMap.set(delegate, notify);
@@ -34803,12 +34805,17 @@ var Subscription = class {
           const result = delegate(notify, ...rest);
           if (result === Unsubscribe) {
             this._unsubscribeSet.add(delegate);
-          } else if (this._onceMap.has(delegate)) {
+          } else if (this._countMap.has(delegate)) {
+            const count = this._countMap.get(delegate) - 1;
+            if (count < 1) {
+              this._unsubscribeSet.add(delegate);
+              this._countMap.delete(delegate);
+            }
           }
         }
       } else if (query === notify) {
         const result = delegate(notify, ...rest);
-        if (result === Unsubscribe || this._onceMap.has(delegate))
+        if (result === Unsubscribe || this._countMap.has(delegate))
           this._unsubscribeSet.add(delegate);
       }
     }
@@ -34835,7 +34842,7 @@ var Subscription = class {
   clear() {
     this._subscriberMap.clear();
   }
-  $listen(notify, callback, expiry) {
+  $listen(notify, callback, race) {
     const _this = this;
     return new Promise(function(resolve, reject) {
       const subscribeForCallback = function(...rest) {
@@ -34846,9 +34853,11 @@ var Subscription = class {
         }
       };
       _this.subscribe(notify, subscribeForCallback);
-      if (expiry === void 0)
+      if (race === void 0)
         return;
-      expiry.use$().then(reject);
+      setTimeout(function() {
+        reject(new Error(`Subscription.$listen( "${notify}", ... ) has rejected on race timeout : ${race}`));
+      }, race);
     });
   }
 };
@@ -34877,8 +34886,12 @@ var AbstractAction = class extends Subscription {
   constructor(iServiceAdapter, implement, data) {
     super();
     this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
+    this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
     this._iServiceAdapter = iServiceAdapter;
     this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+    this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
+    this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+    this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
     this._implement = implement;
     this._data = data;
     if ("_watch_" in data) {
@@ -34924,6 +34937,9 @@ var AbstractAction = class extends Subscription {
       }
     }
   }
+  _subscribeMessage(notify, header, ...data) {
+    console.error("_subscribeMessage", notify, header, data);
+  }
   _resolveData(key, defaultValue) {
     const value = this._data[key];
     return value === void 0 ? defaultValue : value;
@@ -34949,11 +34965,11 @@ var AbstractAction = class extends Subscription {
   }
   $signal(signal, data, race) {
     if (signal == "watch") {
-      console.log("watucing");
+      console.log("watching");
       const { file, event } = data;
       console.log(this._watch, this._watch.test(file), data);
       if (this._watch && this._watch.test(file) === false) {
-        console.warn(`"watch"" Signal Ignored`);
+        console.warn(`"watch" Signal Ignored`);
         return Promise.reject({ watch: "ignored" });
       }
     }
@@ -35023,6 +35039,37 @@ var AbstractAction = class extends Subscription {
   }
 };
 
+// forge/_src_/ts/forge/action/ForkAction.ts
+var ForkAction = class extends AbstractAction {
+  _child;
+  constructor(iService, implement, data) {
+    super(iService, implement, data);
+    this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
+    this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
+    this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
+    this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+    return;
+  }
+  _onExit(code, signal) {
+    console.log("exit", code, signal);
+  }
+  _subscribeMessage(message) {
+    console.log("message pareent", message);
+    this.notify("message", message);
+  }
+  _subscribeBroadcast(data) {
+    console.log("captured (stdout)", String(data));
+    this.stdout.push([String(data), Date.now() - this._startTime]);
+  }
+  _onStdErr(data) {
+    console.log("captured (stderr)", String(data));
+    this.stderr.push([String(data), Date.now() - this._startTime]);
+  }
+  write(...data) {
+    this._child.send(data);
+  }
+};
+
 // forge/_src_/ts/forge/action/SpawnAction.ts
 var SpawnAction = class extends AbstractAction {
   constructor(iService, implement, data) {
@@ -35060,17 +35107,27 @@ var SpawnAction = class extends AbstractAction {
 // forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
 var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
-  _key = QuickHash();
+  _key;
+  _race;
+  _reboot;
   _sessions = /* @__PURE__ */ new Map();
   _bindings = /* @__PURE__ */ new Map();
-  race;
   constructor(config) {
     super();
-    this.race = config.race;
+    this._key = config.key || QuickHash();
+    this._race = config.race;
+  }
+  get race() {
+    return this._race;
   }
   read(message) {
     try {
-      const [protocol, header, data] = message;
+      const [protocol, header, ...data] = message;
+      if ("broadcast" in header) {
+        const { notify } = header;
+        this.notify("broadcast", notify, data);
+        return true;
+      }
       if (protocol != __ForgeProtocol)
         return;
       if (header.key != this._key)
@@ -35084,18 +35141,16 @@ var AbstractServiceAdapter = class extends Subscription {
         const $race = this._sessions.get(header.reject);
         $race[2](data);
         this.notify("reject", header, data);
-      } else if ("broadcast" in header) {
-        const { notify } = header;
-        this.notify("broadcast", notify, data);
       } else {
-        this.notify("message", message);
+        this.notify("message", header, data);
       }
       return true;
     } catch (error) {
+      console.log("read error", error);
     }
     return false;
   }
-  write(...data) {
+  write(header, ...data) {
     throw new Error("Please override write(...) in subclasses");
   }
   $reset(data) {
@@ -35105,7 +35160,10 @@ var AbstractServiceAdapter = class extends Subscription {
     const session = QuickHash();
     const sessions = this._sessions;
     const $race = $UseRace(race);
-    $race[0].catch(function(error) {
+    $race[0].then(function() {
+      console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
+    }).catch(function(error) {
+      console.parse("<yellow>$signal exception caught :</yellow>", error);
     }).finally(function() {
       sessions.delete(session);
     });
@@ -35113,21 +35171,32 @@ var AbstractServiceAdapter = class extends Subscription {
     this.write({ signal, session, key: this._key }, data);
     return $race[0];
   }
+  async $reboot() {
+  }
 };
 
-// forge/_src_/ts/forge/service/SpawnService.ts
+// forge/_src_/ts/forge/service/ForkService.ts
 var { spawn, fork, exec, execSync } = require("child_process");
-var SpawnService = class extends AbstractServiceAdapter {
-  _child;
-  _command;
-  constructor(config) {
+var ForkService = class extends AbstractServiceAdapter {
+  _source;
+  _commands;
+  constructor(config, source) {
     super(config);
-    const commands = config.command.split(/\s+/g);
-    const args = [...commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
-    this._child = spawn(commands[0], args, { stdio: "pipe" });
-    this._child.on("exit", this._onExit.bind(this));
-    this._child.stdout.on("data", this._onStdoutData.bind(this));
-    this._child.stderr.on("data", this._onStdoutError.bind(this));
+    const controller = new AbortController();
+    const { signal } = controller;
+    this._commands = config.command.split(/\s+/g);
+    const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+    this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
+    this._source.on("exit", this._onExit.bind(this));
+    this._source.on("broadcast", function(message) {
+      console.log(message);
+    }.bind(this));
+    this._source.on("message", function(message) {
+      console.log(message);
+      this.read(message);
+    }.bind(this));
+    this._source.stdout.on("data", this._onStdoutData.bind(this));
+    this._source.stderr.on("data", this._onStdoutError.bind(this));
   }
   _onStdoutData(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
@@ -35152,8 +35221,50 @@ var SpawnService = class extends AbstractServiceAdapter {
   }
   _onExit() {
   }
-  write(...data) {
-    this._child.stdin.write(JSON.stringify(["forge://", ...data]) + "\n");
+  write(header, ...data) {
+    this._source.send(["forge://", header, data]);
+  }
+};
+
+// forge/_src_/ts/forge/service/SpawnService.ts
+var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
+var SpawnService = class extends AbstractServiceAdapter {
+  _source;
+  _commands;
+  constructor(config, source) {
+    super(config);
+    this._commands = config.command.split(/\s+/g);
+    const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+    this._source = source || spawn2(this._commands[0], args, { stdio: "pipe" });
+    this._source.on("exit", this._onExit.bind(this));
+    this._source.stdout.on("data", this._onStdoutData.bind(this));
+    this._source.stderr.on("data", this._onStdoutError.bind(this));
+  }
+  _onStdoutData(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<cyan>${line}</cyan>`);
+        }
+      }
+    }
+  }
+  _onStdoutError(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      console.parse(`<cyan>${line}</cyan>`);
+    }
+  }
+  _onExit() {
+  }
+  write(header, ...data) {
+    this._source.stdin.write(JSON.stringify(["forge://", header, ...data]) + "\n");
   }
 };
 
@@ -35184,13 +35295,15 @@ var ForgeTask = class {
     this._spawnServices.set(key, spawnService);
     return spawnService;
   }
-  fork(key, command) {
-    if (this._forkServices.has(key) && command === void 0)
+  fork(key, config) {
+    if (this._forkServices.has(key) && config === void 0)
       throw new Error(`Task(${this.name}) : IServiceAdapter (fork) already exists "${key}"`);
+    const forkService = new ForkService(config);
+    this._forkServices.set(key, forkService);
     return this._forkServices;
   }
-  worker(key, command) {
-    if (this._workerServices.has(key) && command === void 0)
+  worker(key, config) {
+    if (this._workerServices.has(key) && config === void 0)
       throw new Error(`Task has no Worker by the key : "${key}"`);
     return this._workerServices;
   }
@@ -35217,14 +35330,26 @@ var ForgeTask = class {
       throw new Error(`No services assigned to "${this.name}"`);
     const spawnObj = this._data.services.spawn;
     if (spawnObj) {
-      for (const [key, spawnConfig] of Object.entries(spawnObj)) {
-        if (spawnConfig.command === void 0)
-          errors.push(`Invalid \`command\` parameter provided for Spawn service "${key}"`);
-        if (isNaN(spawnConfig.race))
-          errors.push(`Invalid \`race\` parameter provided for Spawn service "${key}"`);
+      for (const [key, serviceConfig] of Object.entries(spawnObj)) {
+        if (serviceConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for SPAWN service "${key}"`);
+        if (isNaN(serviceConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
         if (errors.length)
           throw new Error(errors.join("\n"));
-        const spawnService = this.spawn(key, spawnConfig);
+        const service = this.spawn(key, serviceConfig);
+      }
+    }
+    const forkObj = this._data.services.fork;
+    if (forkObj) {
+      for (const [key, serviceConfig] of Object.entries(forkObj)) {
+        if (serviceConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for FORK service "${key}"`);
+        if (isNaN(serviceConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
+        if (errors.length)
+          throw new Error(errors.join("\n"));
+        const service = this.fork(key, serviceConfig);
       }
     }
     const actionConfigs = this._data.actions;
@@ -35244,8 +35369,16 @@ var ForgeTask = class {
           const spawnService = this._spawnServices.get(serviceName);
           this.add(new SpawnAction(spawnService, implement, actionConfig));
         } else if ("_fork_" in actionConfig) {
+          const serviceName = actionConfig._fork_;
+          if (this._forkServices.has(serviceName) === false)
+            errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
+          const forkService = this._forkServices.get(serviceName);
+          this.add(new ForkAction(forkService, implement, actionConfig));
         } else if ("_worker_" in actionConfig) {
         } else if ("_exec_") {
+        } else {
+          console.error("total failure");
+          process.exit(1);
         }
       }
     }
@@ -35576,27 +35709,24 @@ var ForgeServer = class {
         next();
         return;
       }
-      console.parse("<green>has task</green>", taskName);
       const iAction = forgeTask.actions().get(actionName);
-      console.parse("<green>actions</green>\n\n", forgeTask.actions().keys());
+      console.parse(`<green>has :task/:actions > <cyan>"${taskName}"</cyan>/<cyan>"${actionName}"</cyan> from <cyan>[ ${Array.from(forgeTask.actions().keys())} ]</cyan></green>
+
+`);
       if (iAction === void 0) {
         console.parse(`<red>NO Actions ${actionName}</red>
 
 `);
         response.sendStatus(404);
-        next();
         return;
       }
       const { mime, buffer } = await iAction.$route(route, query);
       response.setHeader("Content-Type", mime).end(buffer);
     }.bind(this));
     this._app.all("*", async function(request2, response, next) {
-      let file = request2.params[0] == "/" ? "index.html" : "." + request2.params[0];
+      const file = request2.params[0] == "/" ? "index.html" : "." + request2.params[0];
       const route = path.resolve(this._base, file);
-      console.log("params", request2.params);
-      console.log("base", this._base);
-      console.log("all routes", route);
-      console.log("");
+      console.log("ForgeServer *", request2.params, route);
       $fs3.readFile(route).then(function(buffer) {
         response.setHeader("Content-Type", mimeTypes.lookup(route)).end(buffer);
       }).catch(function(error) {
@@ -35680,7 +35810,7 @@ var ForgeServer = class {
 };
 
 // forge/_src_/ts/forge/Forge.ts
-var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
+var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
 var chokidar = require_chokidar();
 var $fs4 = require("fs").promises;
 var glob = require_commonjs();

@@ -275,17 +275,16 @@ export class ForgeServer {
 
             }
 
-            console.parse("<green>has task</green>", taskName);
             const iAction: IAction = forgeTask.actions().get(actionName);
 
-            console.parse("<green>actions</green>\n\n", forgeTask.actions().keys());
+            console.parse(`<green>has :task/:actions > <cyan>"${taskName}"</cyan>/<cyan>"${actionName}"</cyan> from <cyan>[ ${Array.from(forgeTask.actions().keys())} ]</cyan></green>\n\n`);
 
             if (iAction === undefined) {
 
                 console.parse(`<red>NO Actions ${actionName}</red>\n\n`);
 
                 response.sendStatus(404);
-                next();
+                // next();
 
                 return;
 
@@ -306,12 +305,13 @@ export class ForgeServer {
 
         this._app.all("*", async function (request, response, next: Function) {
 
-            let file: string = (request.params[0] == "/") ? "index.html" : "." + request.params[0];
+            const file: string = (request.params[0] == "/") ? "index.html" : "." + request.params[0];
             const route: string = path.resolve(this._base, file);
-            console.log("params", request.params);
-            console.log("base", this._base);
-            console.log("all routes", route);
-            console.log("");
+
+            console.log("ForgeServer *", request.params, route);
+            // console.log("base", this._base);
+            // console.log("all routes", route);
+            // console.log("");
 
             $fs.readFile(route)
                 .then(function (buffer: Buffer) {

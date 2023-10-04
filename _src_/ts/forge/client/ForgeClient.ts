@@ -1,6 +1,6 @@
 import { $UseRace, Serialize } from "../../core/Core";
 import { Expiry } from "../../core/Expiry";
-import { IClientAdapter } from "./ClientAdapter";
+import { IServiceAdapter } from "../service/AbstractServiceAdapter";
 
 const $fs = require("fs").promises;
 const path = require("path");
@@ -39,21 +39,20 @@ class ForgeClient {
     protected _executing: boolean;
     protected _queue: [] = [];
 
-    protected _iClientAdapter: IClientAdapter;
+    protected _iServiceAdapter: IServiceAdapter;
 
     protected _filters: Set<string> = new Set();
 
     protected _delegates: Set<{}> = new Set();
 
-    constructor(iClientAdapter: IClientAdapter) {
+    constructor(iServiceAdapter: IServiceAdapter) {
 
-        this._iClientAdapter = iClientAdapter;
-        this._iClientAdapter.subscribe("message", this._onMessage.bind(this));
-        // this._iServiceAdapter.subscribe("broadcast", this._onMessage.bind(this));
+        this._iServiceAdapter = iServiceAdapter;
+        this._iServiceAdapter.subscribe("message", this._subscribeMessage.bind(this));
 
     }
 
-    private _onMessage(message: [protocol: string, header: Record<string, unknown>, data: Serialize]): void {
+    private _subscribeMessage(message: [protocol: string, header: Record<string, unknown>, data: Serialize]): void {
 
         try {
 
@@ -61,19 +60,19 @@ class ForgeClient {
 
             switch (signal) {
 
-                case "--reset":
-                    this._iClientAdapter.write({ resolve: session, key: _key }, await this.$reset(data));
+                case "reset":
+                    this._iServiceAdapter.write({ resolve: session }, await this.$reset(data));
                     break;
                 case "construct":
                 case "execute":
                     const results: Serialize = await this.$execute(signal, data);
-                    console.log(`${signal} $dispatched`, result);
-                    this._iClientAdapter.write({ resolve: session }, result);
+                    console.log(`${signal} $dispatched`, results);
+                    this._iServiceAdapter.write({ resolve: session }, results);
                     break;
                 case "route":
                     console.log("ROUTED CHILD", data);
                     const { route, params } = data;
-                    _this.write({ resolve: session, key: _key }, JSON.stringify(await _this.$route(route, params)));
+                    this._iServiceAdapter.write({ resolve: session }, JSON.stringify(await _this.$route(route, params)));
                     break;
                 case "watch":
 
@@ -85,7 +84,7 @@ class ForgeClient {
 
                 default:
 
-                    this._iClientAdapter.write({ reject: session }, { reason: `unknown signal : "${signal}"`});
+                    this._iServiceAdapter.write({ reject: session }, { reason: `unknown signal : "${signal}"`});
 
             }
 
@@ -97,7 +96,7 @@ class ForgeClient {
 
     }
 
-    public async $reset(...data: Serialize[]): Promise<Serialize> {
+    public async $reset(...data: Serialize[]): Promise<Serialize[]> {
 
         this._executing = false;
 
@@ -117,7 +116,7 @@ class ForgeClient {
 
     }
 
-    public async $execute(signal: string, ...data: Serialize[]): Promise<Serialize> {
+    public async $execute(signal: string, ...data: Serialize[]): Promise<Serialize[]> {
 
         const results: Serialize[] = []; 
         for (const iClientDelegate of this._delegates) {
@@ -139,18 +138,18 @@ class ForgeClient {
 
         console.log("$signal called")
 
-        this._iClientAdapter.write([{ signal: signal }, data]);
-        this._iClientAdapter.$listen("message", function (message: ) {
+        this._iServiceAdapter.write({ signal }, [data]);
+        await this._iServiceAdapter.$listen("message", function (message: [string, Record<string, unknown>, Serialize]) {
 
-            const [{ signal }, data] = message;
+            const [protocol, header, data] = message;
 
             console.log("signal received", message);
 
-            if (message.resolve == signal) {
+            if (header.resolve == signal) {
 
                 console.log("ALL done forked", message);
 
-            } else if (message.reject == signal) {
+            } else if (header.reject == signal) {
 
                 console.log("rejected");
 

@@ -95,6 +95,9 @@ export class Subscription implements ISubscription, IPoolable {
 	 */
 	public subscribe(notify: Notification, delegate: Function, count?: number): void {
 
+		// make sure delegate is a function
+		if (delegate === undefined) throw new Error(`Subscription.subscribe( ... ) : delegate passed is not a function ${delegate}`);
+
 		// if count has been supplied then add an entry to the countMap. When its done unsubscribe
 		if (count !== undefined) this._countMap.set(delegate, count);
 		
@@ -125,9 +128,15 @@ export class Subscription implements ISubscription, IPoolable {
 
 						this._unsubscribeSet.add(delegate);
 
-					} else if (this._onceMap.has(delegate)) {
+					} else if (this._countMap.has(delegate)) {
 
+						const count: number = this._countMap.get(delegate) - 1;
+						if (count < 1) {
 
+							this._unsubscribeSet.add(delegate);
+							this._countMap.delete(delegate);
+
+						}
 
 					}
 				}
@@ -136,7 +145,7 @@ export class Subscription implements ISubscription, IPoolable {
 			} else if (query === notify) {
 
 				const result: unknown = delegate(notify, ...rest);
-				if (result === Unsubscribe || this._onceMap.has(delegate)) this._unsubscribeSet.add(delegate);
+				if (result === Unsubscribe || this._countMap.has(delegate)) this._unsubscribeSet.add(delegate);
 
 			}
 
@@ -184,8 +193,8 @@ export class Subscription implements ISubscription, IPoolable {
 
 
 	public $listen(notify: unknown, callback: Function): Promise<unknown>
-	public $listen(notify: unknown, callback: Function, expiry: Expiry): Promise<unknown>
-	public $listen(notify: unknown, callback: Function, expiry?: Expiry): Promise<unknown> {
+	public $listen(notify: unknown, callback: Function, race: number): Promise<unknown>
+	public $listen(notify: unknown, callback: Function, race?: number): Promise<unknown> {
 
 		const _this: this = this;
 
@@ -205,10 +214,13 @@ export class Subscription implements ISubscription, IPoolable {
 
 			_this.subscribe(notify, subscribeForCallback);
 
-			if (expiry === undefined) return;
+			if (race === undefined) return;
 
-			expiry.use$()
-				.then(reject as (value: unknown) => unknown);
+			setTimeout(function () {
+
+				reject(new Error(`Subscription.$listen( "${notify}", ... ) has rejected on race timeout : ${race}`));
+
+			}, race);
 
 		});
 

@@ -3,7 +3,7 @@ const { spawn, fork, exec, execSync } = require("child_process");
 import { EncodeBase64, Serialize } from "../../core/Core";
 import { AbstractServiceAdapter, ServiceAdpaterConfig } from "./AbstractServiceAdapter";
 
-export class SpawnService extends AbstractServiceAdapter {
+export class ForkService extends AbstractServiceAdapter {
 
     private _source: any;
     private _commands: string[];
@@ -12,11 +12,30 @@ export class SpawnService extends AbstractServiceAdapter {
 
         super(config);
 
+        const controller = new AbortController();
+        const { signal } = controller;
+
         this._commands = config.command.split(/\s+/g);
         const args: string[] = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
-        this._source = source || spawn(this._commands[0], args, { stdio: "pipe" });
+
+        this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
 
         this._source.on("exit", this._onExit.bind(this));
+
+        this._source.on("broadcast", function (message) {
+
+            console.log(message);
+
+        }.bind(this));
+
+
+        this._source.on("message", function (message) {
+
+            console.log(message);
+            this.read(message);
+
+        }.bind(this));
+
         this._source.stdout.on("data", this._onStdoutData.bind(this));
         this._source.stderr.on("data", this._onStdoutError.bind(this));
 
@@ -80,7 +99,7 @@ export class SpawnService extends AbstractServiceAdapter {
 
         // absolutely important to append a new line in case to many messages are concatenated 
         // sent before the process finally read.
-        this._source.stdin.write(JSON.stringify(["forge://", header, ...data]) + "\n");
+        this._source.send(["forge://", header, data]);
 
     }
 

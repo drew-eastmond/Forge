@@ -75,9 +75,14 @@ export class AbstractAction extends Subscription implements IAction {
         super();
 
         this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
+        this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
 
         this._iServiceAdapter = iServiceAdapter;
         this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+        this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
+
+        this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+        this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
         
         this._implement = implement;
         this._data = data;
@@ -169,6 +174,13 @@ export class AbstractAction extends Subscription implements IAction {
 
     }
 
+    protected _subscribeMessage(notify: string, header: Record<string, unknown>, ...data: Serialize[]): void {
+
+        console.error("_subscribeMessage", notify, header, data);
+
+
+    }
+
     protected _resolveData(key: string, defaultValue?: unknown): unknown {
 
         const value: unknown = this._data[key];
@@ -210,14 +222,14 @@ export class AbstractAction extends Subscription implements IAction {
         // optimize the `watch` signals only if a watch value is provided
         if (signal == "watch") {
 
-            console.log("watucing");
+            console.log("watching");
 
             const { file, event } = data as { file: string, event: string };
 
             console.log(this._watch, this._watch.test(file), data);
             if (this._watch && this._watch.test(file) === false) {
 
-                console.warn(`"watch"" Signal Ignored`);
+                console.warn(`"watch" Signal Ignored`);
                 return Promise.reject({ watch: "ignored" });
 
             }

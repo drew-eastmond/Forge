@@ -51,11 +51,11 @@ const driver = new function (process, delegates) {
         _process.stdin.setEncoding("ascii");
         _process.stdin.on("data", function (inputs) {
 
-            console.log("stdin received", inputs.split("\n"));
+            // console.log("stdin received", inputs.split("\n"));
 
             for (const input of inputs.split("\n")) {
 
-                console.log(input);
+                // console.log(input);
 
                 try {
 
@@ -150,7 +150,6 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
             const [protocol, { signal, session, key }, data] = message;
 
-
             if (key != _key) return;
 
             switch (signal) {
@@ -174,7 +173,7 @@ ${JSON.stringify(_args, undefined, 2)}`);
                     _this.write({ resolve: session, key: _key }, "drew random but good");
                     break;
                 case "route":
-                    console.log("ROUTED CHILD", data);
+                    console.log("<yellow>ROUTED CHILD</yellow>", data.route);
                     const { route, params } = data;
                     _this.write({ resolve: session, key: _key }, JSON.stringify(await _this.$route(route, params)));
                     break;
@@ -264,7 +263,7 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
                 reject(new Error(`$signal expired ${signal}`));
 
-            });
+            }, ra);
 
         });
 
@@ -288,7 +287,7 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
         route = route || "index.html";
 
-        console.log("<cyan>resolving</cyan>", path.resolve(_routeRoot, route));
+        // console.log("<cyan>resolving</cyan>", path.resolve(_routeRoot, route));
 
         const buffer = await $fs.readFile(path.resolve(_routeRoot, route))
             .catch(function () {

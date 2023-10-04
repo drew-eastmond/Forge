@@ -9,7 +9,13 @@ import { ForgeServer } from "./forge/server/ForgeServer";
 /*
 * 1. Handle all the poly-fills
 */
-DebugFormatter.Init({ platform: "node"});
+DebugFormatter.Init({ platform: "node" });
+
+/* process.on('uncaughtException', (error, source) => {
+
+	console.log("extra find error");
+
+}); */
 
 if (require.main === module && !module.parent) {
 

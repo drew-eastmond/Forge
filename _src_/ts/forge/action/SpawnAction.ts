@@ -96,7 +96,6 @@ export class SpawnAction extends AbstractAction {
             
         }
 
-        
         this.stderr.push([String(data), Date.now() - this._startTime]);
 
     }
