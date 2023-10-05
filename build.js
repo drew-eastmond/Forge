@@ -1,29 +1,53 @@
-// forge/_src_/build.ts
+// forge/_src_/ts/build.ts
 var import_esbuild = require("esbuild");
 
-// forge/_src_/core/Core.ts
+// forge/_src_/ts/core/Core.ts
 function DecodeBase64(value) {
-  const buff = new Buffer(value, "base64");
+  const buff = Buffer.from(value, "base64");
   return buff.toString("ascii");
 }
 
-// forge/_src_/args/Argument.ts
+// forge/_src_/ts/core/Argument.ts
 var AbstractArguments = class {
   _args = {};
   _validationMap = /* @__PURE__ */ new Map();
   _errors = [];
   constructor() {
   }
-  _validateEntry(key, value, validation) {
+  /**
+   * This function will 
+   *      1. Inject a default if no value is provided
+   *      2. Test if it is a required parameter, or add to internal errors 
+   *      3. Sanitize the value via the `validation.validator` delegate
+   * 
+   * @param key {string} The key extracted from parsing
+   * @param value {unknown} The value extracted from parsing
+   * @param validation {ValidationEntry} Provides info for default, is required, and a validator to sanitize the 
+   * @returns {unknown} If the `validation` param has a delegate then it will sanitize value.
+   */
+  _validate(key, value, validation) {
     if (validation.default !== void 0)
       value = value === void 0 ? validation.default : value;
     if (validation.required && value === void 0) {
-      const errorMessage = validation.error || `\x1B[31; 1mMissing or incorrect \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
+      const errorMessage = validation.error || `\x1B[31; 1mRequired value for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
       this._errors.push(errorMessage);
-    } else if (validation.validator) {
-      const result = validation.validator(value, this._args);
-      if (result && result instanceof Error) {
+    }
+    if (validation.validate) {
+      const result = validation.validate(value, this._args);
+      if (result === false || result === void 0) {
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
+        this._errors.push(errorMessage);
+      } else if (result instanceof Error) {
+        const error = result;
+        const errorMessage = error.message;
+        this._errors.push(errorMessage);
+      }
+    }
+    if (validation.sanitize) {
+      const result = validation.sanitize(value, this._args);
+      if (result && result instanceof Error) {
+        const error = result;
+        const errorMessage = error.message || `\x1B[31; 1mSanitation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       }
       return result;
@@ -33,23 +57,35 @@ var AbstractArguments = class {
   get(key) {
     return key === void 0 ? this._args : this._args[key];
   }
-  add(key, config) {
+  /**
+   * Assigns a validation check to specific arguments via the key provided
+   * 
+   * @param key 
+   * @param validationEntry {ValidationEntry}
+   * @returns {this} return this so you can daisy chain calls
+   */
+  add(key, validationEntry) {
     this._validationMap.set(key, {
-      default: config.default,
-      validator: config.validator,
-      required: config.required || false,
-      error: config.error
+      default: validationEntry.default,
+      sanitize: validationEntry.sanitize,
+      required: validationEntry.required || false,
+      error: validationEntry.error
     });
     return this;
   }
+  /**
+   * Subclasses are responsible for assigning a data source (CLI, .Env, Remote/Server) into a arguments {Record<string, unknown>}
+   *      1. After using `add` member to set all the validation entries. 
+   *      2. `compile` will validate/sanitize each entry. If there any errors then join all errors messages into a single Error and throw it!
+   */
   compile() {
     for (const [key, validation] of this._validationMap) {
       const value = this._args[key];
-      this._validateEntry(key, value, validation);
+      this._args[key] = this._validate(key, value, validation);
     }
     if (this._errors.length) {
       console.log(this._errors);
-      throw "Errors";
+      throw new Error(this._errors.join("\n"));
     }
   }
 };
@@ -79,7 +115,7 @@ ${JSON.stringify(this._args, void 0, 2)}`);
   }
 };
 
-// forge/_src_/DependencyHelper.ts
+// forge/_src_/ts/DependencyHelper.ts
 var DependencyHelper = class {
   _dependencies;
   _count = 0;
@@ -181,7 +217,7 @@ var DependencyHelper = class {
   }
 };
 
-// forge/_src_/core/Debug.ts
+// forge/_src_/ts/core/Debug.ts
 var ColourFormatting = class {
   _debugFormatter;
   stack;
@@ -341,14 +377,13 @@ var DebugFormatter = class {
   }
 };
 
-// forge/_src_/build.ts
+// forge/_src_/ts/build.ts
 var path = require("path");
 var fs = require("fs");
 var $fs = require("node:fs/promises");
 var API_BASE = "http://localhost:1234/esbuild/typescript";
 var REQUEST_TIMEOUT = 125;
 var startTime = Date.now();
-DebugFormatter.Init("node");
 function SanitizeFileUrl(...rest) {
   let resolvedUrl = path.resolve(...rest);
   resolvedUrl = /\.\w+$/.test(resolvedUrl) ? resolvedUrl : resolvedUrl + ".ts";
@@ -391,7 +426,6 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     const compiledSegments = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
     const header = compiledSegments[0];
     const segmentMap = /* @__PURE__ */ new Map();
-    const fileObj = {};
     for (let i = 1; i < compiledSegments.length; i += 2) {
       for (const file of fileManifest) {
         const importName = SanitizeFileUrl(compiledSegments[i]);
@@ -404,46 +438,85 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     let output = header;
     for (const nodeData of dependencyHelper) {
       const file = nodeData.title;
-      output += segmentMap.get(file);
+      output += `// (Forge) ${file}
+` + segmentMap.get(file);
     }
     return output;
   }).catch(function(error) {
     return code;
   });
 }
+async function $build(entryFile, outFile, options) {
+  const outFilePath = path.parse(outFile);
+  const result = await (0, import_esbuild.build)({
+    entryPoints: [entryFile],
+    bundle: options.bundled,
+    platform: options.platform,
+    write: false,
+    // dont produce a build file, but give me the build in as a result
+    format: options.format,
+    metafile: true,
+    loader: { ".ts": "tsx", ".js": "jsx" },
+    outdir: outFilePath.dir,
+    treeShaking: options.treeShaking
+    // plugins: [yourPlugin]
+    // external: []
+  });
+  const fileManifest = Object.keys(result.metafile.inputs);
+  let code;
+  for (const out of result.outputFiles) {
+    code = out.text;
+    break;
+  }
+  await $SaveMetaFile(entryFile, outFile, fileManifest, options.metafile);
+  code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
+    return /node_modules/.test(value) === false;
+  }));
+  await $fs.writeFile(outFile, code);
+  console.parse(`<green>Build Successful (${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
+	* ${options.bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
+
+	* <cyan>format</cyan> : ${options.format}
+
+	* <cyan>platform</cyan> : ${options.platform}
+`);
+}
+async function $watch() {
+  const forgeClient = new ForgeClient();
+}
+DebugFormatter.Init({ platform: "node" });
 (async function() {
   const cliArguments = new CLIArguments();
   cliArguments.add("in", {
-    "required": true,
-    "validator": (args) => {
+    required: true,
+    validate: (args) => {
       return Object.hasOwn(args, "in");
     },
-    "error": `\x1B[31;1mMissing or incorrect \x1B[36;1m--in--\x1B[0m\x1B[31;1m argument\x1B[0m`
+    error: `\x1B[31;1mMissing or incorrect \x1B[36;1m--in--\x1B[0m\x1B[31;1m argument\x1B[0m`
   }).add("out", {
-    "required": true,
-    "validator": (args) => {
+    required: true,
+    validate: (args) => {
       return Object.hasOwn(args, "out");
     },
-    "error": `\x1B[31;1mMissing or incorrect \x1B[36;1m--out--\x1B[0m\x1B[31;1m argument\x1B[0m`
+    error: `\x1B[31;1mMissing or incorrect \x1B[36;1m--out--\x1B[0m\x1B[31;1m argument\x1B[0m`
   }).add("format", {
-    "default": "cjs"
+    default: "cjs"
   }).add("bundled", {
-    "default": false
+    default: false
   }).add("platform", {
-    "default": "neutral",
-    "validator": (value, args) => {
+    default: "neutral",
+    validate: (value, args) => {
       switch (args) {
         case "node":
         case "neutral":
         case "browser":
           return true;
       }
-      return `\x1B[31;1m(Aborting) To prevent accidentally overwritting compile target \x1B[36;1m--out--\x1B[0m. \x1B[31;1mPlease add \x1B[36;1m--override\x1B[0m \x1B[31;1margument\x1B[0m
-`;
+      return false;
     }
   }).add("override", {
-    "default": false,
-    "validator": (args) => {
+    default: false,
+    sanitize: (value, args) => {
       if (args.override)
         return true;
       if (fs.existsSync(args.out) === false)
@@ -452,18 +525,21 @@ async function $SortDependencies(code, storeKey, fileManifest) {
       return true;
     }
   }).add("write_meta", {
-    "default": false
+    default: false
   }).add("watch", {
-    "default": false
+    default: false
   }).add("plugins", {
-    "default": [],
-    "validator": (args) => {
+    default: [],
+    sanitize: (value, args) => {
       if (args.plugins === void 0)
         return [];
       return true;
     }
   }).add("external", {
-    "default": []
+    default: [],
+    sanitize: (value, args) => {
+      return String(value).split(/\s,/g);
+    }
   }).compile();
   const entryFile = cliArguments.get("in");
   const outFile = cliArguments.get("out");
@@ -474,36 +550,12 @@ async function $SortDependencies(code, storeKey, fileManifest) {
   const writeMeta = cliArguments.get("write_meta");
   const watch = cliArguments.get("watch");
   const externals = cliArguments.get("external");
+  console.log("externals", externals);
   const outFilePath = path.parse(outFile);
-  const result = await (0, import_esbuild.build)({
-    entryPoints: [entryFile],
-    bundle: bundled,
-    platform,
-    write: false,
-    // dont produce a build file, but give me the build in as a result
-    format,
-    metafile: true,
-    loader: { ".ts": "tsx", ".js": "jsx" },
-    outdir: outFilePath.dir,
-    // plugins: [yourPlugin]
-    external: ["esbuild"]
-  });
-  const fileManifest = Object.keys(result.metafile.inputs);
-  let code;
-  for (const out of result.outputFiles) {
-    code = out.text;
-    break;
+  if (watch) {
+    $watch();
+    return;
+  } else {
+    $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: true, write: true });
   }
-  await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta || true);
-  code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
-    return /node_modules/.test(value) === false;
-  }));
-  await $fs.writeFile(outFile, code);
-  console.parse(`<green>Build Successful (${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
-	* ${bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${bundled}
-
-	* <cyan>format</cyan> : ${format}
-
-	* <cyan>platform</cyan> : ${platform}
-`);
 })();

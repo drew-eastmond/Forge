@@ -1,6 +1,7 @@
+const fs = require("fs");
 const $fs = require("node:fs/promises");
 
-import { CompositeArguments } from "./args/Argument";
+import { CompositeArguments } from "./core/Argument";
 import { DebugFormatter } from "./core/Debug";
 import { Forge } from "./forge/Forge";
 import { ForgeServer } from "./forge/server/ForgeServer";
@@ -8,7 +9,13 @@ import { ForgeServer } from "./forge/server/ForgeServer";
 /*
 * 1. Handle all the poly-fills
 */
-DebugFormatter.Init({ platform: "node"});
+DebugFormatter.Init({ platform: "node" });
+
+/* process.on('uncaughtException', (error, source) => {
+
+	console.log("extra find error");
+
+}); */
 
 if (require.main === module && !module.parent) {
 
@@ -22,14 +29,19 @@ if (require.main === module && !module.parent) {
 			.add("PORT", {
 				required: true,
 				default: 1234,
-				validator: function (value: unknown, args: Record<string, unknown>): unknown {
+				sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
 					
 					return parseInt(value as string);
 					
 				}
 			})
-			.add("PORT", {
-				required: true
+			.add("WWW_ROOT", {
+				required: true,
+				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
+
+					return (fs.existsSync(value));
+
+				}
 			})
 			.parse(await $fs.readFile("./.env", "utf-8"))
 			.compile();
@@ -48,6 +60,10 @@ if (require.main === module && !module.parent) {
 			.parse(await $fs.readFile(".forge", "utf-8"));
 
 		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
+
+		forge.$signal("construct", { "so l can get my": "satifacation" });
+
+		forge.watch("./src/", {});
 
 	}());
 

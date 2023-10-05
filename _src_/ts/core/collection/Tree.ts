@@ -36,19 +36,9 @@ export class Tree<T = unknown> {
 
 	}
 
-	public add(instance: T, parent?: T): this {
-
-		parent = parent || this as unknown as T;
+	public add(instance: T): this {
 
 		this._instanceSet.add(instance);
-
-		if (this._childMap.has(instance) === false) {
-
-			this._childMap.set(instance, new Set());
-
-		}
-
-		this._parentMap.set(instance, parent);
 
 		return this;
 
@@ -150,11 +140,15 @@ export class Tree<T = unknown> {
 
 	}
 
-	public clear(): void {
+	public clear(): T[] {
+
+		const instances: T[] = Array.from(this._instanceSet);
 
 		this._instanceSet.clear();
 		this._childMap.clear();
 		this._parentMap.clear();
+
+		return instances;
 
 	}
 

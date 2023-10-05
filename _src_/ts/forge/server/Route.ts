@@ -1,3 +1,16 @@
+const url = require("url");
+
+import { IAction } from "../action/GenericAction";
+
+type Route = string;
+type RequestDelegate = Function; //  ((params: { get: any, post: any, request: any }) => any) | ((req: Request, res: Response, next: Function) => any);
+
+enum RequestMethod {
+    Post,
+    Get,
+    All
+}
+
 export interface IForgeServerRoute {
 
     $install(express): Promise<void>;
@@ -150,12 +163,12 @@ export class RedirectRoute extends AbstractRoute {
         })
             .then(function (response: Response) {
 
-                return { mime: "text/html", buffer: new Buffer() };
+                return { mime: "text/html", buffer: Buffer.from([]) };
 
             })
             .catch(function () {
 
-                return { mime: "text/html", buffer: new Buffer() };
+                return { mime: "text/html", buffer: Buffer.from([]) };
 
             }) as unknown as { mime: string, buffer: Buffer };
 

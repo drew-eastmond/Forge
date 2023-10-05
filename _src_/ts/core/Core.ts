@@ -4,7 +4,7 @@ export type IntervalClear = ReturnType<typeof setInterval>;
 export type TimeoutClear = ReturnType<typeof setTimeout>;
 
 
-export type Serialize = Object | string | ArrayBufferLike | Blob | ArrayBufferView | unknown[] | Buffer | null;
+export type Serialize = Record<string, unknown> | string | ArrayBufferLike | Blob | ArrayBufferView | unknown[] | Buffer | null;
 
 let __HashCount: number = 0;
 
@@ -29,7 +29,7 @@ export function EncodeBase64(json: Record<string, unknown>): string {
 
 export function DecodeBase64(value: string): any {
 
-	const buff = new Buffer(value, "base64");
+	const buff = Buffer.from(value, "base64");
 	return buff.toString("ascii");
 
 }

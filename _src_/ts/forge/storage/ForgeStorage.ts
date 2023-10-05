@@ -5,7 +5,7 @@ import { ForgeServer } from "../server/ForgeServer";
 type ForgeStoreAttributes = Attributes & { name: string };
 export interface IForgeStorage {
 
-    next(): number;
+    next(forgeStore: ForgeStore): number;
 
     connect(forgeServer: ForgeServer): this;
 
@@ -20,9 +20,13 @@ export interface IForgeStorage {
     $delete(forgeStore: ForgeStore): Promise<void>;
 
     // read
-    // $query(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean): Promise<ForgeStore[]>
-    $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, forgeStore: ForgeStore): Promise<ForgeStore[]>;
+    $query(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean): Promise<ForgeStore[]>
+    $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, parent: ForgeStore): Promise<ForgeStore[]>;
 
+    $load(iForgeStorageStrem: IForgeStorageStream): Promise<void>;
+    $save(iForgeStorageStrem: IForgeStorageStream): Promise<void>;
+
+    $flush(): Promise<unknown>;
 
 }
 
@@ -36,11 +40,7 @@ export class ForgeStore {
     private _attributes: Attributes;
 
 
-
-    constructor(iForgeStorage: IForgeStorage, buffer: Buffer, attributes: Attributes) {
-
-        this._iForgeStorage = iForgeStorage;
-        this._id = iForgeStorage.next();
+    constructor(buffer: Buffer, attributes: Attributes) {
 
         this._buffer = buffer;
         this._attributes = attributes;
@@ -66,6 +66,15 @@ export class ForgeStore {
         return this._attributes;
 
     }
+
+    public iForgeStorage(iForgeStorage: IForgeStorage): this {
+
+
+        this._iForgeStorage = iForgeStorage;
+        this._id = iForgeStorage.next(this);
+        return this;
+
+    } 
 
     public async $fork(buffer: Buffer, attributes: Attributes): Promise<ForgeStore> {
 
@@ -96,6 +105,7 @@ export class ForgeStorage implements IForgeStorage {
     constructor() {
 
     }
+
     $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, forgeStore: ForgeStore): Promise<ForgeStore[]> {
         throw new Error("Method not implemented.");
     }
