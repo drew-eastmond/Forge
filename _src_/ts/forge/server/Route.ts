@@ -1,3 +1,16 @@
+const url = require("url");
+
+import { IAction } from "../action/GenericAction";
+
+type Route = string;
+type RequestDelegate = Function; //  ((params: { get: any, post: any, request: any }) => any) | ((req: Request, res: Response, next: Function) => any);
+
+enum RequestMethod {
+    Post,
+    Get,
+    All
+}
+
 export interface IForgeServerRoute {
 
     $install(express): Promise<void>;

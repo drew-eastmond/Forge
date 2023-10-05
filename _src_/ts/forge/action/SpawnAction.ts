@@ -1,7 +1,7 @@
 import { IServiceAdapter } from "../service/AbstractServiceAdapter";
-import { AbstractAction } from "./AbstractAction";
+import { GenericAction } from "./GenericAction";
 
-export class SpawnAction extends AbstractAction {
+export class SpawnAction extends GenericAction {
 
     constructor(iService: IServiceAdapter, implement: string, data: any) {
 

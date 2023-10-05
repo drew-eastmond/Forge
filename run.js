@@ -34862,16 +34862,15 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/ts/forge/action/AbstractAction.ts
+// forge/_src_/ts/forge/action/GenericAction.ts
 var $fs2 = require("fs").promises;
-var AbstractAction = class extends Subscription {
+var GenericAction = class extends Subscription {
   _task;
   _iServiceAdapter;
   _data;
   _implement;
   _watch;
   _async;
-  _enabled;
   _stdio;
   _startTime;
   _race;
@@ -34883,13 +34882,12 @@ var AbstractAction = class extends Subscription {
   stdout;
   stderr;
   name;
+  enabled;
   constructor(iServiceAdapter, implement, data) {
     super();
     this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
     this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
     this._iServiceAdapter = iServiceAdapter;
-    this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
-    this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
     this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
     this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
     this._implement = implement;
@@ -34907,35 +34905,15 @@ var AbstractAction = class extends Subscription {
     }
     this.name = this._resolveData("_name_", QuickHash());
     this._async = this._resolveData("async", false);
-    this._enabled = this._resolveData("enabled", true);
     this._stdio = this._resolveData("stdio", "pipe" /* Default */);
     this._race = this._resolveData("_race_", this._iServiceAdapter.race);
     this.dependencies = this._resolveData("wait", []);
+    this.enabled = this._resolveData("enabled", true);
     this.stdout = [];
     this.stderr = [];
   }
   _subscribeBroadcast(notify, header, data) {
-    console.log(">>>>", notify, header, data);
-    if (notify == "message") {
-      if (header.resolve) {
-        const resolve = header.resolve;
-        if (this._sessions.has(resolve)) {
-          const $promise = this._sessions.get(resolve);
-          $promise[1](data);
-          this._sessions.delete(resolve);
-        }
-      } else if (header.reject) {
-        const reject = header.reject;
-        if (this._sessions.has(reject)) {
-          const $promise = this._sessions.get(reject);
-          $promise[2](data);
-          this._sessions.delete(reject);
-        }
-      } else if (header.signal !== void 0) {
-        console.log("NOOOOOO");
-        this.notify(header.signal, data);
-      }
-    }
+    console.log(">>>>", header, data);
   }
   _subscribeMessage(notify, header, ...data) {
     console.error("_subscribeMessage", notify, header, data);
@@ -34944,19 +34922,6 @@ var AbstractAction = class extends Subscription {
     const value = this._data[key];
     return value === void 0 ? defaultValue : value;
   }
-  /* protected _then$signal(value: unknown): unknown {
-  
-          console.log("_then$signal");
-  
-          return value;
-  
-      }
-  
-      protected _catch$signal(error: unknown): void {
-  
-          console.log("Error", error);
-  
-      } */
   task(forgeTask) {
     this._task = forgeTask;
   }
@@ -34974,6 +34939,15 @@ var AbstractAction = class extends Subscription {
       }
     }
     return this._iServiceAdapter.$signal(signal, { ...this._data, ...data }, race);
+  }
+  $watch(data) {
+    console.log("watching");
+    const { file, event } = data;
+    console.log(this._watch, this._watch.test(file), data);
+    if (this._watch && this._watch.test(file) === false) {
+      console.warn(`"watch" Signal Ignored`);
+      return Promise.reject({ watch: "ignored" });
+    }
   }
   async $reset(data) {
     this._startTime = Date.now();
@@ -35040,38 +35014,25 @@ var AbstractAction = class extends Subscription {
 };
 
 // forge/_src_/ts/forge/action/ForkAction.ts
-var ForkAction = class extends AbstractAction {
+var ForkAction = class extends GenericAction {
   _child;
   constructor(iService, implement, data) {
     super(iService, implement, data);
-    this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
-    this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
-    this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
-    this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
-    return;
-  }
-  _onExit(code, signal) {
-    console.log("exit", code, signal);
   }
   _subscribeMessage(message) {
     console.log("message pareent", message);
     this.notify("message", message);
   }
-  _subscribeBroadcast(data) {
-    console.log("captured (stdout)", String(data));
-    this.stdout.push([String(data), Date.now() - this._startTime]);
-  }
-  _onStdErr(data) {
-    console.log("captured (stderr)", String(data));
-    this.stderr.push([String(data), Date.now() - this._startTime]);
-  }
-  write(...data) {
-    this._child.send(data);
+  _subscribeBroadcast(notify, header, data) {
+    console.log("broadcast captured - ", notify);
+    console.log(header);
+    console.log(data);
+    console.log("--------\n");
   }
 };
 
 // forge/_src_/ts/forge/action/SpawnAction.ts
-var SpawnAction = class extends AbstractAction {
+var SpawnAction = class extends GenericAction {
   constructor(iService, implement, data) {
     super(iService, implement, data);
     this._bindings.set(this._onStdout, this._onStdout.bind(this));
@@ -35122,10 +35083,10 @@ var AbstractServiceAdapter = class extends Subscription {
   }
   read(message) {
     try {
-      const [protocol, header, ...data] = message;
+      const [protocol, header, data] = message;
       if ("broadcast" in header) {
-        const { notify } = header;
-        this.notify("broadcast", notify, data);
+        const { broadcast } = header;
+        this.notify("broadcast", header, data);
         return true;
       }
       if (protocol != __ForgeProtocol)
@@ -35150,7 +35111,7 @@ var AbstractServiceAdapter = class extends Subscription {
     }
     return false;
   }
-  write(header, ...data) {
+  write(header, data) {
     throw new Error("Please override write(...) in subclasses");
   }
   $reset(data) {
@@ -35182,21 +35143,22 @@ var ForkService = class extends AbstractServiceAdapter {
   _commands;
   constructor(config, source) {
     super(config);
-    const controller = new AbortController();
-    const { signal } = controller;
-    this._commands = config.command.split(/\s+/g);
-    const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
-    this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
+    if (source === void 0) {
+      const controller = new AbortController();
+      const { signal } = controller;
+      this._commands = config.command.split(/\s+/g);
+      const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+      this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
+    } else {
+      this._source = source;
+    }
+    this._source.stdout.on("data", this._onStdoutData.bind(this));
+    this._source.stderr.on("data", this._onStdoutError.bind(this));
     this._source.on("exit", this._onExit.bind(this));
-    this._source.on("broadcast", function(message) {
-      console.log(message);
-    }.bind(this));
     this._source.on("message", function(message) {
       console.log(message);
       this.read(message);
     }.bind(this));
-    this._source.stdout.on("data", this._onStdoutData.bind(this));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
   }
   _onStdoutData(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
@@ -35221,7 +35183,7 @@ var ForkService = class extends AbstractServiceAdapter {
   }
   _onExit() {
   }
-  write(header, ...data) {
+  write(header, data) {
     this._source.send(["forge://", header, data]);
   }
 };
@@ -35569,9 +35531,10 @@ var ForgeStorage = class {
 };
 
 // forge/_src_/ts/forge/server/Route.ts
+var url = require("url");
 var AbstractRoute = class {
   _route;
-  _method = RequestMethod.All;
+  _method = 2 /* All */;
   _$delegate;
   constructor(route, ...rest) {
     this._route = route;
@@ -35595,13 +35558,13 @@ var AbstractRoute = class {
   }
   async $install(express3) {
     switch (this._method) {
-      case RequestMethod.Get:
+      case 1 /* Get */:
         express3.get(this._route, this._$delegate);
         break;
-      case RequestMethod.Post:
+      case 0 /* Post */:
         express3.post(this._route, this._$delegate);
         break;
-      case RequestMethod.All:
+      case 2 /* All */:
         express3.all(this._route, this._$delegate);
         break;
     }

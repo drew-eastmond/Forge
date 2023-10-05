@@ -7,7 +7,7 @@ const mimeTypes = require("mime-types");
 
 import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
 import { Debouncer } from "../../core/timing/Debounce";
-import { IAction } from "../action/AbstractAction";
+import { IAction } from "../action/GenericAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
 import { ForgeStorage, ForgeStore, IForgeStorage } from "../storage/ForgeStorage";
@@ -25,16 +25,7 @@ import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectR
 * Types / Enums
 *
 */
-type Route = string;
-type RequestDelegate = Function; //  ((params: { get: any, post: any, request: any }) => any) | ((req: Request, res: Response, next: Function) => any);
 type StoreEntry = { mime: string, buffer: Buffer };
-
-enum RequestMethod {
-    Post,
-    Get,
-    All
-}
-
 
 export async function $ParseRequestBody(request): Promise<{ mime: string, buffer: Buffer}> {
 

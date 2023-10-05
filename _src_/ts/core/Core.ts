@@ -4,7 +4,7 @@ export type IntervalClear = ReturnType<typeof setInterval>;
 export type TimeoutClear = ReturnType<typeof setTimeout>;
 
 
-export type Serialize = Object | string | ArrayBufferLike | Blob | ArrayBufferView | unknown[] | Buffer | null;
+export type Serialize = Record<string, unknown> | string | ArrayBufferLike | Blob | ArrayBufferView | unknown[] | Buffer | null;
 
 let __HashCount: number = 0;
 

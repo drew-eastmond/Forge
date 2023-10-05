@@ -384,7 +384,6 @@ var $fs = require("node:fs/promises");
 var API_BASE = "http://localhost:1234/esbuild/typescript";
 var REQUEST_TIMEOUT = 125;
 var startTime = Date.now();
-DebugFormatter.Init({ platform: "node" });
 function SanitizeFileUrl(...rest) {
   let resolvedUrl = path.resolve(...rest);
   resolvedUrl = /\.\w+$/.test(resolvedUrl) ? resolvedUrl : resolvedUrl + ".ts";
@@ -447,6 +446,45 @@ async function $SortDependencies(code, storeKey, fileManifest) {
     return code;
   });
 }
+async function $build(entryFile, outFile, options) {
+  const outFilePath = path.parse(outFile);
+  const result = await (0, import_esbuild.build)({
+    entryPoints: [entryFile],
+    bundle: options.bundled,
+    platform: options.platform,
+    write: false,
+    // dont produce a build file, but give me the build in as a result
+    format: options.format,
+    metafile: true,
+    loader: { ".ts": "tsx", ".js": "jsx" },
+    outdir: outFilePath.dir,
+    treeShaking: options.treeShaking
+    // plugins: [yourPlugin]
+    // external: []
+  });
+  const fileManifest = Object.keys(result.metafile.inputs);
+  let code;
+  for (const out of result.outputFiles) {
+    code = out.text;
+    break;
+  }
+  await $SaveMetaFile(entryFile, outFile, fileManifest, options.metafile);
+  code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
+    return /node_modules/.test(value) === false;
+  }));
+  await $fs.writeFile(outFile, code);
+  console.parse(`<green>Build Successful (${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
+	* ${options.bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
+
+	* <cyan>format</cyan> : ${options.format}
+
+	* <cyan>platform</cyan> : ${options.platform}
+`);
+}
+async function $watch() {
+  const forgeClient = new ForgeClient();
+}
+DebugFormatter.Init({ platform: "node" });
 (async function() {
   const cliArguments = new CLIArguments();
   cliArguments.add("in", {
@@ -514,37 +552,10 @@ async function $SortDependencies(code, storeKey, fileManifest) {
   const externals = cliArguments.get("external");
   console.log("externals", externals);
   const outFilePath = path.parse(outFile);
-  const result = await (0, import_esbuild.build)({
-    entryPoints: [entryFile],
-    bundle: bundled,
-    platform,
-    write: false,
-    // dont produce a build file, but give me the build in as a result
-    format,
-    metafile: true,
-    loader: { ".ts": "tsx", ".js": "jsx" },
-    outdir: outFilePath.dir,
-    treeShaking: true
-    // keepNames: true,
-    // plugins: [yourPlugin]
-    // external: []
-  });
-  const fileManifest = Object.keys(result.metafile.inputs);
-  let code;
-  for (const out of result.outputFiles) {
-    code = out.text;
-    break;
+  if (watch) {
+    $watch();
+    return;
+  } else {
+    $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: true, write: true });
   }
-  await $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta);
-  code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
-    return /node_modules/.test(value) === false;
-  }));
-  await $fs.writeFile(outFile, code);
-  console.parse(`<green>Build Successful (${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
-	* ${bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${bundled}
-
-	* <cyan>format</cyan> : ${format}
-
-	* <cyan>platform</cyan> : ${platform}
-`);
 })();

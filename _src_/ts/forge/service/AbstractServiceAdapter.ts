@@ -4,9 +4,9 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 const __ForgeProtocol: string = "forge://";
 
 export type ServiceAdpaterConfig = {
-    command: string,
-    key: string,
+    command?: string | false,
     race: number,
+    key?: string,
     reboot?: boolean
 }
 
@@ -14,7 +14,7 @@ export interface IServiceAdapter extends ISubscription {
     get race(): number;
 
     read(message: [string, Record<string, unknown>, Serialize]): void;
-    write(header: Record<string, unknown>, ...data: Serialize[]): void;
+    write(header: Record<string, unknown>, data: Serialize): void;
 
     $reset(data: Serialize): Promise<Serialize>;
 
@@ -55,19 +55,17 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
         try {
 
             // first test is to destructure the message
-            const [protocol, header, ...data] = message;
+            const [protocol, header, data] = message;
 
             // broadcast dont have to have validate the key. 
             if ("broadcast" in header) {
 
                 // I know the destructure is excessive, but it make reading code far more easier.
-                const { notify } = header;
-                this.notify("broadcast", notify, data);
+                const { broadcast } = header;
+                this.notify("broadcast", header, data);
                 return true;
 
             }
-
-            // console.log(protocol, header, data);
 
             if (protocol != __ForgeProtocol) return;
             if (header.key != this._key) return;
@@ -105,7 +103,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     }
 
-    public write(header: Record<string, unknown>, ...data: Serialize[]): void {
+    public write(header: Record<string, unknown>, data: Serialize): void {
 
         throw new Error("Please override write(...) in subclasses");
 

@@ -12,22 +12,28 @@ export class ForkService extends AbstractServiceAdapter {
 
         super(config);
 
-        const controller = new AbortController();
-        const { signal } = controller;
+        if (source === undefined) {
 
-        this._commands = config.command.split(/\s+/g);
-        const args: string[] = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+            const controller = new AbortController();
+            const { signal } = controller;
 
-        this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
+            this._commands = config.command.split(/\s+/g);
+            const args: string[] = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+
+            this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
+
+        } else {
+
+            this._source = source
+
+        }
+
+        
+
+        this._source.stdout.on("data", this._onStdoutData.bind(this));
+        this._source.stderr.on("data", this._onStdoutError.bind(this));
 
         this._source.on("exit", this._onExit.bind(this));
-
-        this._source.on("broadcast", function (message) {
-
-            console.log(message);
-
-        }.bind(this));
-
 
         this._source.on("message", function (message) {
 
@@ -36,8 +42,7 @@ export class ForkService extends AbstractServiceAdapter {
 
         }.bind(this));
 
-        this._source.stdout.on("data", this._onStdoutData.bind(this));
-        this._source.stderr.on("data", this._onStdoutError.bind(this));
+        
 
     }
 
@@ -95,7 +100,7 @@ export class ForkService extends AbstractServiceAdapter {
 
     }
 
-    public write(header: Serialize, ...data: Serialize[]): void {
+    public write(header: Serialize, data: Serialize): void {
 
         // absolutely important to append a new line in case to many messages are concatenated 
         // sent before the process finally read.
