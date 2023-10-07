@@ -14,7 +14,10 @@ export interface IServiceAdapter extends ISubscription {
     get race(): number;
 
     read(message: [string, Record<string, unknown>, Serialize]): void;
+
     write(header: Record<string, unknown>, data: Serialize): void;
+    resolve(header: Record<string, unknown>, data: Serialize): void;
+    reject(header: Record<string, unknown>, data: Serialize): void;
 
     $reset(data: Serialize): Promise<Serialize>;
 
@@ -33,7 +36,6 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     protected readonly _sessions: Map<string, $Promise<unknown>> = new Map();
     protected readonly _bindings: Map<Function, Function> = new Map();
 
-    
 
     constructor(config: ServiceAdpaterConfig) {
 
@@ -41,7 +43,38 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         this._key = config.key || QuickHash();
         this._race = config.race;
-        
+
+        this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+        this._bindings.set(this.read, this.read.bind(this));
+
+    }
+
+    protected _pipeStdio(message: string): void {
+
+        const lines: string[] = String(message).split(/\r\n|\r|\n/g);
+
+        for (const line of lines) {
+
+            try {
+
+                const [forge, header, data] = JSON.parse(line);
+
+                if (header.key != this._key) return;
+
+                this.read([forge, header, data]);
+
+            } catch (error: unknown) {
+
+                if (line != "") {
+
+                    console.parse(`<cyan>${line}</cyan>`);
+
+                }
+
+            }
+
+        }
+
     }
 
     get race(): number {
@@ -106,6 +139,18 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     public write(header: Record<string, unknown>, data: Serialize): void {
 
         throw new Error("Please override write(...) in subclasses");
+
+    }
+
+    public resolve(header: Record<string, unknown>, data: Serialize): void {
+
+        this.write({ resolve: header.session, key: this._key }, data);
+
+    }
+
+    public reject(header: Record<string, unknown>, data: Serialize): void {
+
+        this.write({ reject: header.session, key: this._key }, data);
 
     }
 

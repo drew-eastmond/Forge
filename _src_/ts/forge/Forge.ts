@@ -61,8 +61,6 @@ export class Forge {
         
     }
 
-    
-    private _watchFiles;
     private _lastUpdate: number = Date.now();
 
     private _forgeServer: ForgeServer;
@@ -151,9 +149,10 @@ export class Forge {
 
         const forge: Forge = this;
         watcher.on("ready", function () {
-            watcher.on("all", function (event: string, file : string) {
+            watcher.on("all", async function (event: string, file : string) {
 
-                forge.$signal("watch", {file, event});
+                await forge.$signal("watch", {file, event});
+                // await forge.$reset("watch", { file, event });
 
             });
 
@@ -173,6 +172,8 @@ export class Forge {
 
         }
 
+        await this._forgeStream.$reset();
+
     }
 
     public async $signal(signal: string, data: Serialize): Promise<(Serialize | Error)[]> {
@@ -182,6 +183,8 @@ export class Forge {
         return results;
 
     }
+
+
 
     public abort(): void {
 

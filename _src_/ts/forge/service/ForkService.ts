@@ -24,29 +24,20 @@ export class ForkService extends AbstractServiceAdapter {
 
         } else {
 
-            this._source = source
+            this._source = source;
 
         }
 
-        
-
-        this._source.stdout.on("data", this._onStdoutData.bind(this));
+        this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
         this._source.stderr.on("data", this._onStdoutError.bind(this));
 
         this._source.on("exit", this._onExit.bind(this));
 
-        this._source.on("message", function (message) {
-
-            console.log(message);
-            this.read(message);
-
-        }.bind(this));
-
-        
+        this._source.on("message", this._bindings.get(this.read));
 
     }
 
-    private _onStdoutData(message: string): void {
+    /* private _onStdoutData(message: string): void {
 
         const lines: string[] = String(message).split(/\r\n|\r|\n/g);
 
@@ -79,7 +70,7 @@ export class ForkService extends AbstractServiceAdapter {
 
         }
 
-    }
+    } */
 
     private _onStdoutError(message: string): void {
 
@@ -87,7 +78,7 @@ export class ForkService extends AbstractServiceAdapter {
         // console.log("_onStdoutData", String(message), lines);
         for (const line of lines) {
 
-            console.parse(`<cyan>${line}</cyan>`);
+            console.parse(`<magenta>${line}</magenta>`);
 
         }
 

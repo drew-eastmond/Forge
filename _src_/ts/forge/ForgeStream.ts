@@ -160,7 +160,7 @@ export class ForgeStream {
 
         }
 
-        console.log(await Promise.allSettled(promises));
+        console.log("forgeStream!!!>>>", await Promise.allSettled(promises));
 
         for (const [name, iAction] of this._iActions) {
 
@@ -196,8 +196,6 @@ export class ForgeStream {
 
         }
 
-        console.log();
-
         const results: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled(promises);
         for (let i: number = 0; i < results.length; i++) {
 
@@ -217,7 +215,9 @@ export class ForgeStream {
             
 
         }
-        
+
+        console.error("realllll", results);
+
         return results;
 
 
