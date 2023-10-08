@@ -1,8 +1,5 @@
 import { Serialize } from "../core/Core";
-import { IAction } from "./action/AbstractAction";
-import { ForkAction } from "./action/ForkAction";
-import { GenericAction } from "./action/GenericAction";
-import { SpawnAction } from "./action/SpawnAction";
+import { GenericAction, IAction } from "./GenericAction";
 import { ForgeStream } from "./ForgeStream";
 import { IServiceAdapter, ServiceAdpaterConfig } from "./service/AbstractServiceAdapter";
 import { ExecService } from "./service/ExecService";
@@ -151,7 +148,7 @@ export class ForgeTask {
 
     }
 
-    public async $reset(data: Serialize): Promise<(Serialize | Error)[]> {
+    public async $reset(data: Serialize): Promise<Serialize[]> {
 
         const startTime = Date.now();
 
@@ -172,6 +169,7 @@ export class ForgeTask {
 
     public add(iAction: IAction): this {
 
+        iAction.task = this;
         this._iActions.set(iAction.name, iAction);
 
         return this;
@@ -183,6 +181,7 @@ export class ForgeTask {
         this._data = configObj;
 
         this.name = configObj.name;
+
         this._enabled = configObj.enabled;
 
         const errors: string[] = [];
@@ -247,7 +246,7 @@ export class ForgeTask {
                     if (this._spawnServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
                     const spawnService: IServiceAdapter = this._spawnServices.get(serviceName);
 
-                    this.add(new SpawnAction(spawnService, implement, actionConfig));
+                    this.add(new GenericAction(spawnService, implement, actionConfig));
 
                 } else if ("_fork_" in actionConfig) {
 
@@ -257,7 +256,7 @@ export class ForgeTask {
                     if (this._forkServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
                     const forkService: IServiceAdapter = this._forkServices.get(serviceName);
 
-                    this.add(new ForkAction(forkService, implement, actionConfig));
+                    this.add(new GenericAction(forkService, implement, actionConfig));
 
                 } else if ("_worker_" in actionConfig) {
 
@@ -299,7 +298,6 @@ export class ForgeTask {
         }
 
         // ! Note: race needs to be sanitized
-        console.log("errors", errors);
         if (errors.length) throw new Error("\n\n" + errors.join("\n") + "\n");
 
     }

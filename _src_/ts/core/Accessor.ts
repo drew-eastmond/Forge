@@ -10,11 +10,28 @@ export class Accessor {
 
     }
 
-    public extract(): unknown {
-        
+    public extract(accessor: string[]): unknown {
+
+        let value: unknown = this._source;
+        try {
+
+            for (const access of accessor) {
+
+                value = value[access];
+
+            }
+
+        } catch (error) {
+
+            return new Error("value ");
+
+        }
+
+        return value;
+
     }
 
-    public parse(query: string, seperator: string): unknown {
+    public parse(query: string): unknown {
 
         const accessor: string[] = query.split(this._seperator);
         let value: unknown = this._source;

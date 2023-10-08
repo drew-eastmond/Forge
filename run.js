@@ -34624,9 +34624,14 @@ var ForgeStream = class {
     }
     return this;
   }
-  find(forgeName, actionName) {
-    const actionKey = `${forgeName}.${actionName}`;
-    return this._iActions.get(actionKey);
+  find(taskName, actionName) {
+    const forgeTask = this._tasks.get(taskName);
+    if (forgeTask === void 0)
+      throw new Error(`ForgeTask : "${taskName}" does not exist`);
+    const iAction = forgeTask.actions().get(actionName);
+    if (iAction === void 0)
+      throw new Error(`IAction : "${actionName}" does not exist within "${taskName}"`);
+    return iAction;
   }
   async $reset() {
     this._executions.clear();
@@ -34641,38 +34646,54 @@ var ForgeStream = class {
     const executedActions = this._executions;
     const promises = [];
     for (const [name, iAction] of this._iActions) {
+      const errors = [];
       if (this._executions.has(iAction))
-        continue;
+        errors.push(`already executed`);
       if (iAction.implement() != signal)
-        continue;
+        errors.push(`already executed`);
+      ;
       if (iAction.dependencies.length)
+        errors.push(`already executed`);
+      ;
+      if (errors.length) {
+        promises.push(Promise.reject({
+          status: "rejected",
+          reason: errors
+        }));
         continue;
-      promises.push(iAction.$signal(signal, data).then(function(data2) {
-        executedActions.add(iAction);
-        return data2;
-      }));
-    }
-    console.log("forgeStream!!!>>>", await Promise.allSettled(promises));
-    for (const [name, iAction] of this._iActions) {
-      const dependencies = iAction.dependencies;
-      if (dependencies.length == 0) {
-        console.parse(`<red>no dependencies :</red> "${iAction.task.name}"`);
-        continue;
-      }
-      let resolved = true;
-      for (const dependencyObj of dependencies) {
-        const forgeName = dependencyObj.task === void 0 ? iAction.task.name : dependencyObj.task;
-        const dependentAction = this.find(forgeName, dependencyObj.action);
-        if (this._executions.has(dependentAction) === false)
-          resolved = false;
-      }
-      if (resolved) {
-        console.log("resolvign", iAction.name);
-        const implement = iAction.implement();
-        promises.push(iAction.$signal(implement, data));
+      } else {
+        promises.push(iAction.$signal(signal, data).then(function(data2) {
+          executedActions.add(iAction);
+          return data2;
+        }));
       }
     }
     const results = await Promise.allSettled(promises);
+    console.log("forgeStream!!!>>>", await Promise.allSettled(promises));
+    const failedDependencies = [];
+    for (const [name, iAction] of this._iActions) {
+      const dependencies = iAction.dependencies;
+      if (dependencies.length == 0) {
+        failedDependencies.push(`${iAction.task.name}\\${iAction.name}`);
+        continue;
+      }
+      let dependenciesResolved = true;
+      for (const dependencyObj of dependencies) {
+        const dependentAction = this.find(dependencyObj.task, dependencyObj.action);
+        if (this._executions.has(dependentAction) === false)
+          dependenciesResolved = false;
+      }
+      if (dependenciesResolved && this._executions.has(iAction) === false) {
+        console.log("resolving", iAction.name);
+        const implement = iAction.implement();
+        await iAction.$signal(implement, data).catch(function(error) {
+          console.parse(error);
+          return error;
+        });
+        executedActions.add(iAction);
+      }
+    }
+    console.parse(`<red>no dependencies :</red> "${failedDependencies.join(", ")}"`);
     for (let i = 0; i < results.length; i++) {
       const settleInfo = results[i];
       const result = settleInfo.status == "fulfilled" ? settleInfo.value : settleInfo.reason;
@@ -34865,7 +34886,6 @@ var Subscription = class {
 // forge/_src_/ts/forge/action/GenericAction.ts
 var $fs2 = require("fs").promises;
 var GenericAction = class extends Subscription {
-  _task;
   _iServiceAdapter;
   _data;
   _implement;
@@ -34883,6 +34903,7 @@ var GenericAction = class extends Subscription {
   stderr;
   name;
   enabled;
+  task;
   constructor(iServiceAdapter, implement, data) {
     super();
     this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
@@ -34907,7 +34928,7 @@ var GenericAction = class extends Subscription {
     this._async = this._resolveData("async", false);
     this._stdio = this._resolveData("stdio", "pipe" /* Default */);
     this._race = this._resolveData("_race_", this._iServiceAdapter.race);
-    this.dependencies = this._resolveData("wait", []);
+    this.dependencies = this._resolveData("_wait_", []);
     this.enabled = this._resolveData("enabled", true);
     this.stdout = [];
     this.stderr = [];
@@ -34922,23 +34943,18 @@ var GenericAction = class extends Subscription {
     const value = this._data[key];
     return value === void 0 ? defaultValue : value;
   }
-  task(forgeTask) {
-    this._task = forgeTask;
-  }
   implement() {
     return this._implement;
   }
   $signal(signal, data, race) {
-    if (signal == "watch") {
-      console.log("watching");
+    if (signal == "watch" && this._watch) {
       const { file, event } = data;
-      console.log(this._watch, this._watch.test(file), data);
-      if (this._watch && this._watch.test(file) === false) {
+      console.log(`${this.name} watching:`, this._watch, this._watch.test(file), data);
+      if (this._watch.test(file) === false) {
         console.warn(`"watch" Signal Ignored`);
         return Promise.reject({ name: this._data._name_, watch: "ignored" });
       }
     }
-    console.log({ ...this._data, ...data });
     return this._iServiceAdapter.$signal(signal, { ...this._data, ...data }, race);
   }
   $watch(data) {
@@ -34946,7 +34962,7 @@ var GenericAction = class extends Subscription {
     console.log(this._watch, this._watch.test(file), data);
     if (this._watch && this._watch.test(file) === false) {
       console.warn(`"watch" Signal Ignored`);
-      return Promise.reject({ task: this._task.name, name: this._data.name, watch: "ignored" });
+      return Promise.reject({ task: this.task.name, name: this._data.name, watch: "ignored" });
     }
   }
   async $reset(data) {
@@ -35004,7 +35020,7 @@ var GenericAction = class extends Subscription {
     ];
   }
   async $route(route, params) {
-    return this.$signal("route", { route, params }).then(async function(response) {
+    return this.$signal("route", { route, params }, this._race).then(async function(response) {
       const { mime, contents } = JSON.parse(response);
       return { mime, buffer: Buffer.from(contents, "base64") };
     }).catch(function(error) {
@@ -35197,9 +35213,9 @@ var ExecService = class extends AbstractServiceAdapter {
     return;
   }
   $signal(signal, data, race) {
-    console.log(data);
+    race = race || this._race;
+    const command = this._command.replace(/\{\{command\}\}/g, data.command);
     return new Promise(function(resolve, reject) {
-      const command = this._command.replace(/\{\{command\}\}/g, data.command);
       const child = exec(command, { stdio: "pipe" });
       child.on("exit", function() {
         resolve({ "awesome": "hehehe" });
@@ -35210,7 +35226,10 @@ var ExecService = class extends AbstractServiceAdapter {
       child.stderr.on("data", function(data2) {
         console.log("!!!!", data2);
       });
-    }.bind(this));
+      setTimeout(function() {
+        reject({ "rejected": "timeout" });
+      });
+    });
   }
 };
 
@@ -35416,6 +35435,7 @@ var ForgeTask = class {
     return results;
   }
   add(iAction) {
+    iAction.task = this;
     this._iActions.set(iAction.name, iAction);
     return this;
   }
@@ -35460,7 +35480,6 @@ var ForgeTask = class {
         }
       }
     }
-    console.log("errors", errors);
     if (errors.length)
       throw new Error("\n\n" + errors.join("\n") + "\n");
   }
@@ -35998,7 +36017,7 @@ if (require.main === module && !module.parent) {
     forge.parse(await $fs5.readFile(".forge", "utf-8"));
     const forgeServer = await forge.$serve(PORT, WWW_ROOT);
     forge.$signal("construct", { "so l can get my": "satifacation" });
-    forge.watch("./src/", {});
+    forge.watch("./src/", { ignore: [], debounce: 500 });
   })();
 } else {
   console.log("required as a module");

@@ -7,7 +7,7 @@ const mimeTypes = require("mime-types");
 
 import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
 import { Debouncer } from "../../core/timing/Debounce";
-import { IAction } from "../action/GenericAction";
+import { IAction } from "../GenericAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
 import { ForgeStorage, ForgeStore, IForgeStorage } from "../storage/ForgeStorage";

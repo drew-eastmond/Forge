@@ -4,7 +4,7 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 const __ForgeProtocol: string = "forge://";
 
 export type ServiceAdpaterConfig = {
-    command?: string | false,
+    command?: string,
     race: number,
     key?: string,
     reboot?: boolean

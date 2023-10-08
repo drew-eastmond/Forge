@@ -45,7 +45,7 @@ class WatchManager {
 
     public add(file: string, event: string): void {
 
-        this._watchEntries.set(file, event);
+        this._watchEntries.add({ file, event });
 
         this._debouncer.debounce(this._debounceWatch, [], this._delay);
 
@@ -209,11 +209,11 @@ export class Forge {
 
     }
 
-    public async $load(): void {
+    public async $load(): Promise<void> {
 
     }
 
-    public async $save(): void {
+    public async $save(): Promise<void> {
 
 
 

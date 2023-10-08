@@ -13,7 +13,6 @@ export class ExecService extends AbstractServiceAdapter {
 
         super(config);
 
-
         this._config = config;
         this._command = config.command as string;
 
@@ -78,25 +77,16 @@ export class ExecService extends AbstractServiceAdapter {
 
     public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
 
-        console.log(data);
+        // sanitize
+        race = race || this._race;
+
+        // just do this manually for now. Ideally l 
+        const command: string = this._command
+            .replace(/\{\{command\}\}/g, data.command);
 
         return new Promise(function (resolve: Function, reject: Function) {
 
-            // just do this manually for now.
-            const command: string = this._command
-                .replace(/\{\{command\}\}/g, data.command);
-
             const child = exec(command, { stdio: "pipe" });
-
-
-                /* (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`exec error: ${error}`);
-                    return;
-                }
-                console.log(`stdout: ${stdout}\n\n`);
-                console.error(`stderr: ${stderr}`);
-            }); // stdio: "pipe" */
 
             child.on("exit", function () {
 
@@ -114,7 +104,15 @@ export class ExecService extends AbstractServiceAdapter {
 
             });
 
-        }.bind(this));
+            setTimeout(function () {
+
+                reject({ "rejected": "timeout" });
+
+            }, );
+
+        });
+
+        
 
     } 
 

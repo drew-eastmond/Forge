@@ -1,8 +1,8 @@
-import { $Promise, $UseRace, QuickHash, Serialize, TimeoutClear } from "../../core/Core";
-import { ISubscription, Subscription } from "../../core/Subscription";
-import { ForgeStream } from "../ForgeStream";
-import { ForgeTask } from "../ForgeTask";
-import { IServiceAdapter } from "../service/AbstractServiceAdapter";
+import { $Promise, $UseRace, QuickHash, Serialize, TimeoutClear } from "../core/Core";
+import { ISubscription, Subscription } from "../core/Subscription";
+import { ForgeStream } from "./ForgeStream";
+import { ForgeTask } from "./ForgeTask";
+import { IServiceAdapter } from "./service/AbstractServiceAdapter";
 
 const $fs = require("fs").promises;
 
@@ -23,6 +23,7 @@ export enum ActionRouter {
 export interface IAction {
 
     name: string;
+    task: ForgeTask;
 
     dependencies: { task: string, action: string }[];
 
@@ -40,8 +41,6 @@ export interface IAction {
 
 }
 export class GenericAction extends Subscription implements IAction {
-
-    private _task: ForgeTask;
 
     protected _iServiceAdapter: IServiceAdapter;
     protected _data: any;
@@ -68,6 +67,7 @@ export class GenericAction extends Subscription implements IAction {
 
     public name: string;
     public enabled: boolean;
+    public task: ForgeTask;
 
     constructor(iServiceAdapter: IServiceAdapter, implement: string, data: any) {
 
@@ -186,12 +186,6 @@ export class GenericAction extends Subscription implements IAction {
 
     }
 
-    public task(forgeTask: ForgeTask): void {
-
-        this._task = forgeTask;
-
-    } 
-
     public implement(): string {
 
         return this._implement;
@@ -201,14 +195,12 @@ export class GenericAction extends Subscription implements IAction {
     public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
 
         // optimize the `watch` signals only if a watch value is provided
-        if (signal == "watch") {
-
-            console.log("watching");
+        if (signal == "watch" && this._watch) {
 
             const { file, event } = data as { file: string, event: string };
 
-            console.log(this._watch, this._watch.test(file), data);
-            if (this._watch && this._watch.test(file) === false) {
+            console.log(`${this.name} watching:`, this._watch, this._watch.test(file), data);
+            if (this._watch.test(file) === false) {
 
                 console.warn(`"watch" Signal Ignored`);
                 return Promise.reject({ name: this._data._name_, watch: "ignored" });
@@ -217,7 +209,7 @@ export class GenericAction extends Subscription implements IAction {
 
         }
 
-        console.log({ ...this._data, ...data as object });
+        // console.log({ ...this._data, ...data as object });
 
         return this._iServiceAdapter.$signal(signal, { ...this._data, ...data as object }, race);
 
@@ -233,7 +225,7 @@ export class GenericAction extends Subscription implements IAction {
         if (this._watch && this._watch.test(file) === false) {
 
             console.warn(`"watch" Signal Ignored`);
-            return Promise.reject({ task: this._task.name, name: this._data.name, watch: "ignored" });
+            return Promise.reject({ task: this.task.name, name: this._data.name, watch: "ignored" });
 
         }
 
@@ -348,7 +340,7 @@ export class GenericAction extends Subscription implements IAction {
 
     public async $route(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
 
-        return this.$signal("route", { route, params })
+        return this.$signal("route", { route, params }, this._race)
             .then(async function (response: Serialize) {
 
                 const { mime, contents } = JSON.parse(response as string);

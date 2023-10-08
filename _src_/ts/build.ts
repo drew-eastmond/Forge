@@ -251,8 +251,6 @@ async function $watch() {
 
 }
 
-DebugFormatter.Init({ platform: "node" });
-
 (async function () {
     /*
     *

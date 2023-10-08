@@ -129,25 +129,6 @@ class ColourFormatting<T> {
 
 export class DebugFormatter {
 
-	public static Init(options: { platform : "node" | "browser"}): void {
-
-		const __DebugFormatter: DebugFormatter = new DebugFormatter();
-		console.parse = function (...rest: string[]) {
-		
-			console.log(...rest.map(function (log: unknown) {
-		
-				if (log === undefined) return undefined;
-		
-				if (log.constructor == String) return __DebugFormatter.clear().parse(log).reset().stream;
-		
-				return log;
-		
-			}));
-
-		};
-
-	}
-
 	public foreground: ColourFormatting<DebugForeground>;
 	public fg: ColourFormatting<DebugForeground>;
 
@@ -323,3 +304,26 @@ export class DebugFormatter {
 	}
 
 }
+
+
+declare global {
+	interface Console {
+		parse(...rest: unknown[]): string;
+	}
+
+}
+
+const __DebugFormatter: DebugFormatter = new DebugFormatter();
+console.parse = function (...rest: string[]) {
+
+	console.log(...rest.map(function (log: unknown) {
+
+		if (log === undefined) return undefined;
+
+		if (log.constructor == String) return __DebugFormatter.clear().parse(log).reset().stream;
+
+		return log;
+
+	}));
+
+};
