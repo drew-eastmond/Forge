@@ -71,6 +71,9 @@ export class ExecService extends AbstractServiceAdapter {
 
         // sanitize
         race = race || this._race;
+        const name: string = this._name;
+        const pipeStdio: Function = this._bindings.get(this._pipeStdio);
+        const pipeError: Function = this._bindings.get(this._pipeError);
 
         // todo replace with `Accessor` class
         // just do this manually for now. Ideally l Accessor class
@@ -81,31 +84,30 @@ export class ExecService extends AbstractServiceAdapter {
 
             const child = exec(command, { stdio: "pipe" });
 
-            child.on("exit", function () {
+            child.on("exit", function (error, stdout, stderr) {
 
-                resolve({ "awesome": "hehehe" });
+                if (error) {
 
-            });
-            child.stdout.on("data", function (data) {
+                    reject({ name, "reject": "hehehe" });
 
-                console.log(">>>>>>", data);
+                } else {
 
-            });
-            child.stderr.on("data", function (data) {
+                    resolve({ name, "resolve": "hehehe" });
 
-                console.log("!!!!", data);
+                }
 
             });
+
+            child.stdout.on("data", pipeStdio);
+            child.stderr.on("data", pipeError);
 
             setTimeout(function () {
 
-                reject({ "rejected": "timeout" });
+                reject({ name, "rejected": "timeout" });
 
-            }, );
+            }, race);
 
-        });
-
-        
+        }.bind(this));
 
     } 
 

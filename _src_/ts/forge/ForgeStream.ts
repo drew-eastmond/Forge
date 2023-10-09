@@ -1,5 +1,5 @@
 import { Serialize } from "../core/Core";
-import { IAction } from "./GenericAction";
+import { IAction } from "./ForgeAction";
 import { ForgeTask } from "./ForgeTask";
 
 export class ForgeStream {
@@ -117,9 +117,7 @@ export class ForgeStream {
 
         }
 
-        console.log("ForgeStream reset", await Promise.allSettled(promises));
-
-        return await Promise.allSettled(promises);
+        return { reset: await Promise.allSettled(promises) };
 
     }
 
@@ -194,7 +192,7 @@ export class ForgeStream {
             for (const dependencyObj of dependencies) {
 
                 // find all dependent `iAction` then test if been executed, otherwise `dependenciesResolved` is false
-                const dependentAction: IAction = this.find(dependencyObj.task, dependencyObj.action);
+                const dependentAction: IAction = this.find(dependencyObj.task || iAction.task.name, dependencyObj.action);
                 if (this._executions.has(dependentAction) === false) dependenciesResolved = false;
 
             }

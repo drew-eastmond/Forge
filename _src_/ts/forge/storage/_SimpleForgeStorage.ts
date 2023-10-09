@@ -1,4 +1,4 @@
-import { ForgeServer } from "../server/ForgeServer";
+import { $ParseRequestBody, ForgeServer } from "../server/ForgeServer";
 import { DelegateRoute } from "../server/Route";
 import { ForgeStorage } from "./ForgeStorage";
 
@@ -13,7 +13,7 @@ export class SimpleForgeStorage extends ForgeStorage {
         try {
 
             // const requestBody: string = String(await this._requestBodyParser.$parse(request));
-            const { mime, buffer } = await this._$parseRequestBody(request);
+            const { mime, buffer } = await $ParseRequestBody(request);
             await this.$save(`${taskName}/${actionName}`, key, mime, buffer);
 
             response
@@ -29,13 +29,11 @@ export class SimpleForgeStorage extends ForgeStorage {
 
     }
 
-    public connect(ForgeServer: ForgeServer): this {
+    public connect(forgeServer: ForgeServer): this {
 
-        ForgeServer.add(new DelegateRoute("/:task/:action/storage/save/*", this._routeSave.bind(this)));
+        forgeServer.add(new DelegateRoute("/:task/:action/storage/save/*", this._routeSave.bind(this)));
 
-        this._app.all("/:task/:action/storage/save/*", );
-
-        this._app.all("/:task/:action/storage/load/*", async function (request, response, next: Function) {
+        forgeServer.add(new DelegateRoute("/:task/:action/storage/load/*", async function (request, response, next: Function) {
 
             const taskName: string = request.params.task;
             const actionName: string = request.params.action;
@@ -54,9 +52,9 @@ export class SimpleForgeStorage extends ForgeStorage {
 
             }
 
-        }.bind(this));
+        }.bind(this)));
 
-        this._app.all("/:task/:action/storage/keys", async function (request, response, next: Function) {
+        forgeServer.add(new DelegateRoute("/:task/:action/storage/keys", async function (request, response, next: Function) {
 
             const taskName: string = request.params.task;
             const actionName: string = request.params.action;
@@ -78,7 +76,7 @@ export class SimpleForgeStorage extends ForgeStorage {
 
             }
 
-        }.bind(this));
+        }.bind(this)));
 
         return this;
 

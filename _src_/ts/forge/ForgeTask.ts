@@ -1,5 +1,5 @@
 import { Serialize } from "../core/Core";
-import { GenericAction, IAction } from "./GenericAction";
+import { ForgeAction, IAction } from "./ForgeAction";
 import { ForgeStream } from "./ForgeStream";
 import { IServiceAdapter, ServiceAdpaterConfig } from "./service/AbstractServiceAdapter";
 import { Forge } from "./Forge";
@@ -120,7 +120,7 @@ export class ForgeTask {
                     if (iServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
                     const spawnService: IServiceAdapter = iServices.get(serviceName);
 
-                    this.add(new GenericAction(spawnService, implement, actionConfig));
+                    this.add(new ForgeAction(spawnService, implement, actionConfig));
 
                 } else if ("_fork_" in actionConfig) {
 
@@ -130,7 +130,7 @@ export class ForgeTask {
                     if (iServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
                     const forkService: IServiceAdapter = iServices.get(serviceName);
 
-                    this.add(new GenericAction(forkService, implement, actionConfig));
+                    this.add(new ForgeAction(forkService, implement, actionConfig));
 
                 } else if ("_worker_" in actionConfig) {
 
@@ -144,7 +144,7 @@ export class ForgeTask {
                     if (iServices.has(serviceName) === false) errors.push(`No Execute Service has been registered for ${this.constructor.name} : "${this.name}"`);
                     const execService: IServiceAdapter = iServices.get(serviceName);
 
-                    this.add(new GenericAction(execService, implement, actionConfig));
+                    this.add(new ForgeAction(execService, implement, actionConfig));
 
                 } else {
 

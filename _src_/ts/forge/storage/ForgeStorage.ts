@@ -23,8 +23,8 @@ export interface IForgeStorage {
     $query(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean): Promise<ForgeStore[]>
     $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, parent: ForgeStore): Promise<ForgeStore[]>;
 
-    $load(iForgeStorageStrem: IForgeStorageStream): Promise<void>;
-    $save(iForgeStorageStrem: IForgeStorageStream): Promise<void>;
+    $load(iForgeStorage: IForgeStorage): Promise<void>;
+    $save(iForgeStorage: IForgeStorage): Promise<void>;
 
     $flush(): Promise<unknown>;
 
@@ -147,11 +147,11 @@ export class ForgeStorage implements IForgeStorage {
 
     }
 
-    public async $fork(forgeStore: ForgeStore, buffer: Buffer, attributes: Attributes): Promise<ForgeStore> {
+    public async $fork(parentStore: ForgeStore, buffer: Buffer, attributes: Attributes): Promise<ForgeStore> {
 
-        const childStore: ForgeStore = new ForgeStore(this, buffer, attributes);
+        const childStore: ForgeStore = new ForgeStore(buffer, attributes);
 
-        this._tree.add(childStore, forgeStore);
+        this._tree.add(childStore, parentStore);
 
         return childStore;
 

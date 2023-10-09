@@ -7,7 +7,7 @@ const mimeTypes = require("mime-types");
 
 import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
 import { Debouncer } from "../../core/timing/Debounce";
-import { IAction } from "../GenericAction";
+import { IAction } from "../ForgeAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
 import { ForgeStorage, ForgeStore, IForgeStorage } from "../storage/ForgeStorage";
@@ -62,7 +62,7 @@ export class RequestBodyParser {
 
     private _buffers: Buffer[];
     private _request;
-    private _$buffer: $Promise<Buffer>;
+    private _$buffer: $Promise<{ mime: string, buffer: Buffer }>;
     private _onData = function (data: Buffer): void {
 
         this._buffer.push(data);
@@ -88,8 +88,8 @@ export class RequestBodyParser {
             .off("end", this._onEnd);
         
 
-        const mime: string = request.get("Content-Type");
-        const buffer: Buffer = Buffer.concat(buffers);
+        const mime: string = this._request.get("Content-Type");
+        const buffer: Buffer = Buffer.concat(this._buffers);
         this._$buffer[1]({ mime, buffer });
 
         this._buffers = undefined;
@@ -97,7 +97,7 @@ export class RequestBodyParser {
 
     }.bind(this);
 
-    public $resolve(): Promise<[string, Buffer]> {
+    public $resolve(): Promise<{ mime: string, buffer: Buffer }> {
 
         return this._$buffer[0];
 

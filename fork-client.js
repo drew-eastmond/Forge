@@ -8971,6 +8971,7 @@ var AbstractServiceAdapter = class extends Subscription {
     this._key = config.key || QuickHash();
     this._race = config.race;
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+    this._bindings.set(this._pipeError, this._pipeError.bind(this));
     this._bindings.set(this.read, this.read.bind(this));
   }
   _pipeStdio(message) {
@@ -8984,6 +8985,21 @@ var AbstractServiceAdapter = class extends Subscription {
       } catch (error) {
         if (line != "") {
           console.parse(`<cyan>${line}</cyan>`);
+        }
+      }
+    }
+  }
+  _pipeError(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<magenta>${line}</magenta>`);
         }
       }
     }
@@ -9259,7 +9275,6 @@ new class extends AbstractForgeClient {
   async $watch(data, race) {
     console.log("cwd:", process.cwd());
     execSync3(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`, { stdio: "inherit" });
-    execSync3(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: "inherit" });
     return { "just a": "test" };
   }
 }(CLIENT_KEY);

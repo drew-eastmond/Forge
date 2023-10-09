@@ -233,10 +233,11 @@ export class Forge {
 
         if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (worker) already exists "${name}"`);
 
-        const workerService = {}; // = new ExecService(name, config);
-        this.services.set(name, workerService);
+        // const workerService = {}; // = new ExecService(name, config);
+        // this.services.set(name, workerService);
 
-        return workerService;
+        // return workerService;
+        return;
 
     }
 
@@ -270,8 +271,14 @@ export class Forge {
         watcher.on("ready", function () {
             watcher.on("all", async function (event: string, file : string) {
 
-                await forge.$signal("watch", {file, event});
-                await forge.$reset({ file, event });
+                const resetNow: number = Date.now();
+                const resets: Serialize = await forge.$reset({ file, event });
+                console.log("resetTime:", Date.now() - resetNow);
+                // console.log("ForgeStream reset", resets);
+
+                const watchNow: number = Date.now();
+                await forge.$signal("watch", { file, event });
+                console.log("watchTime:", Date.now() - watchNow);
 
             });
 
@@ -301,13 +308,13 @@ export class Forge {
 
         $promises.push(this._forgeStream.$reset());
 
-        return Promise.allSettled($promises);
+        return { reset: Promise.allSettled($promises) };
 
     }
 
-    public async $signal(signal: string, data: Serialize): Promise<(Serialize | Error)[]> {
+    public async $signal(signal: string, data: Serialize): Promise<Serialize> {
 
-        const results: (Serialize | Error)[] = await this._forgeStream.$signal(signal, data);
+        const results: Serialize = await this._forgeStream.$signal(signal, data);
 
         return results;
 

@@ -40,7 +40,7 @@ export interface IAction {
     write(...rest: Serialize[]): void;
 
 }
-export class GenericAction extends Subscription implements IAction {
+export class ForgeAction extends Subscription implements IAction {
 
     protected _iServiceAdapter: IServiceAdapter;
     protected _data: any;

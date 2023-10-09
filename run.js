@@ -20633,11 +20633,11 @@ var require_negotiator = __commonJS({
     var preferredMediaTypes = require_mediaType();
     module2.exports = Negotiator;
     module2.exports.Negotiator = Negotiator;
-    function Negotiator(request2) {
+    function Negotiator(request) {
       if (!(this instanceof Negotiator)) {
-        return new Negotiator(request2);
+        return new Negotiator(request);
       }
-      this.request = request2;
+      this.request = request;
     }
     Negotiator.prototype.charset = function charset(available) {
       var set = this.charsets(available);
@@ -34640,8 +34640,7 @@ var ForgeStream = class {
     for (const [name, iAction] of this._iActions) {
       promises.push(iAction.$reset({}));
     }
-    console.log("ForgeStream reset", await Promise.allSettled(promises));
-    return await Promise.allSettled(promises);
+    return { reset: await Promise.allSettled(promises) };
   }
   async $signal(signal, data) {
     const executedActions = this._executions;
@@ -34689,7 +34688,7 @@ var ForgeStream = class {
       }
       let dependenciesResolved = true;
       for (const dependencyObj of dependencies) {
-        const dependentAction = this.find(dependencyObj.task, dependencyObj.action);
+        const dependentAction = this.find(dependencyObj.task || iAction.task.name, dependencyObj.action);
         if (this._executions.has(dependentAction) === false)
           dependenciesResolved = false;
       }
@@ -34898,9 +34897,9 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/ts/forge/GenericAction.ts
+// forge/_src_/ts/forge/ForgeAction.ts
 var $fs2 = require("fs").promises;
-var GenericAction = class extends Subscription {
+var ForgeAction = class extends Subscription {
   _iServiceAdapter;
   _data;
   _implement;
@@ -35094,20 +35093,20 @@ var ForgeTask = class {
           if (iServices.has(serviceName) === false)
             errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
           const spawnService = iServices.get(serviceName);
-          this.add(new GenericAction(spawnService, implement, actionConfig));
+          this.add(new ForgeAction(spawnService, implement, actionConfig));
         } else if ("_fork_" in actionConfig) {
           const serviceName = actionConfig._fork_;
           if (iServices.has(serviceName) === false)
             errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
           const forkService = iServices.get(serviceName);
-          this.add(new GenericAction(forkService, implement, actionConfig));
+          this.add(new ForgeAction(forkService, implement, actionConfig));
         } else if ("_worker_" in actionConfig) {
         } else if ("_exec_") {
           const serviceName = actionConfig._exec_;
           if (iServices.has(serviceName) === false)
             errors.push(`No Execute Service has been registered for ${this.constructor.name} : "${this.name}"`);
           const execService = iServices.get(serviceName);
-          this.add(new GenericAction(execService, implement, actionConfig));
+          this.add(new ForgeAction(execService, implement, actionConfig));
         } else {
           console.error("total failure");
           process.exit(1);
@@ -35268,9 +35267,9 @@ var ForgeStorage = class {
     this._tree.add(forgeStore);
     return forgeStore;
   }
-  async $fork(forgeStore, buffer, attributes) {
-    const childStore = new ForgeStore(this, buffer, attributes);
-    this._tree.add(childStore, forgeStore);
+  async $fork(parentStore, buffer, attributes) {
+    const childStore = new ForgeStore(buffer, attributes);
+    this._tree.add(childStore, parentStore);
     return childStore;
   }
   // update
@@ -35312,15 +35311,15 @@ var AbstractRoute = class {
     this._method = method;
     return this;
   }
-  async _$parseRequest(request2) {
+  async _$parseRequest(request) {
     return new Promise(function(resolve, reject) {
-      const buffers2 = [];
-      request2.on("data", (chunk) => {
-        buffers2.push(chunk);
+      const buffers = [];
+      request.on("data", (chunk) => {
+        buffers.push(chunk);
       }).on("end", () => {
-        const result = Buffer.concat(buffers2).toString();
+        const result = Buffer.concat(buffers).toString();
         const post = JSON.parse(result);
-        const get = request2.query;
+        const get = request.query;
         resolve({ get, post, request: { post, ...get } });
       });
     });
@@ -35338,7 +35337,7 @@ var AbstractRoute = class {
         break;
     }
   }
-  async $resolve(request2, response, next) {
+  async $resolve(request, response, next) {
     return;
   }
 };
@@ -35380,7 +35379,7 @@ var ForgeServer = class {
   async _$setupServer(port) {
     this._app = express();
     this._app.use(compression());
-    this._app.use(function(request2, response, next) {
+    this._app.use(function(request, response, next) {
       response.setHeader("Access-Control-Allow-Origin", "*");
       response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content, Accept, Content-Type, Authorization");
       response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
@@ -35388,12 +35387,12 @@ var ForgeServer = class {
       response.setHeader("Cross-Prigin-Opener-Policy", "same-origin");
       next();
     });
-    this._app.all("/:task/:action/storage/save/*", async function(request2, response, next) {
-      const taskName = request2.params.task;
-      const actionName = request2.params.action;
-      const key = request2.params[0];
+    this._app.all("/:task/:action/storage/save/*", async function(request, response, next) {
+      const taskName = request.params.task;
+      const actionName = request.params.action;
+      const key = request.params[0];
       try {
-        const { mime, buffer } = await this._$parseRequestBody(request2);
+        const { mime, buffer } = await this._$parseRequestBody(request);
         await this.$save(`${taskName}/${actionName}`, key, mime, buffer);
         response.sendStatus(200).end();
       } catch (error) {
@@ -35401,10 +35400,10 @@ var ForgeServer = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/storage/load/*", async function(request2, response, next) {
-      const taskName = request2.params.task;
-      const actionName = request2.params.action;
-      const key = request2.params[0];
+    this._app.all("/:task/:action/storage/load/*", async function(request, response, next) {
+      const taskName = request.params.task;
+      const actionName = request.params.action;
+      const key = request.params[0];
       try {
         const { mime, buffer } = await this.$load(`${taskName}/${actionName}`, key);
         response.setHeader("Content-Type", mime).end(buffer);
@@ -35413,9 +35412,9 @@ var ForgeServer = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/storage/keys", async function(request2, response, next) {
-      const taskName = request2.params.task;
-      const actionName = request2.params.action;
+    this._app.all("/:task/:action/storage/keys", async function(request, response, next) {
+      const taskName = request.params.task;
+      const actionName = request.params.action;
       try {
         const partitionName = `${taskName}/${actionName}`;
         const keys = await this.$keys(partitionName);
@@ -35426,13 +35425,13 @@ var ForgeServer = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/*", async function(request2, response, next) {
-      const route = request2.params[0];
-      const taskName = request2.params.task;
-      const actionName = request2.params.action;
-      const file = request2.params[0] || "index.html";
+    this._app.all("/:task/:action/*", async function(request, response, next) {
+      const route = request.params[0];
+      const taskName = request.params.task;
+      const actionName = request.params.action;
+      const file = request.params[0] || "index.html";
       const fileName = path.resolve(taskName, file);
-      const query = request2.query;
+      const query = request.query;
       const tasks = this._forge.tasks();
       const forgeTask = tasks.get(taskName);
       if (forgeTask === void 0) {
@@ -35455,10 +35454,10 @@ var ForgeServer = class {
       const { mime, buffer } = await iAction.$route(route, query);
       response.setHeader("Content-Type", mime).end(buffer);
     }.bind(this));
-    this._app.all("*", async function(request2, response, next) {
-      const file = request2.params[0] == "/" ? "index.html" : "." + request2.params[0];
+    this._app.all("*", async function(request, response, next) {
+      const file = request.params[0] == "/" ? "index.html" : "." + request.params[0];
       const route = path.resolve(this._base, file);
-      console.log("ForgeServer *", request2.params, route);
+      console.log("ForgeServer *", request.params, route);
       $fs3.readFile(route).then(function(buffer) {
         response.setHeader("Content-Type", mimeTypes.lookup(route)).end(buffer);
       }).catch(function(error) {
@@ -35487,14 +35486,14 @@ var ForgeServer = class {
       console.parse(`<green>Server start at ${port}</green>`);
     }.bind(this));
   }
-  async _$parseRequestBody(request2) {
+  async _$parseRequestBody(request) {
     return new Promise(function(resolve, reject) {
-      const buffers2 = [];
-      request2.on("data", (chunk) => {
-        buffers2.push(chunk);
+      const buffers = [];
+      request.on("data", (chunk) => {
+        buffers.push(chunk);
       }).on("end", () => {
-        const mime = request2.get("Content-Type");
-        const buffer = Buffer.concat(buffers2);
+        const mime = request.get("Content-Type");
+        const buffer = Buffer.concat(buffers);
         resolve({ mime, buffer });
       });
     });
@@ -35556,6 +35555,7 @@ var AbstractServiceAdapter = class extends Subscription {
     this._key = config.key || QuickHash();
     this._race = config.race;
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+    this._bindings.set(this._pipeError, this._pipeError.bind(this));
     this._bindings.set(this.read, this.read.bind(this));
   }
   _pipeStdio(message) {
@@ -35569,6 +35569,21 @@ var AbstractServiceAdapter = class extends Subscription {
       } catch (error) {
         if (line != "") {
           console.parse(`<cyan>${line}</cyan>`);
+        }
+      }
+    }
+  }
+  _pipeError(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<magenta>${line}</magenta>`);
         }
       }
     }
@@ -35673,22 +35688,25 @@ var ExecService = class extends AbstractServiceAdapter {
   }
   $signal(signal, data, race) {
     race = race || this._race;
+    const name = this._name;
+    const pipeStdio = this._bindings.get(this._pipeStdio);
+    const pipeError = this._bindings.get(this._pipeError);
     const command = this._command.replace(/\{\{command\}\}/g, data.command);
     return new Promise(function(resolve, reject) {
       const child = exec(command, { stdio: "pipe" });
-      child.on("exit", function() {
-        resolve({ "awesome": "hehehe" });
+      child.on("exit", function(error, stdout, stderr) {
+        if (error) {
+          reject({ name, "reject": "hehehe" });
+        } else {
+          resolve({ name, "resolve": "hehehe" });
+        }
       });
-      child.stdout.on("data", function(data2) {
-        console.log(">>>>>>", data2);
-      });
-      child.stderr.on("data", function(data2) {
-        console.log("!!!!", data2);
-      });
+      child.stdout.on("data", pipeStdio);
+      child.stderr.on("data", pipeError);
       setTimeout(function() {
-        reject({ "rejected": "timeout" });
-      });
-    });
+        reject({ name, "rejected": "timeout" });
+      }, race);
+    }.bind(this));
   }
 };
 
@@ -35897,9 +35915,7 @@ var Forge = class {
   worker(name, config) {
     if (this.services.has(name) && config === void 0)
       throw new Error(`IServiceAdapter (worker) already exists "${name}"`);
-    const workerService = {};
-    this.services.set(name, workerService);
-    return workerService;
+    return;
   }
   exec(name, config) {
     if (this.services.has(name) && config === void 0)
@@ -35923,19 +35939,27 @@ var Forge = class {
     const forge = this;
     watcher.on("ready", function() {
       watcher.on("all", async function(event, file) {
+        const resetNow = Date.now();
+        const resets = await forge.$reset({ file, event });
+        console.log("resetTime:", Date.now() - resetNow);
+        const watchNow = Date.now();
         await forge.$signal("watch", { file, event });
-        await forge.$reset({ file, event });
+        console.log("watchTime:", Date.now() - watchNow);
       });
     });
   }
   async $reset(data) {
+    const $promises = [];
     for (const [name, iService] of this.services) {
-      console.parse("<yellow>resetting</yellow>", await iService.$reset(data));
+      $promises.push(iService.$reset(data));
     }
+    await Promise.allSettled($promises);
     for (const [name, forgeTask] of this._taskMap) {
       await forgeTask.$reset(data);
     }
-    await this._forgeStream.$reset();
+    await Promise.allSettled($promises);
+    $promises.push(this._forgeStream.$reset());
+    return { reset: Promise.allSettled($promises) };
   }
   async $signal(signal, data) {
     const results = await this._forgeStream.$signal(signal, data);

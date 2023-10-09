@@ -48,6 +48,8 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
         this._race = config.race;
 
         this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+        this._bindings.set(this._pipeError, this._pipeError.bind(this));
+        
         this._bindings.set(this.read, this.read.bind(this));
 
     }
@@ -71,6 +73,34 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
                 if (line != "") {
 
                     console.parse(`<cyan>${line}</cyan>`);
+
+                }
+
+            }
+
+        }
+
+    }
+
+    protected _pipeError(message: string): void {
+
+        const lines: string[] = String(message).split(/\r\n|\r|\n/g);
+
+        for (const line of lines) {
+
+            try {
+
+                const [forge, header, data] = JSON.parse(line);
+
+                if (header.key != this._key) return;
+
+                this.read([forge, header, data]);
+
+            } catch (error: unknown) {
+
+                if (line != "") {
+
+                    console.parse(`<magenta>${line}</magenta>`);
 
                 }
 
