@@ -1,3 +1,10 @@
+declare global {
+	interface Console {
+		parse(...rest: unknown[]): string;
+	}
+
+}
+
 export enum DebugForeground {
 
 	Black = "\u001b[30m",
@@ -129,22 +136,9 @@ class ColourFormatting<T> {
 
 export class DebugFormatter {
 
-	public static Init(options: { platform : "node" | "browser"}): void {
+	public static Init(options: { platform: "node" | "browser", "default": { "foreground": string, background: string } }): void {
 
-		const __DebugFormatter: DebugFormatter = new DebugFormatter();
-		console.parse = function (...rest: string[]) {
-		
-			console.log(...rest.map(function (log: unknown) {
-		
-				if (log === undefined) return undefined;
-		
-				if (log.constructor == String) return __DebugFormatter.clear().parse(log).reset().stream;
-		
-				return log;
-		
-			}));
-
-		};
+		__DebugFormatter
 
 	}
 
@@ -323,3 +317,18 @@ export class DebugFormatter {
 	}
 
 }
+
+const __DebugFormatter: DebugFormatter = new DebugFormatter();
+console.parse = function (...rest: string[]) {
+
+	console.log(...rest.map(function (log: unknown) {
+
+		if (log === undefined) return undefined;
+
+		if (log.constructor == String) return __DebugFormatter.clear().parse(log).reset().stream;
+
+		return log;
+
+	}));
+
+};

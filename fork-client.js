@@ -8959,15 +8959,50 @@ var Subscription = class {
 // forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
 var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
+  _name;
   _key;
   _race;
   _reboot;
   _sessions = /* @__PURE__ */ new Map();
   _bindings = /* @__PURE__ */ new Map();
-  constructor(config) {
+  constructor(name, config) {
     super();
+    this._name = name;
     this._key = config.key || QuickHash();
     this._race = config.race;
+    this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+    this._bindings.set(this._pipeError, this._pipeError.bind(this));
+    this._bindings.set(this.read, this.read.bind(this));
+  }
+  _pipeStdio(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<cyan>${line}</cyan>`);
+        }
+      }
+    }
+  }
+  _pipeError(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<magenta>${line}</magenta>`);
+        }
+      }
+    }
   }
   get race() {
     return this._race;
@@ -9005,8 +9040,14 @@ var AbstractServiceAdapter = class extends Subscription {
   write(header, data) {
     throw new Error("Please override write(...) in subclasses");
   }
-  $reset(data) {
-    return this.$signal("reset", data, this.race);
+  resolve(header, data) {
+    this.write({ resolve: header.session, key: this._key }, data);
+  }
+  reject(header, data) {
+    this.write({ reject: header.session, key: this._key }, data);
+  }
+  async $reset(data) {
+    return { name: this._name, reset: this.constructor.name };
   }
   $signal(signal, data, race) {
     const session = QuickHash();
@@ -9032,44 +9073,61 @@ var { spawn, fork, exec, execSync } = require("child_process");
 var ForkService = class extends AbstractServiceAdapter {
   _source;
   _commands;
-  constructor(config, source) {
-    super(config);
+  constructor(name, config, source) {
+    super(name, config);
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
+      console.log(config);
       this._commands = config.command.split(/\s+/g);
       const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
       this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
     } else {
       this._source = source;
     }
-    this._source.stdout.on("data", this._onStdoutData.bind(this));
+    this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
     this._source.stderr.on("data", this._onStdoutError.bind(this));
     this._source.on("exit", this._onExit.bind(this));
-    this._source.on("message", function(message) {
-      console.log(message);
-      this.read(message);
-    }.bind(this));
+    this._source.on("message", this._bindings.get(this.read));
   }
-  _onStdoutData(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      try {
-        const [forge, header, data] = JSON.parse(line);
-        if (header.key != this._key)
-          return;
-        this.read([forge, header, data]);
-      } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
+  /* private _onStdoutData(message: string): void {
+  
+          const lines: string[] = String(message).split(/\r\n|\r|\n/g);
+  
+          for (const line of lines) {
+  
+              try {
+  
+                  const [forge, header, data] = JSON.parse(line);
+  
+                  if (header.key != this._key) return;
+  
+                  this.read([forge, header, data]);
+  
+              } catch (error: unknown) {
+  
+                  // message ignored
+                  // console.log("ignore -- ", error);
+                  // console.log("line", line);
+  
+                  if (line != "") {
+  
+                      console.parse(`<cyan>${line}</cyan>`);
+  
+                  }
+  
+              }
+  
+  
+  
+  
+          }
+  
+      } */
   _onStdoutError(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
     for (const line of lines) {
-      console.parse(`<cyan>${line}</cyan>`);
+      console.parse(`<magenta>${line}</magenta>`);
     }
   }
   _onExit() {
@@ -9084,8 +9142,8 @@ var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("
 var SpawnService = class extends AbstractServiceAdapter {
   _source;
   _commands;
-  constructor(config, source) {
-    super(config);
+  constructor(name, config, source) {
+    super(name, config);
     this._commands = config.command.split(/\s+/g);
     const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
     this._source = source || spawn2(this._commands[0], args, { stdio: "pipe" });
@@ -9127,6 +9185,7 @@ var $fs = require("fs").promises;
 var path = require("path");
 var mime = require_mime_types();
 var AbstractForgeClient = class extends Subscription {
+  _race;
   _executing;
   _queue = [];
   _routeRoot = "./build/_route_/typescript";
@@ -9137,19 +9196,20 @@ var AbstractForgeClient = class extends Subscription {
     super();
     if (process.send === void 0) {
       console.log("started directly (spawn/exec)");
-      this._iServiceAdapter = new SpawnService({ key, race: 1e3 }, process);
+      this._iServiceAdapter = new SpawnService("client interface", { key, race: 1e3 }, process);
     } else if (isMainThread === true) {
       console.log("started from fork");
-      this._iServiceAdapter = new ForkService({ key, race: 1e3 }, process);
+      this._iServiceAdapter = new ForkService("client interface", { key, race: 1e3 }, process);
     } else {
       console.log("started from worker");
     }
     this._iServiceAdapter.subscribe("message", this._$subscribeMessage.bind(this));
   }
-  _$raceDispatch(race, ...$rest) {
-    const $race = $UseRace(500);
-    const result = Promise.race([$race[0], ...$rest]);
-    return result instanceof Error ? { error: result.message } : result;
+  async _$raceDispatch(header, ...$rest) {
+    const race = header.race || this._race;
+    const $race = $UseRace(race);
+    const result = await Promise.race([$race[0], ...$rest]);
+    this._iServiceAdapter.resolve(header, result);
   }
   async _$subscribeMessage(notify, header, data) {
     let race = 250;
@@ -9158,27 +9218,23 @@ var AbstractForgeClient = class extends Subscription {
       const { signal, session } = header;
       switch (signal) {
         case "reset":
-          result = await this._$raceDispatch(race, this.$reset(data, race));
-          this._iServiceAdapter.write({ resolve: session }, result);
+          await this._$raceDispatch(header, this.$reset(data, race));
           break;
         case "construct":
         case "route":
           console.log("ROUTED CHILD", data);
           const { route, params } = data;
-          this._iServiceAdapter.write({ resolve: session }, JSON.stringify(await this.$route(route, params)));
+          await this._$raceDispatch(header, this.$route(route, params, race));
           break;
         case "watch":
-          result = await this._$raceDispatch(race, this.$watch(data, race));
-          this._iServiceAdapter.write({ resolve: session }, result);
+          await this._$raceDispatch(header, this.$watch(data, race));
           break;
         default:
-          result = await this.$execute(signal, data, race);
-          console.log(`${signal} $dispatched`, result);
-          this._iServiceAdapter.write({ resolve: session }, result);
-          break;
+          await this._$raceDispatch(header, this.$execute(signal, data, race));
       }
     } catch (error) {
       console.error(error);
+      this._iServiceAdapter.reject(header, error);
     }
   }
   async $signal(signal, data, race) {
@@ -9189,11 +9245,12 @@ var AbstractForgeClient = class extends Subscription {
     return { "reset": "empty function" };
   }
   async $execute(signal, data, race) {
-    return { "reset": "empty function" };
+    return { "execute": "empty function" };
   }
   async $watch(data, race) {
+    return { "watched": true };
   }
-  async $route(route, parameters) {
+  async $route(route, parameters, race) {
     route = route || "index.html";
     console.log("<cyan>resolving</cyan>", path.resolve(this._routeRoot, route));
     const buffer = await $fs.readFile(path.resolve(this._routeRoot, route)).catch(function() {
@@ -9209,17 +9266,18 @@ var cliArguments = new CLIArguments();
 cliArguments.add("key", {
   required: true
 }).compile();
+var CLIENT_KEY = cliArguments.get("key");
 new class extends AbstractForgeClient {
-  $execute(signal, data, race) {
+  async $execute(signal, data, race) {
     console.log("come at me", signal, data, race);
+    return;
   }
   async $watch(data, race) {
     console.log("cwd:", process.cwd());
-    execSync3(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`);
-    execSync3(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`);
+    execSync3(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`, { stdio: "inherit" });
+    return { "just a": "test" };
   }
-}(cliArguments.get("key"));
-console.log(cliArguments.get("key"));
+}(CLIENT_KEY);
 /*! Bundled license information:
 
 mime-db/index.js:

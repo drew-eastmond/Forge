@@ -12,6 +12,10 @@ import { ForgeIO } from "../io/ForgeIO";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask } from "./ForgeTask";
 import { ForgeServer } from "./server/ForgeServer";
+import { IServiceAdapter, ServiceAdpaterConfig } from "./service/AbstractServiceAdapter";
+import { ExecService } from "./service/ExecService";
+import { ForkService } from "./service/ForkService";
+import { SpawnService } from "./service/SpawnService";
 
 // relay class defitions
 
@@ -45,7 +49,7 @@ class WatchManager {
 
     public add(file: string, event: string): void {
 
-        this._watchEntries.set(file, event);
+        this._watchEntries.add({ file, event });
 
         this._debouncer.debounce(this._debounceWatch, [], this._delay);
 
@@ -61,29 +65,81 @@ export class Forge {
         
     }
 
-    
-    private _watchFiles;
     private _lastUpdate: number = Date.now();
 
     private _forgeServer: ForgeServer;
-
-    private readonly _workerMap: Map<string, Worker> = new Map();
 
     private readonly _taskMap: Map<string, ForgeTask> = new Map();
 
     private readonly _ignoreArr = [/(^|[\/\\])\../];
 
-    private readonly _fileSet: Set<string> = new Set();
-
     private readonly _forgeStream: ForgeStream = new ForgeStream();
+
+    public readonly services: Map<string, IServiceAdapter> = new Map();
 
     constructor() {
 
     }
 
-    public parse(config: string): void {
+    private _buildService(services: { spawn?: Record<string, ServiceAdpaterConfig>, fork?: Record<string, ServiceAdpaterConfig>, exec?: Record<string, ServiceAdpaterConfig> }, errors: string[]): void {
 
-        const variables = JSON.parse(config).variables;
+        if (services === undefined) throw new Error(`No services assigned`);
+
+        const spawnObj: Record<string, ServiceAdpaterConfig> = services.spawn;
+        if (spawnObj) {
+
+            for (const [key, serviceConfig] of Object.entries(spawnObj)) {
+
+                // todo Replace these queries with `Enforce`
+                // Validate required parameters for command and race
+
+                if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for SPAWN service "${key}"`);
+                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
+
+                // truthfully, we dont really use the return value
+                const service: IServiceAdapter = this.spawn(key, serviceConfig);
+
+            }
+
+        }
+
+        const forkObj: Record<string, ServiceAdpaterConfig> = services.fork;
+        if (forkObj) {
+            for (const [key, serviceConfig] of Object.entries(forkObj)) {
+
+                // todo Replace these queries with `Enforce`
+                // Validate required parameters for command and race
+
+                if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for FORK service "${key}"`);
+                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
+
+                // truthfully, we dont really use the return value
+                const service: IServiceAdapter = this.fork(key, serviceConfig);
+
+            }
+        }
+
+        const execObj: Record<string, ServiceAdpaterConfig> = services.exec;
+        if (execObj) {
+            for (const [key, serviceConfig] of Object.entries(execObj)) {
+
+                // todo Replace these queries with `Enforce`
+                // Validate required parameters for command and race
+
+                if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for EXEC service "${key}"`);
+                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for EXEC service "${key}"`);
+
+                // truthfully, we dont really use the return value
+                const service: IServiceAdapter = this.exec(key, serviceConfig);
+
+            }
+        }
+
+    }
+
+    public parse(input: string): void {
+
+        const variables = JSON.parse(input).variables;
 
         const entries: { access: string, value: unknown }[] = FlattenObject(variables);
 
@@ -92,17 +148,38 @@ export class Forge {
         */
         for (const { access, value } of entries) {
 
-            config = config.replace(new RegExp(`{${access}}`, "g"), String(value));
+            input = input.replace(new RegExp(`{${access}}`, "g"), String(value));
 
         }
 
         /*
         * 2. Reparse the new config string and add all the supplied forege task
-        */ 
-        const configObj = JSON.parse(config);
+        */
+        const configObj = JSON.parse(input);
+
+        /*
+        *
+        * 3. 
+        *   instantiate all the spawn processes from this data structure
+        * 
+        * "spawn" : {
+        *   "{name: string}": {
+        *           "command": "{string}",
+        *           "race": {number},
+        *           "reboot" : {boolean}
+        *           ...{extra_data_passed_to_process}
+        *       } 
+        *   },
+        *   ...
+        * }
+        * 
+        */
+        this._buildService(configObj.services, []);
+
+
         for (const taskObj of configObj.tasks) {
 
-            const forgeTask: ForgeTask = new ForgeTask(taskObj);
+            const forgeTask: ForgeTask = new ForgeTask(this, taskObj);
             this.add(forgeTask);
 
         }
@@ -121,7 +198,7 @@ export class Forge {
 
         if (this._taskMap.has(name)) throw new Error(`task with "${name}" name already exist`);
 
-        this._taskMap.set(forgeTask.name, forgeTask);
+        this._taskMap.set(name, forgeTask);
 
         this._forgeStream.add(forgeTask);
 
@@ -129,31 +206,79 @@ export class Forge {
 
     }
 
-    public search(): void {
+    public spawn(name: string, config?: ServiceAdpaterConfig): IServiceAdapter {
 
-        const files: string[] = glob.sync("**/.forge");
-        for (const file of files) {
-            
-            this.parse($fs.readFileSync(file, "utf8"));
+        // no duplicate entries
+        if (this.services.has(name)) throw new Error(`IServiceAdapter (spawn) already exists "${name}"`);
 
-        }
+        const spawnService: SpawnService = new SpawnService(name, config);
+        this.services.set(name, spawnService);
+
+        return spawnService;
 
     }
 
-    public watch(root: string, options: { ignore: string[], debounce?: number }): void {
+    public fork(name: string, config?: ServiceAdpaterConfig): IServiceAdapter {
 
-        // const debounceDelay: number = options.debounce;
-        // const watchDelegate: Function = this._update;
-        // const debouncer: Debouncer = this._watchDebouncer;
-        // const watchedFiles: Set = this._watchFileSet;
+        if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (fork) already exists "${name}"`);
+
+        const forkService: ForkService = new ForkService(name, config);
+        this.services.set(name, forkService);
+
+        return forkService;
+
+    }
+
+    public worker(name: string, config: ServiceAdpaterConfig): IServiceAdapter {
+
+        if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (worker) already exists "${name}"`);
+
+        // const workerService = {}; // = new ExecService(name, config);
+        // this.services.set(name, workerService);
+
+        // return workerService;
+        return;
+
+    }
+
+    public exec(name: string, config: ServiceAdpaterConfig): IServiceAdapter {
+
+        if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (exec) already exists "${name}"`);
+
+        const execService: ExecService = new ExecService(name, config);
+        this.services.set(name, execService);
+
+        return execService;
+
+    }
+
+//    public search(): void {
+//
+//        const files: string[] = glob.sync("**/.forge");
+//        for (const file of files) {
+//            
+//            this.parse($fs.readFileSync(file, "utf8"));
+//
+//        }
+//
+//    }
+
+    public watch(root: string, options: { ignore: string[], debounce?: number }): void {
 
         const watcher = chokidar.watch(["./src/**/*"], { 'ignored': this._ignoreArr });
 
         const forge: Forge = this;
         watcher.on("ready", function () {
-            watcher.on("all", function (event: string, file : string) {
+            watcher.on("all", async function (event: string, file : string) {
 
-                forge.$signal("watch", {file, event});
+                const resetNow: number = Date.now();
+                const resets: Serialize = await forge.$reset({ file, event });
+                console.log("resetTime:", Date.now() - resetNow);
+                // console.log("ForgeStream reset", resets);
+
+                const watchNow: number = Date.now();
+                await forge.$signal("watch", { file, event });
+                console.log("watchTime:", Date.now() - watchNow);
 
             });
 
@@ -161,11 +286,17 @@ export class Forge {
 
     }
 
-    public async $reset(): Promise<void>;
-    public async $reset(data: Serialize): Promise<void>;
-    public async $reset(data?: Serialize): Promise<void> {
+    public async $reset(data: Serialize): Promise<Serialize> {
 
-        data = data || {};
+        const $promises: Promise<Serialize>[] = [];
+        for (const [name, iService] of this.services) {
+
+            $promises.push(iService.$reset(data));
+
+        }
+
+        // we need to await services for synchronization reasons.
+        await Promise.allSettled($promises);
 
         for (const [name, forgeTask] of this._taskMap) {
 
@@ -173,15 +304,23 @@ export class Forge {
 
         }
 
+        await Promise.allSettled($promises);
+
+        $promises.push(this._forgeStream.$reset());
+
+        return { reset: Promise.allSettled($promises) };
+
     }
 
-    public async $signal(signal: string, data: Serialize): Promise<(Serialize | Error)[]> {
+    public async $signal(signal: string, data: Serialize): Promise<Serialize> {
 
-        const results: (Serialize | Error)[] = await this._forgeStream.$signal(signal, data);
+        const results: Serialize = await this._forgeStream.$signal(signal, data);
 
         return results;
 
     }
+
+
 
     public abort(): void {
 
@@ -206,11 +345,11 @@ export class Forge {
 
     }
 
-    public async $load(): void {
+    public async $load(): Promise<void> {
 
     }
 
-    public async $save(): void {
+    public async $save(): Promise<void> {
 
 
 

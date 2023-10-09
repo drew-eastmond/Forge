@@ -254,16 +254,7 @@ var ColourFormatting = class {
 };
 var DebugFormatter = class {
   static Init(options) {
-    const __DebugFormatter = new DebugFormatter();
-    console.parse = function(...rest) {
-      console.log(...rest.map(function(log) {
-        if (log === void 0)
-          return void 0;
-        if (log.constructor == String)
-          return __DebugFormatter.clear().parse(log).reset().stream;
-        return log;
-      }));
-    };
+    __DebugFormatter;
   }
   foreground;
   fg;
@@ -376,6 +367,16 @@ var DebugFormatter = class {
     return this;
   }
 };
+var __DebugFormatter = new DebugFormatter();
+console.parse = function(...rest) {
+  console.log(...rest.map(function(log) {
+    if (log === void 0)
+      return void 0;
+    if (log.constructor == String)
+      return __DebugFormatter.clear().parse(log).reset().stream;
+    return log;
+  }));
+};
 
 // forge/_src_/ts/build.ts
 var path = require("path");
@@ -457,8 +458,10 @@ async function $build(entryFile, outFile, options) {
     format: options.format,
     metafile: true,
     loader: { ".ts": "tsx", ".js": "jsx" },
-    outdir: outFilePath.dir,
-    treeShaking: options.treeShaking
+    // outdir: outFilePath.dir,
+    treeShaking: options.treeShaking,
+    outfile: outFile
+    // sourcemap: "external"
     // plugins: [yourPlugin]
     // external: []
   });
@@ -484,7 +487,7 @@ async function $build(entryFile, outFile, options) {
 async function $watch() {
   const forgeClient = new ForgeClient();
 }
-DebugFormatter.Init({ platform: "node" });
+DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "" } });
 (async function() {
   const cliArguments = new CLIArguments();
   cliArguments.add("in", {

@@ -4,7 +4,7 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 const __ForgeProtocol: string = "forge://";
 
 export type ServiceAdpaterConfig = {
-    command?: string | false,
+    command?: string,
     race: number,
     key?: string,
     reboot?: boolean
@@ -14,7 +14,10 @@ export interface IServiceAdapter extends ISubscription {
     get race(): number;
 
     read(message: [string, Record<string, unknown>, Serialize]): void;
+
     write(header: Record<string, unknown>, data: Serialize): void;
+    resolve(header: Record<string, unknown>, data: Serialize): void;
+    reject(header: Record<string, unknown>, data: Serialize): void;
 
     $reset(data: Serialize): Promise<Serialize>;
 
@@ -26,6 +29,7 @@ export interface IServiceAdapter extends ISubscription {
 
 export class AbstractServiceAdapter extends Subscription implements IServiceAdapter {
 
+    protected _name: string;
     protected _key: string;
     protected _race: number;
     protected _reboot: boolean;
@@ -33,15 +37,77 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     protected readonly _sessions: Map<string, $Promise<unknown>> = new Map();
     protected readonly _bindings: Map<Function, Function> = new Map();
 
-    
 
-    constructor(config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceAdpaterConfig) {
 
         super();
 
+        this._name = name;
+
         this._key = config.key || QuickHash();
         this._race = config.race;
+
+        this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+        this._bindings.set(this._pipeError, this._pipeError.bind(this));
         
+        this._bindings.set(this.read, this.read.bind(this));
+
+    }
+
+    protected _pipeStdio(message: string): void {
+
+        const lines: string[] = String(message).split(/\r\n|\r|\n/g);
+
+        for (const line of lines) {
+
+            try {
+
+                const [forge, header, data] = JSON.parse(line);
+
+                if (header.key != this._key) return;
+
+                this.read([forge, header, data]);
+
+            } catch (error: unknown) {
+
+                if (line != "") {
+
+                    console.parse(`<cyan>${line}</cyan>`);
+
+                }
+
+            }
+
+        }
+
+    }
+
+    protected _pipeError(message: string): void {
+
+        const lines: string[] = String(message).split(/\r\n|\r|\n/g);
+
+        for (const line of lines) {
+
+            try {
+
+                const [forge, header, data] = JSON.parse(line);
+
+                if (header.key != this._key) return;
+
+                this.read([forge, header, data]);
+
+            } catch (error: unknown) {
+
+                if (line != "") {
+
+                    console.parse(`<magenta>${line}</magenta>`);
+
+                }
+
+            }
+
+        }
+
     }
 
     get race(): number {
@@ -109,9 +175,21 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     }
 
-    public $reset(data: Serialize): Promise<Serialize> {
+    public resolve(header: Record<string, unknown>, data: Serialize): void {
 
-        return this.$signal("reset", data, this.race);
+        this.write({ resolve: header.session, key: this._key }, data);
+
+    }
+
+    public reject(header: Record<string, unknown>, data: Serialize): void {
+
+        this.write({ reject: header.session, key: this._key }, data);
+
+    }
+
+    public async $reset(data: Serialize): Promise<Serialize> {
+
+        return { name: this._name, reset: this.constructor.name }; // this.$signal("reset", data, this.race);
 
     }
 
@@ -123,7 +201,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const sessions: Map<string, $Promise> = this._sessions;
 
-        const $race: $Promise<unknown> = $UseRace(race);
+        const $race: $Promise<Serialize> = $UseRace(race);
         $race[0]
             .then(function () {
 

@@ -63,7 +63,7 @@ if (require.main === module && !module.parent) {
 
 		forge.$signal("construct", { "so l can get my": "satifacation" });
 
-		forge.watch("./src/", {});
+		forge.watch("./src/", { ignore: [], debounce: 500 });
 
 	}());
 
