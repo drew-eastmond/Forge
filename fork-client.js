@@ -8959,13 +8959,15 @@ var Subscription = class {
 // forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
 var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
+  _name;
   _key;
   _race;
   _reboot;
   _sessions = /* @__PURE__ */ new Map();
   _bindings = /* @__PURE__ */ new Map();
-  constructor(config) {
+  constructor(name, config) {
     super();
+    this._name = name;
     this._key = config.key || QuickHash();
     this._race = config.race;
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
@@ -9028,8 +9030,8 @@ var AbstractServiceAdapter = class extends Subscription {
   reject(header, data) {
     this.write({ reject: header.session, key: this._key }, data);
   }
-  $reset(data) {
-    return this.$signal("reset", data, this.race);
+  async $reset(data) {
+    return { name: this._name, reset: this.constructor.name };
   }
   $signal(signal, data, race) {
     const session = QuickHash();
@@ -9055,11 +9057,12 @@ var { spawn, fork, exec, execSync } = require("child_process");
 var ForkService = class extends AbstractServiceAdapter {
   _source;
   _commands;
-  constructor(config, source) {
-    super(config);
+  constructor(name, config, source) {
+    super(name, config);
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
+      console.log(config);
       this._commands = config.command.split(/\s+/g);
       const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
       this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
@@ -9123,8 +9126,8 @@ var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("
 var SpawnService = class extends AbstractServiceAdapter {
   _source;
   _commands;
-  constructor(config, source) {
-    super(config);
+  constructor(name, config, source) {
+    super(name, config);
     this._commands = config.command.split(/\s+/g);
     const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
     this._source = source || spawn2(this._commands[0], args, { stdio: "pipe" });
@@ -9177,10 +9180,10 @@ var AbstractForgeClient = class extends Subscription {
     super();
     if (process.send === void 0) {
       console.log("started directly (spawn/exec)");
-      this._iServiceAdapter = new SpawnService({ key, race: 1e3 }, process);
+      this._iServiceAdapter = new SpawnService("client interface", { key, race: 1e3 }, process);
     } else if (isMainThread === true) {
       console.log("started from fork");
-      this._iServiceAdapter = new ForkService({ key, race: 1e3 }, process);
+      this._iServiceAdapter = new ForkService("client interface", { key, race: 1e3 }, process);
     } else {
       console.log("started from worker");
     }
@@ -9257,6 +9260,7 @@ new class extends AbstractForgeClient {
     console.log("cwd:", process.cwd());
     execSync3(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`, { stdio: "inherit" });
     execSync3(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: "inherit" });
+    return { "just a": "test" };
   }
 }(CLIENT_KEY);
 /*! Bundled license information:

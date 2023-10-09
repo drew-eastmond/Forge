@@ -9,9 +9,9 @@ export class ExecService extends AbstractServiceAdapter {
     private _command: string;
     private _config: Record<string, unknown>;
 
-    constructor(config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceAdpaterConfig) {
 
-        super(config);
+        super(name, config);
 
         this._config = config;
         this._command = config.command as string;
@@ -61,17 +61,9 @@ export class ExecService extends AbstractServiceAdapter {
 
     }
 
-    public write(header: Serialize, ...data: Serialize[]): void {
+    public write(header: Serialize, data: Serialize): void {
 
-        // absolutely important to append a new line in case to many messages are concatenated 
-        // sent before the process finally read.
-        // this._source.stdin.write(JSON.stringify(["forge://", header, ...data]) + "\n");
-
-    }
-
-    public $reset(data: Serialize): Promise<Serialize> {
-
-        return;
+        // ! `ExecService` write is not supported
 
     }
 
@@ -80,9 +72,10 @@ export class ExecService extends AbstractServiceAdapter {
         // sanitize
         race = race || this._race;
 
-        // just do this manually for now. Ideally l 
+        // todo replace with `Accessor` class
+        // just do this manually for now. Ideally l Accessor class
         const command: string = this._command
-            .replace(/\{\{command\}\}/g, data.command);
+            .replace(/\{\{command\}\}/g, data.command as string);
 
         return new Promise(function (resolve: Function, reject: Function) {
 

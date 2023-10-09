@@ -8,9 +8,9 @@ export class SpawnService extends AbstractServiceAdapter {
     private _source: any;
     private _commands: string[];
 
-    constructor(config: ServiceAdpaterConfig, source?: any) {
+    constructor(name: string, config: ServiceAdpaterConfig, source?: any) {
 
-        super(config);
+        super(name, config);
 
         this._commands = config.command.split(/\s+/g);
         const args: string[] = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];

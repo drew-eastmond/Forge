@@ -34378,18 +34378,9 @@ var ColourFormatting = class {
     return this._debugFormatter;
   }
 };
-var DebugFormatter = class _DebugFormatter {
+var DebugFormatter = class {
   static Init(options) {
-    const __DebugFormatter = new _DebugFormatter();
-    console.parse = function(...rest) {
-      console.log(...rest.map(function(log) {
-        if (log === void 0)
-          return void 0;
-        if (log.constructor == String)
-          return __DebugFormatter.clear().parse(log).reset().stream;
-        return log;
-      }));
-    };
+    __DebugFormatter;
   }
   foreground;
   fg;
@@ -34501,6 +34492,16 @@ var DebugFormatter = class _DebugFormatter {
     }
     return this;
   }
+};
+var __DebugFormatter = new DebugFormatter();
+console.parse = function(...rest) {
+  console.log(...rest.map(function(log) {
+    if (log === void 0)
+      return void 0;
+    if (log.constructor == String)
+      return __DebugFormatter.clear().parse(log).reset().stream;
+    return log;
+  }));
 };
 
 // forge/_src_/ts/core/timing/Debounce.ts
@@ -34639,38 +34640,47 @@ var ForgeStream = class {
     for (const [name, iAction] of this._iActions) {
       promises.push(iAction.$reset({}));
     }
-    console.log("reset complete", promises);
-    await Promise.all(promises);
+    console.log("ForgeStream reset", await Promise.allSettled(promises));
+    return await Promise.allSettled(promises);
   }
   async $signal(signal, data) {
     const executedActions = this._executions;
-    const promises = [];
+    const $executions = [];
     for (const [name, iAction] of this._iActions) {
       const errors = [];
       if (this._executions.has(iAction))
-        errors.push(`already executed`);
+        errors.push(`${name} already executed`);
       if (iAction.implement() != signal)
-        errors.push(`already executed`);
+        errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);
       ;
       if (iAction.dependencies.length)
         errors.push(`already executed`);
       ;
       if (errors.length) {
-        promises.push(Promise.reject({
-          status: "rejected",
-          reason: errors
+        $executions.push(Promise.reject({
+          name,
+          reject: errors
         }));
         continue;
       } else {
-        promises.push(iAction.$signal(signal, data).then(function(data2) {
+        $executions.push(iAction.$signal(signal, data).then(function(data2) {
           executedActions.add(iAction);
-          return data2;
+          return {
+            name: iAction.name,
+            resolve: data2
+          };
+        }).catch(function(error) {
+          console.parse(error);
+          return {
+            name,
+            reject: error
+          };
         }));
       }
     }
-    const results = await Promise.allSettled(promises);
-    console.log("forgeStream!!!>>>", await Promise.allSettled(promises));
+    const executions = await Promise.allSettled($executions);
     const failedDependencies = [];
+    const $rebounds = [];
     for (const [name, iAction] of this._iActions) {
       const dependencies = iAction.dependencies;
       if (dependencies.length == 0) {
@@ -34684,27 +34694,32 @@ var ForgeStream = class {
           dependenciesResolved = false;
       }
       if (dependenciesResolved && this._executions.has(iAction) === false) {
-        console.log("resolving", iAction.name);
+        console.log("rebounding", iAction.name);
         const implement = iAction.implement();
-        await iAction.$signal(implement, data).catch(function(error) {
+        $rebounds.push(iAction.$signal(implement, data).then(function(data2) {
+          executedActions.add(iAction);
+          return {
+            name: iAction.name,
+            resolve: data2
+          };
+        }).catch(function(error) {
           console.parse(error);
-          return error;
-        });
-        executedActions.add(iAction);
+          return {
+            name,
+            reject: error
+          };
+        }));
       }
     }
-    console.parse(`<red>no dependencies :</red> "${failedDependencies.join(", ")}"`);
-    for (let i = 0; i < results.length; i++) {
-      const settleInfo = results[i];
-      const result = settleInfo.status == "fulfilled" ? settleInfo.value : settleInfo.reason;
-      try {
-        results[i] = JSON.parse(result);
-      } catch (error) {
-        results[i] = result;
-      }
-    }
-    console.error("realllll", results);
-    return results;
+    const rebounds = await Promise.allSettled($rebounds);
+    console.log({
+      executions,
+      rebounds
+    });
+    return {
+      executions,
+      rebounds
+    };
   }
 };
 
@@ -34883,7 +34898,7 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/ts/forge/action/GenericAction.ts
+// forge/_src_/ts/forge/GenericAction.ts
 var $fs2 = require("fs").promises;
 var GenericAction = class extends Subscription {
   _iServiceAdapter;
@@ -35029,368 +35044,20 @@ var GenericAction = class extends Subscription {
   }
 };
 
-// forge/_src_/ts/forge/action/ForkAction.ts
-var ForkAction = class extends GenericAction {
-  _child;
-  constructor(iService, implement, data) {
-    super(iService, implement, data);
-  }
-  _subscribeMessage(message) {
-    console.log("message pareent", message);
-    this.notify("message", message);
-  }
-  _subscribeBroadcast(notify, header, data) {
-    console.log("broadcast captured - ", notify);
-    console.log(header);
-    console.log(data);
-    console.log("--------\n");
-  }
-};
-
-// forge/_src_/ts/forge/action/SpawnAction.ts
-var SpawnAction = class extends GenericAction {
-  constructor(iService, implement, data) {
-    super(iService, implement, data);
-    this._bindings.set(this._onStdout, this._onStdout.bind(this));
-    this._bindings.set(this._onStdErr, this._onStdErr.bind(this));
-    console.log("Spawn Action constructed", String(this._iServiceAdapter), this._data);
-    return;
-  }
-  _onStdout(output) {
-    const outputStr = String(output);
-    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
-      try {
-        const parsedData = JSON.parse(line);
-        const [{ key, session }, data] = parsedData;
-      } catch (error) {
-      }
-      if (line != "") {
-        console.parse(`<cyan>${line}</cyan>`);
-      }
-    }
-    this.stdout.push([outputStr, Date.now() - this._startTime]);
-  }
-  _onStdErr(data) {
-    const outputStr = String(data);
-    for (const line of outputStr.split(/\r\n|\r|\n/g)) {
-      if (line != "") {
-        console.parse(`<red>${line}</red>`);
-      }
-    }
-    this.stderr.push([String(data), Date.now() - this._startTime]);
-  }
-};
-
-// forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
-var __ForgeProtocol = "forge://";
-var AbstractServiceAdapter = class extends Subscription {
-  _key;
-  _race;
-  _reboot;
-  _sessions = /* @__PURE__ */ new Map();
-  _bindings = /* @__PURE__ */ new Map();
-  constructor(config) {
-    super();
-    this._key = config.key || QuickHash();
-    this._race = config.race;
-    this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
-    this._bindings.set(this.read, this.read.bind(this));
-  }
-  _pipeStdio(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      try {
-        const [forge, header, data] = JSON.parse(line);
-        if (header.key != this._key)
-          return;
-        this.read([forge, header, data]);
-      } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
-  get race() {
-    return this._race;
-  }
-  read(message) {
-    try {
-      const [protocol, header, data] = message;
-      if ("broadcast" in header) {
-        const { broadcast } = header;
-        this.notify("broadcast", header, data);
-        return true;
-      }
-      if (protocol != __ForgeProtocol)
-        return;
-      if (header.key != this._key)
-        return;
-      if ("resolve" in header) {
-        const $race = this._sessions.get(header.resolve);
-        $race[1](data);
-        this.notify("resolve", header, data);
-      } else if ("reject" in header) {
-        console.log("rejected", protocol, header, data);
-        const $race = this._sessions.get(header.reject);
-        $race[2](data);
-        this.notify("reject", header, data);
-      } else {
-        this.notify("message", header, data);
-      }
-      return true;
-    } catch (error) {
-      console.log("read error", error);
-    }
-    return false;
-  }
-  write(header, data) {
-    throw new Error("Please override write(...) in subclasses");
-  }
-  resolve(header, data) {
-    this.write({ resolve: header.session, key: this._key }, data);
-  }
-  reject(header, data) {
-    this.write({ reject: header.session, key: this._key }, data);
-  }
-  $reset(data) {
-    return this.$signal("reset", data, this.race);
-  }
-  $signal(signal, data, race) {
-    const session = QuickHash();
-    const sessions = this._sessions;
-    const $race = $UseRace(race);
-    $race[0].then(function() {
-      console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
-    }).catch(function(error) {
-      console.parse("<yellow>$signal exception caught :</yellow>", error);
-    }).finally(function() {
-      sessions.delete(session);
-    });
-    this._sessions.set(session, $race);
-    this.write({ signal, session, key: this._key }, data);
-    return $race[0];
-  }
-  async $reboot() {
-  }
-};
-
-// forge/_src_/ts/forge/service/ExecService.ts
-var { spawn, fork, exec, execSync } = require("child_process");
-var ExecService = class extends AbstractServiceAdapter {
-  _source;
-  _command;
-  _config;
-  constructor(config) {
-    super(config);
-    this._config = config;
-    this._command = config.command;
-  }
-  _injectCommand(data) {
-    let output = this._command;
-    const accessSource = { ...this._config, ...data };
-    let results;
-    const regExp = /{{(.+?)}}/g;
-    while (results = regExp.exec(this._command)) {
-      const accessor = results[1].split(".");
-      let value = accessSource;
-      try {
-        for (const access of accessor) {
-          value = value[access];
-        }
-      } catch (error) {
-        value = void 0;
-      }
-      output = output.replace(new RegExp(`{{${results[1]}}}`), String(value));
-    }
-    return output;
-  }
-  _onExit() {
-  }
-  write(header, ...data) {
-  }
-  $reset(data) {
-    return;
-  }
-  $signal(signal, data, race) {
-    race = race || this._race;
-    const command = this._command.replace(/\{\{command\}\}/g, data.command);
-    return new Promise(function(resolve, reject) {
-      const child = exec(command, { stdio: "pipe" });
-      child.on("exit", function() {
-        resolve({ "awesome": "hehehe" });
-      });
-      child.stdout.on("data", function(data2) {
-        console.log(">>>>>>", data2);
-      });
-      child.stderr.on("data", function(data2) {
-        console.log("!!!!", data2);
-      });
-      setTimeout(function() {
-        reject({ "rejected": "timeout" });
-      });
-    });
-  }
-};
-
-// forge/_src_/ts/forge/service/ForkService.ts
-var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
-var ForkService = class extends AbstractServiceAdapter {
-  _source;
-  _commands;
-  constructor(config, source) {
-    super(config);
-    if (source === void 0) {
-      const controller = new AbortController();
-      const { signal } = controller;
-      this._commands = config.command.split(/\s+/g);
-      const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
-      this._source = source || fork2(this._commands[0], args, { stdio: "pipe", signal });
-    } else {
-      this._source = source;
-    }
-    this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
-    this._source.on("exit", this._onExit.bind(this));
-    this._source.on("message", this._bindings.get(this.read));
-  }
-  /* private _onStdoutData(message: string): void {
-  
-          const lines: string[] = String(message).split(/\r\n|\r|\n/g);
-  
-          for (const line of lines) {
-  
-              try {
-  
-                  const [forge, header, data] = JSON.parse(line);
-  
-                  if (header.key != this._key) return;
-  
-                  this.read([forge, header, data]);
-  
-              } catch (error: unknown) {
-  
-                  // message ignored
-                  // console.log("ignore -- ", error);
-                  // console.log("line", line);
-  
-                  if (line != "") {
-  
-                      console.parse(`<cyan>${line}</cyan>`);
-  
-                  }
-  
-              }
-  
-  
-  
-  
-          }
-  
-      } */
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<magenta>${line}</magenta>`);
-    }
-  }
-  _onExit() {
-  }
-  write(header, data) {
-    this._source.send(["forge://", header, data]);
-  }
-};
-
-// forge/_src_/ts/forge/service/SpawnService.ts
-var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
-var SpawnService = class extends AbstractServiceAdapter {
-  _source;
-  _commands;
-  constructor(config, source) {
-    super(config);
-    this._commands = config.command.split(/\s+/g);
-    const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
-    this._source = source || spawn3(this._commands[0], args, { stdio: "pipe" });
-    this._source.on("exit", this._onExit.bind(this));
-    this._source.stdout.on("data", this._onStdoutData.bind(this));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
-  }
-  _onStdoutData(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      try {
-        const [forge, header, data] = JSON.parse(line);
-        if (header.key != this._key)
-          return;
-        this.read([forge, header, data]);
-      } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<cyan>${line}</cyan>`);
-    }
-  }
-  _onExit() {
-  }
-  write(header, ...data) {
-    this._source.stdin.write(JSON.stringify(["forge://", header, ...data]) + "\n");
-  }
-};
-
 // forge/_src_/ts/forge/ForgeTask.ts
 var ForgeTask = class {
+  _forge;
   _iActions = /* @__PURE__ */ new Map();
   _enabled;
   _data;
-  _spawnServices = /* @__PURE__ */ new Map();
-  _forkServices = /* @__PURE__ */ new Map();
-  _workerServices = /* @__PURE__ */ new Map();
-  _iServices = /* @__PURE__ */ new Map();
   name;
-  constructor(config) {
+  constructor(forge, config) {
+    if (forge === void 0)
+      throw new Error(`Forge Instance must be passed into ForgeTask`);
     if (config === void 0)
-      return;
+      throw new Error(`Config data must be passed into ForgeTask`);
+    this._forge = forge;
     this.parse(config);
-  }
-  _buildService(services, errors) {
-    if (services === void 0)
-      throw new Error(`No services assigned to "${this.name}"`);
-    const spawnObj = services.spawn;
-    if (spawnObj) {
-      for (const [key, serviceConfig] of Object.entries(spawnObj)) {
-        if (serviceConfig.command === void 0)
-          errors.push(`Invalid \`command\` parameter provided for SPAWN service "${key}"`);
-        if (isNaN(serviceConfig.race))
-          errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
-        const service = this.spawn(key, serviceConfig);
-      }
-    }
-    const forkObj = services.fork;
-    if (forkObj) {
-      for (const [key, serviceConfig] of Object.entries(forkObj)) {
-        if (serviceConfig.command === void 0)
-          errors.push(`Invalid \`command\` parameter provided for FORK service "${key}"`);
-        if (isNaN(serviceConfig.race))
-          errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
-        const service = this.fork(key, serviceConfig);
-      }
-    }
-    const execObj = services.exec;
-    if (execObj) {
-      for (const [key, serviceConfig] of Object.entries(execObj)) {
-        if (serviceConfig.command === void 0)
-          errors.push(`Invalid \`command\` parameter provided for EXEC service "${key}"`);
-        if (isNaN(serviceConfig.race))
-          errors.push(`Invalid \`race\` parameter provided for EXEC service "${key}"`);
-        const service = this.exec(key, serviceConfig);
-      }
-    }
   }
   data() {
     return this._data;
@@ -35398,41 +35065,8 @@ var ForgeTask = class {
   actions() {
     return this._iActions;
   }
-  spawn(key, config) {
-    if (this._spawnServices.has(key))
-      throw new Error(`Task(${this.name}) : IServiceAdapter (spawn) already exists "${key}"`);
-    const spawnService = new SpawnService(config);
-    this._spawnServices.set(key, spawnService);
-    return spawnService;
-  }
-  fork(key, config) {
-    if (this._forkServices.has(key) && config === void 0)
-      throw new Error(`Task(${this.name}) : IServiceAdapter (fork) already exists "${key}"`);
-    const forkService = new ForkService(config);
-    this._forkServices.set(key, forkService);
-    return this._forkServices;
-  }
-  worker(key, config) {
-    if (this._workerServices.has(key) && config === void 0)
-      throw new Error(`Task has no Worker by the key : "${key}"`);
-    return this._workerServices;
-  }
-  exec(key, config) {
-    if (this._iServices.has(key) && config === void 0)
-      throw new Error(`Task has no Exec by the key : "${key}"`);
-    const execService = new ExecService(config);
-    this._iServices.set(key, execService);
-    return this._iServices;
-  }
   async $reset(data) {
-    const startTime = Date.now();
-    const promises = [];
-    for (const [name, iProcess] of this._spawnServices) {
-      promises.push(iProcess.$reset(data));
-    }
-    const results = await Promise.allSettled(promises);
-    console.log(results, Date.now() - startTime);
-    return results;
+    return { "please": "implement or subcalss" };
   }
   add(iAction) {
     iAction.task = this;
@@ -35444,7 +35078,7 @@ var ForgeTask = class {
     this.name = configObj.name;
     this._enabled = configObj.enabled;
     const errors = [];
-    this._buildService(this._data.services, errors);
+    const iServices = this._forge.services;
     const actionConfigs = this._data.actions;
     if (actionConfigs) {
       for (const actionConfig of actionConfigs) {
@@ -35457,22 +35091,22 @@ var ForgeTask = class {
           errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
         if ("_spawn_" in actionConfig) {
           const serviceName = actionConfig._spawn_;
-          if (this._spawnServices.has(serviceName) === false)
+          if (iServices.has(serviceName) === false)
             errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
-          const spawnService = this._spawnServices.get(serviceName);
-          this.add(new SpawnAction(spawnService, implement, actionConfig));
+          const spawnService = iServices.get(serviceName);
+          this.add(new GenericAction(spawnService, implement, actionConfig));
         } else if ("_fork_" in actionConfig) {
           const serviceName = actionConfig._fork_;
-          if (this._forkServices.has(serviceName) === false)
+          if (iServices.has(serviceName) === false)
             errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
-          const forkService = this._forkServices.get(serviceName);
-          this.add(new ForkAction(forkService, implement, actionConfig));
+          const forkService = iServices.get(serviceName);
+          this.add(new GenericAction(forkService, implement, actionConfig));
         } else if ("_worker_" in actionConfig) {
         } else if ("_exec_") {
           const serviceName = actionConfig._exec_;
-          if (this._iServices.has(serviceName) === false)
+          if (iServices.has(serviceName) === false)
             errors.push(`No Execute Service has been registered for ${this.constructor.name} : "${this.name}"`);
-          const execService = this._iServices.get(serviceName);
+          const execService = iServices.get(serviceName);
           this.add(new GenericAction(execService, implement, actionConfig));
         } else {
           console.error("total failure");
@@ -35907,6 +35541,268 @@ var ForgeServer = class {
   }
 };
 
+// forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
+var __ForgeProtocol = "forge://";
+var AbstractServiceAdapter = class extends Subscription {
+  _name;
+  _key;
+  _race;
+  _reboot;
+  _sessions = /* @__PURE__ */ new Map();
+  _bindings = /* @__PURE__ */ new Map();
+  constructor(name, config) {
+    super();
+    this._name = name;
+    this._key = config.key || QuickHash();
+    this._race = config.race;
+    this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
+    this._bindings.set(this.read, this.read.bind(this));
+  }
+  _pipeStdio(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<cyan>${line}</cyan>`);
+        }
+      }
+    }
+  }
+  get race() {
+    return this._race;
+  }
+  read(message) {
+    try {
+      const [protocol, header, data] = message;
+      if ("broadcast" in header) {
+        const { broadcast } = header;
+        this.notify("broadcast", header, data);
+        return true;
+      }
+      if (protocol != __ForgeProtocol)
+        return;
+      if (header.key != this._key)
+        return;
+      if ("resolve" in header) {
+        const $race = this._sessions.get(header.resolve);
+        $race[1](data);
+        this.notify("resolve", header, data);
+      } else if ("reject" in header) {
+        console.log("rejected", protocol, header, data);
+        const $race = this._sessions.get(header.reject);
+        $race[2](data);
+        this.notify("reject", header, data);
+      } else {
+        this.notify("message", header, data);
+      }
+      return true;
+    } catch (error) {
+      console.log("read error", error);
+    }
+    return false;
+  }
+  write(header, data) {
+    throw new Error("Please override write(...) in subclasses");
+  }
+  resolve(header, data) {
+    this.write({ resolve: header.session, key: this._key }, data);
+  }
+  reject(header, data) {
+    this.write({ reject: header.session, key: this._key }, data);
+  }
+  async $reset(data) {
+    return { name: this._name, reset: this.constructor.name };
+  }
+  $signal(signal, data, race) {
+    const session = QuickHash();
+    const sessions = this._sessions;
+    const $race = $UseRace(race);
+    $race[0].then(function() {
+      console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
+    }).catch(function(error) {
+      console.parse("<yellow>$signal exception caught :</yellow>", error);
+    }).finally(function() {
+      sessions.delete(session);
+    });
+    this._sessions.set(session, $race);
+    this.write({ signal, session, key: this._key }, data);
+    return $race[0];
+  }
+  async $reboot() {
+  }
+};
+
+// forge/_src_/ts/forge/service/ExecService.ts
+var { spawn, fork, exec, execSync } = require("child_process");
+var ExecService = class extends AbstractServiceAdapter {
+  _source;
+  _command;
+  _config;
+  constructor(name, config) {
+    super(name, config);
+    this._config = config;
+    this._command = config.command;
+  }
+  _injectCommand(data) {
+    let output = this._command;
+    const accessSource = { ...this._config, ...data };
+    let results;
+    const regExp = /{{(.+?)}}/g;
+    while (results = regExp.exec(this._command)) {
+      const accessor = results[1].split(".");
+      let value = accessSource;
+      try {
+        for (const access of accessor) {
+          value = value[access];
+        }
+      } catch (error) {
+        value = void 0;
+      }
+      output = output.replace(new RegExp(`{{${results[1]}}}`), String(value));
+    }
+    return output;
+  }
+  _onExit() {
+  }
+  write(header, data) {
+  }
+  $signal(signal, data, race) {
+    race = race || this._race;
+    const command = this._command.replace(/\{\{command\}\}/g, data.command);
+    return new Promise(function(resolve, reject) {
+      const child = exec(command, { stdio: "pipe" });
+      child.on("exit", function() {
+        resolve({ "awesome": "hehehe" });
+      });
+      child.stdout.on("data", function(data2) {
+        console.log(">>>>>>", data2);
+      });
+      child.stderr.on("data", function(data2) {
+        console.log("!!!!", data2);
+      });
+      setTimeout(function() {
+        reject({ "rejected": "timeout" });
+      });
+    });
+  }
+};
+
+// forge/_src_/ts/forge/service/ForkService.ts
+var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
+var ForkService = class extends AbstractServiceAdapter {
+  _source;
+  _commands;
+  constructor(name, config, source) {
+    super(name, config);
+    if (source === void 0) {
+      const controller = new AbortController();
+      const { signal } = controller;
+      console.log(config);
+      this._commands = config.command.split(/\s+/g);
+      const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+      this._source = source || fork2(this._commands[0], args, { stdio: "pipe", signal });
+    } else {
+      this._source = source;
+    }
+    this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
+    this._source.stderr.on("data", this._onStdoutError.bind(this));
+    this._source.on("exit", this._onExit.bind(this));
+    this._source.on("message", this._bindings.get(this.read));
+  }
+  /* private _onStdoutData(message: string): void {
+  
+          const lines: string[] = String(message).split(/\r\n|\r|\n/g);
+  
+          for (const line of lines) {
+  
+              try {
+  
+                  const [forge, header, data] = JSON.parse(line);
+  
+                  if (header.key != this._key) return;
+  
+                  this.read([forge, header, data]);
+  
+              } catch (error: unknown) {
+  
+                  // message ignored
+                  // console.log("ignore -- ", error);
+                  // console.log("line", line);
+  
+                  if (line != "") {
+  
+                      console.parse(`<cyan>${line}</cyan>`);
+  
+                  }
+  
+              }
+  
+  
+  
+  
+          }
+  
+      } */
+  _onStdoutError(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      console.parse(`<magenta>${line}</magenta>`);
+    }
+  }
+  _onExit() {
+  }
+  write(header, data) {
+    this._source.send(["forge://", header, data]);
+  }
+};
+
+// forge/_src_/ts/forge/service/SpawnService.ts
+var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
+var SpawnService = class extends AbstractServiceAdapter {
+  _source;
+  _commands;
+  constructor(name, config, source) {
+    super(name, config);
+    this._commands = config.command.split(/\s+/g);
+    const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
+    this._source = source || spawn3(this._commands[0], args, { stdio: "pipe" });
+    this._source.on("exit", this._onExit.bind(this));
+    this._source.stdout.on("data", this._onStdoutData.bind(this));
+    this._source.stderr.on("data", this._onStdoutError.bind(this));
+  }
+  _onStdoutData(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      try {
+        const [forge, header, data] = JSON.parse(line);
+        if (header.key != this._key)
+          return;
+        this.read([forge, header, data]);
+      } catch (error) {
+        if (line != "") {
+          console.parse(`<cyan>${line}</cyan>`);
+        }
+      }
+    }
+  }
+  _onStdoutError(message) {
+    const lines = String(message).split(/\r\n|\r|\n/g);
+    for (const line of lines) {
+      console.parse(`<cyan>${line}</cyan>`);
+    }
+  }
+  _onExit() {
+  }
+  write(header, ...data) {
+    this._source.stdin.write(JSON.stringify(["forge://", header, ...data]) + "\n");
+  }
+};
+
 // forge/_src_/ts/forge/Forge.ts
 var { spawn: spawn4, fork: fork4, exec: exec4, execSync: execSync4 } = require("child_process");
 var chokidar = require_chokidar();
@@ -35920,22 +35816,56 @@ var Forge = class {
   }
   _lastUpdate = Date.now();
   _forgeServer;
-  _workerMap = /* @__PURE__ */ new Map();
   _taskMap = /* @__PURE__ */ new Map();
   _ignoreArr = [/(^|[\/\\])\../];
-  _fileSet = /* @__PURE__ */ new Set();
   _forgeStream = new ForgeStream();
+  services = /* @__PURE__ */ new Map();
   constructor() {
   }
-  parse(config) {
-    const variables = JSON.parse(config).variables;
+  _buildService(services, errors) {
+    if (services === void 0)
+      throw new Error(`No services assigned`);
+    const spawnObj = services.spawn;
+    if (spawnObj) {
+      for (const [key, serviceConfig] of Object.entries(spawnObj)) {
+        if (serviceConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for SPAWN service "${key}"`);
+        if (isNaN(serviceConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
+        const service = this.spawn(key, serviceConfig);
+      }
+    }
+    const forkObj = services.fork;
+    if (forkObj) {
+      for (const [key, serviceConfig] of Object.entries(forkObj)) {
+        if (serviceConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for FORK service "${key}"`);
+        if (isNaN(serviceConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
+        const service = this.fork(key, serviceConfig);
+      }
+    }
+    const execObj = services.exec;
+    if (execObj) {
+      for (const [key, serviceConfig] of Object.entries(execObj)) {
+        if (serviceConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for EXEC service "${key}"`);
+        if (isNaN(serviceConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for EXEC service "${key}"`);
+        const service = this.exec(key, serviceConfig);
+      }
+    }
+  }
+  parse(input) {
+    const variables = JSON.parse(input).variables;
     const entries = FlattenObject(variables);
     for (const { access, value } of entries) {
-      config = config.replace(new RegExp(`{${access}}`, "g"), String(value));
+      input = input.replace(new RegExp(`{${access}}`, "g"), String(value));
     }
-    const configObj = JSON.parse(config);
+    const configObj = JSON.parse(input);
+    this._buildService(configObj.services, []);
     for (const taskObj of configObj.tasks) {
-      const forgeTask = new ForgeTask(taskObj);
+      const forgeTask = new ForgeTask(this, taskObj);
       this.add(forgeTask);
     }
   }
@@ -35946,27 +35876,62 @@ var Forge = class {
     const name = forgeTask.name;
     if (this._taskMap.has(name))
       throw new Error(`task with "${name}" name already exist`);
-    this._taskMap.set(forgeTask.name, forgeTask);
+    this._taskMap.set(name, forgeTask);
     this._forgeStream.add(forgeTask);
     return this;
   }
-  search() {
-    const files = glob.sync("**/.forge");
-    for (const file of files) {
-      this.parse($fs4.readFileSync(file, "utf8"));
-    }
+  spawn(name, config) {
+    if (this.services.has(name))
+      throw new Error(`IServiceAdapter (spawn) already exists "${name}"`);
+    const spawnService = new SpawnService(name, config);
+    this.services.set(name, spawnService);
+    return spawnService;
   }
+  fork(name, config) {
+    if (this.services.has(name) && config === void 0)
+      throw new Error(`IServiceAdapter (fork) already exists "${name}"`);
+    const forkService = new ForkService(name, config);
+    this.services.set(name, forkService);
+    return forkService;
+  }
+  worker(name, config) {
+    if (this.services.has(name) && config === void 0)
+      throw new Error(`IServiceAdapter (worker) already exists "${name}"`);
+    const workerService = {};
+    this.services.set(name, workerService);
+    return workerService;
+  }
+  exec(name, config) {
+    if (this.services.has(name) && config === void 0)
+      throw new Error(`IServiceAdapter (exec) already exists "${name}"`);
+    const execService = new ExecService(name, config);
+    this.services.set(name, execService);
+    return execService;
+  }
+  //    public search(): void {
+  //
+  //        const files: string[] = glob.sync("**/.forge");
+  //        for (const file of files) {
+  //            
+  //            this.parse($fs.readFileSync(file, "utf8"));
+  //
+  //        }
+  //
+  //    }
   watch(root, options) {
     const watcher = chokidar.watch(["./src/**/*"], { "ignored": this._ignoreArr });
     const forge = this;
     watcher.on("ready", function() {
       watcher.on("all", async function(event, file) {
         await forge.$signal("watch", { file, event });
+        await forge.$reset({ file, event });
       });
     });
   }
   async $reset(data) {
-    data = data || {};
+    for (const [name, iService] of this.services) {
+      console.parse("<yellow>resetting</yellow>", await iService.$reset(data));
+    }
     for (const [name, forgeTask] of this._taskMap) {
       await forgeTask.$reset(data);
     }

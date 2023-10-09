@@ -22,11 +22,13 @@ new class extends AbstractForgeClient {
 
     }
 
-    public async $watch(data: Serialize, race: number): Promise<void> {
+    public async $watch(data: Serialize, race: number): Promise<Serialize> {
 
         console.log("cwd:", process.cwd());
         execSync(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`, { stdio: 'inherit' });
         execSync(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: 'inherit' });
+
+        return { "just a": "test" };
 
     }
 

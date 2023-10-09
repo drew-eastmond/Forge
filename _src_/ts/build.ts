@@ -192,10 +192,13 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
         write: false, // dont produce a build file, but give me the build in as a result
         format: options.format,
         metafile: true,
-        loader: { '.ts': 'tsx', '.js': 'jsx' },
-        outdir: outFilePath.dir,
+        loader: { ".ts": "tsx", ".js": "jsx" },
+        // outdir: outFilePath.dir,
 
         treeShaking: options.treeShaking,
+        outfile: outFile,
+        // sourcemap: "external"
+
 
         // plugins: [yourPlugin]
         // external: []
@@ -250,6 +253,8 @@ async function $watch() {
     }); */
 
 }
+
+DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "" }});
 
 (async function () {
     /*

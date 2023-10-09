@@ -106,7 +106,7 @@ export class ForgeStream {
         return iAction;
     }
 
-    public async $reset(): Promise<void> {
+    public async $reset(): Promise<Serialize> {
 
         this._executions.clear();
 
@@ -117,71 +117,68 @@ export class ForgeStream {
 
         }
 
-        console.log("reset complete", promises);
+        console.log("ForgeStream reset", await Promise.allSettled(promises));
 
-        await Promise.all(promises);
+        return await Promise.allSettled(promises);
 
     }
 
-    public async $signal(signal: string): Promise<(Serialize | Error)[]>
-    public async $signal(signal: string, data: Serialize): Promise<(Serialize | Error)[]>
-    public async $signal(signal: string, data?: Serialize): Promise<(Serialize | Error)[]> {
+    public async $signal(signal: string, data?: Serialize): Promise<Serialize> {
 
         // collectiosn of all responses
         
         const executedActions: Set<IAction> = this._executions;
 
 
-        const promises: Promise<unknown>[] = [];
+        const $executions: Promise<Serialize>[] = [];
         for (const [name, iAction] of this._iActions) {
 
             // only one execution per reset and action must implement the signal
             const errors: string[] = [];
-            if (this._executions.has(iAction)) errors.push(`already executed`);
-            if (iAction.implement() != signal) errors.push(`already executed`);;
+            if (this._executions.has(iAction)) errors.push(`${name} already executed`);
+            if (iAction.implement() != signal) errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);;
             if (iAction.dependencies.length) errors.push(`already executed`);;
 
             if (errors.length) {
 
-                promises.push(Promise.reject({
-                    status: 'rejected',
-                    reason: errors
+                $executions.push(Promise.reject({
+                    name,
+                    reject: errors
                 }));
                 continue;
 
             } else {
 
-                promises.push(iAction.$signal(signal, data)
+                $executions.push(iAction.$signal(signal, data)
                     .then(function (data: Serialize) {
 
                         executedActions.add(iAction);
 
-                        return data;
+                        return {
+                            name: iAction.name,
+                            resolve: data
+                        }
+
+                    })
+                    .catch(function (error: unknown) {
+
+                        console.parse(error);
+                        return {
+                            name,
+                            reject: error
+                        };
 
                     }));
 
             }
 
-            
-
-            /*const response: Serialize | Error = await iAction.$signal(signal, data)
-                .then(function (data: Serialize) {
-
-                    executedActions.add(iAction);
-
-                    return data;
-
-                })
-                .catch(this._bindings.get(this._$catchRaced$Execute) as (error) => unknown);
-
-                results.push(response); */
-
         }
 
-        const results: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled(promises);
-        console.log("forgeStream!!!>>>", await Promise.allSettled(promises));
+        const executions: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled($executions);
+        // console.log("forgeStream executions !!!>>>", executions);
 
         const failedDependencies: string[] = [];
+        const $rebounds: Promise<Serialize>[] = [];
         for (const [name, iAction] of this._iActions) {
 
             const dependencies: { task?: string, action?: string }[] = iAction.dependencies; 
@@ -205,17 +202,30 @@ export class ForgeStream {
             // if the current iAction passed the previous `dependenciesResolved` test
             if (dependenciesResolved && this._executions.has(iAction) === false) {
 
-                console.log("resolving", iAction.name);
+                console.log("rebounding", iAction.name);
 
                 const implement: string = iAction.implement();
-                await iAction.$signal(implement, data)
+                $rebounds.push(iAction.$signal(implement, data)
+                    .then(function (data: Serialize) {
+
+                        executedActions.add(iAction);
+
+                        return {
+                            name: iAction.name,
+                            resolve: data
+                        }
+
+                    })
                     .catch(function (error: unknown) {
 
                         console.parse(error);
-                        return error;    
+                        return {
+                            name,
+                            reject: error
+                        };
 
-                    });
-                executedActions.add(iAction);
+                    }));
+                
                 
 
             }
@@ -223,31 +233,17 @@ export class ForgeStream {
 
         }
 
-        console.parse(`<red>no dependencies :</red> "${failedDependencies.join(", ")}"`);
+        const rebounds: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled($rebounds);
 
-        // const results: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled(promises);
-        for (let i: number = 0; i < results.length; i++) {
+        console.log({
+            executions,
+            rebounds
+        });
 
-            const settleInfo: { status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown } = results[i] as { status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown };
-            const result = ((settleInfo.status == "fulfilled") ? settleInfo.value : settleInfo.reason) as unknown;
-
-            try {
-
-                results[i] = JSON.parse(result as string);
-
-            } catch (error: unknown) {
-
-                results[i] = result;
-
-            }
-
-            
-
-        }
-
-        console.error("realllll", results);
-
-        return results;
+        return {
+            executions,
+            rebounds
+        };
 
 
 

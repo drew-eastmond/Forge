@@ -1,3 +1,10 @@
+declare global {
+	interface Console {
+		parse(...rest: unknown[]): string;
+	}
+
+}
+
 export enum DebugForeground {
 
 	Black = "\u001b[30m",
@@ -128,6 +135,12 @@ class ColourFormatting<T> {
 }
 
 export class DebugFormatter {
+
+	public static Init(options: { platform: "node" | "browser", "default": { "foreground": string, background: string } }): void {
+
+		__DebugFormatter
+
+	}
 
 	public foreground: ColourFormatting<DebugForeground>;
 	public fg: ColourFormatting<DebugForeground>;
@@ -301,14 +314,6 @@ export class DebugFormatter {
 		}
 
 		return this;
-	}
-
-}
-
-
-declare global {
-	interface Console {
-		parse(...rest: unknown[]): string;
 	}
 
 }

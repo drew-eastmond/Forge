@@ -57,13 +57,13 @@ export class AbstractForgeClient extends Subscription {
         if (process.send === undefined) {
 
             console.log("started directly (spawn/exec)");
-            this._iServiceAdapter = new SpawnService({ key, race : 1000 }, process);
+            this._iServiceAdapter = new SpawnService("client interface", { key, race : 1000 }, process);
         
 
         } else if (isMainThread === true) {
 
             console.log("started from fork");
-            this._iServiceAdapter = new ForkService({ key, race: 1000 }, process);
+            this._iServiceAdapter = new ForkService("client interface", { key, race: 1000 }, process);
 
         } else {
 

@@ -29,6 +29,7 @@ export interface IServiceAdapter extends ISubscription {
 
 export class AbstractServiceAdapter extends Subscription implements IServiceAdapter {
 
+    protected _name: string;
     protected _key: string;
     protected _race: number;
     protected _reboot: boolean;
@@ -37,9 +38,11 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     protected readonly _bindings: Map<Function, Function> = new Map();
 
 
-    constructor(config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceAdpaterConfig) {
 
         super();
+
+        this._name = name;
 
         this._key = config.key || QuickHash();
         this._race = config.race;
@@ -154,9 +157,9 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     }
 
-    public $reset(data: Serialize): Promise<Serialize> {
+    public async $reset(data: Serialize): Promise<Serialize> {
 
-        return this.$signal("reset", data, this.race);
+        return { name: this._name, reset: this.constructor.name }; // this.$signal("reset", data, this.race);
 
     }
 
@@ -168,7 +171,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const sessions: Map<string, $Promise> = this._sessions;
 
-        const $race: $Promise<unknown> = $UseRace(race);
+        const $race: $Promise<Serialize> = $UseRace(race);
         $race[0]
             .then(function () {
 
