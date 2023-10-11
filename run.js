@@ -35081,36 +35081,23 @@ var ForgeTask = class {
     const actionConfigs = this._data.actions;
     if (actionConfigs) {
       for (const actionConfig of actionConfigs) {
-        let iAction;
         const name = actionConfig._name_;
         const implement = actionConfig._implement_;
+        const service = actionConfig._service_;
         if (name === void 0)
           errors.push(`Action "_name_" is undefined for ${this.constructor.name} : ${this.name}"`);
         if (implement === void 0)
           errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
-        if ("_spawn_" in actionConfig) {
-          const serviceName = actionConfig._spawn_;
-          if (iServices.has(serviceName) === false)
-            errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
-          const spawnService = iServices.get(serviceName);
-          this.add(new ForgeAction(spawnService, implement, actionConfig));
-        } else if ("_fork_" in actionConfig) {
-          const serviceName = actionConfig._fork_;
-          if (iServices.has(serviceName) === false)
-            errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
-          const forkService = iServices.get(serviceName);
-          this.add(new ForgeAction(forkService, implement, actionConfig));
-        } else if ("_worker_" in actionConfig) {
-        } else if ("_exec_") {
-          const serviceName = actionConfig._exec_;
-          if (iServices.has(serviceName) === false)
-            errors.push(`No Execute Service has been registered for ${this.constructor.name} : "${this.name}"`);
-          const execService = iServices.get(serviceName);
-          this.add(new ForgeAction(execService, implement, actionConfig));
-        } else {
-          console.error("total failure");
-          process.exit(1);
+        if (service === void 0)
+          errors.push(`Action "_service_" is undefined for ${this.constructor.name} : ${this.name}"`);
+        if (iServices.has(service) === false)
+          errors.push(`No Service has been registered for "${service}" by "${this.name}"`);
+        const iServiceAdapter = iServices.get(service);
+        console.log(errors);
+        if (iServiceAdapter === void 0) {
+          process.exit();
         }
+        this.add(new ForgeAction(iServiceAdapter, implement, actionConfig));
       }
     }
     if (errors.length)
@@ -35232,9 +35219,9 @@ var ForgeStore = class {
   async $fork(buffer, attributes) {
     return this._iForgeStorage.$fork(this, buffer, attributes);
   }
-  async $save() {
+  async push(buffer) {
   }
-  async $load(buffer) {
+  async pull() {
   }
 };
 var ForgeStorage = class {
@@ -35924,18 +35911,8 @@ var Forge = class {
     this.services.set(name, execService);
     return execService;
   }
-  //    public search(): void {
-  //
-  //        const files: string[] = glob.sync("**/.forge");
-  //        for (const file of files) {
-  //            
-  //            this.parse($fs.readFileSync(file, "utf8"));
-  //
-  //        }
-  //
-  //    }
-  watch(root, options) {
-    const watcher = chokidar.watch(["./src/**/*"], { "ignored": this._ignoreArr });
+  watch(glob2, options) {
+    const watcher = chokidar.watch(glob2, { "ignored": this._ignoreArr });
     const forge = this;
     watcher.on("ready", function() {
       watcher.on("all", async function(event, file) {
@@ -36006,7 +35983,7 @@ if (require.main === module && !module.parent) {
     forge.parse(await $fs5.readFile(".forge", "utf-8"));
     const forgeServer = await forge.$serve(PORT, WWW_ROOT);
     forge.$signal("construct", { "so l can get my": "satifacation" });
-    forge.watch("./src/", { ignore: [], debounce: 500 });
+    forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
   })();
 } else {
   console.log("required as a module");

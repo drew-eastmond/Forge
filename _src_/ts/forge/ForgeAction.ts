@@ -7,6 +7,21 @@ import { IServiceAdapter } from "./service/AbstractServiceAdapter";
 const $fs = require("fs").promises;
 
 const __ForgeProtocol: string = "forge://";
+
+export type ActionConfig = Record<string, unknown> & {
+    _name_: string,
+    _implement_: string,
+    _service_: string,
+
+    _async?: boolean, 
+    _watch_?: string[],
+    _wait_?: [
+        {
+            task?: string,
+            action: string
+        }
+    ]
+}
 export enum ActionStdioType {
     Default = "pipe",
     Pipe = "pipe",

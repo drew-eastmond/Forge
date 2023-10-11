@@ -3,11 +3,13 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 
 const __ForgeProtocol: string = "forge://";
 
-export type ServiceAdpaterConfig = {
-    command?: string,
+export type ServiceConfig = {
+    command: string
+    debounce: number,
     race: number,
-    key?: string,
-    reboot?: boolean
+
+    reboot?: boolean,
+    route_root?: string
 }
 
 export interface IServiceAdapter extends ISubscription {
@@ -38,7 +40,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     protected readonly _bindings: Map<Function, Function> = new Map();
 
 
-    constructor(name: string, config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceConfig) {
 
         super();
 

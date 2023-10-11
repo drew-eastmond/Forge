@@ -287,7 +287,7 @@ ${JSON.stringify(_args, undefined, 2)}`);
 
         route = route || "index.html";
 
-        // console.log("<cyan>resolving</cyan>", path.resolve(_routeRoot, route));
+        console.log("<cyan>resolving >>> </cyan>", path.resolve(_routeRoot, route));
 
         const buffer = await $fs.readFile(path.resolve(_routeRoot, route))
             .catch(function () {

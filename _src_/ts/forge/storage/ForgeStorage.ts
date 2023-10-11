@@ -82,11 +82,11 @@ export class ForgeStore {
 
     }
 
-    public async $save(): Promise<Buffer> {
+    public async push(buffer: Buffer): Promise<void> {
 
     } 
 
-    public async $load(buffer: Buffer): Promise<void> {
+    public async pull(): Promise<void> {
 
 
 

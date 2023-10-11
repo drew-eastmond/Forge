@@ -10,12 +10,24 @@ import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } f
 import { Debouncer } from "../core/timing/Debounce";
 import { ForgeIO } from "../io/ForgeIO";
 import { ForgeStream } from "./ForgeStream";
-import { ForgeTask } from "./ForgeTask";
+import { ForgeTask, TaskConfig } from "./ForgeTask";
 import { ForgeServer } from "./server/ForgeServer";
-import { IServiceAdapter, ServiceAdpaterConfig } from "./service/AbstractServiceAdapter";
+import { IServiceAdapter, ServiceConfig } from "./service/AbstractServiceAdapter";
 import { ExecService } from "./service/ExecService";
 import { ForkService } from "./service/ForkService";
 import { SpawnService } from "./service/SpawnService";
+
+type ForgeConfig = {
+    forge: Record<string, unknown>,
+    variables: Record<string, unknown>,
+    services: {
+        spawn?: Record<string, ServiceConfig>,
+        fork?: Record<string, ServiceConfig>,
+        exec?: Record<string, ServiceConfig>,
+        worker?: Record<string, ServiceConfig>
+    },
+    tasks: TaskConfig[]
+}
 
 // relay class defitions
 
@@ -81,11 +93,11 @@ export class Forge {
 
     }
 
-    private _buildService(services: { spawn?: Record<string, ServiceAdpaterConfig>, fork?: Record<string, ServiceAdpaterConfig>, exec?: Record<string, ServiceAdpaterConfig> }, errors: string[]): void {
+    private _buildService(services: { spawn?: Record<string, ServiceConfig>, fork?: Record<string, ServiceConfig>, exec?: Record<string, ServiceConfig> }, errors: string[]): void {
 
         if (services === undefined) throw new Error(`No services assigned`);
 
-        const spawnObj: Record<string, ServiceAdpaterConfig> = services.spawn;
+        const spawnObj: Record<string, ServiceConfig> = services.spawn;
         if (spawnObj) {
 
             for (const [key, serviceConfig] of Object.entries(spawnObj)) {
@@ -103,7 +115,7 @@ export class Forge {
 
         }
 
-        const forkObj: Record<string, ServiceAdpaterConfig> = services.fork;
+        const forkObj: Record<string, ServiceConfig> = services.fork;
         if (forkObj) {
             for (const [key, serviceConfig] of Object.entries(forkObj)) {
 
@@ -119,7 +131,7 @@ export class Forge {
             }
         }
 
-        const execObj: Record<string, ServiceAdpaterConfig> = services.exec;
+        const execObj: Record<string, ServiceConfig> = services.exec;
         if (execObj) {
             for (const [key, serviceConfig] of Object.entries(execObj)) {
 
@@ -144,7 +156,7 @@ export class Forge {
         const entries: { access: string, value: unknown }[] = FlattenObject(variables);
 
         /*
-        * 1. Replace all `static variables` : {var} 
+        * 1. Replace all `static variables` : {variable} 
         */
         for (const { access, value } of entries) {
 
@@ -155,7 +167,7 @@ export class Forge {
         /*
         * 2. Reparse the new config string and add all the supplied forege task
         */
-        const configObj = JSON.parse(input);
+        const configObj: ForgeConfig = JSON.parse(input);
 
         /*
         *
@@ -206,7 +218,7 @@ export class Forge {
 
     }
 
-    public spawn(name: string, config?: ServiceAdpaterConfig): IServiceAdapter {
+    public spawn(name: string, config?: ServiceConfig): IServiceAdapter {
 
         // no duplicate entries
         if (this.services.has(name)) throw new Error(`IServiceAdapter (spawn) already exists "${name}"`);
@@ -218,7 +230,7 @@ export class Forge {
 
     }
 
-    public fork(name: string, config?: ServiceAdpaterConfig): IServiceAdapter {
+    public fork(name: string, config?: ServiceConfig): IServiceAdapter {
 
         if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (fork) already exists "${name}"`);
 
@@ -229,7 +241,7 @@ export class Forge {
 
     }
 
-    public worker(name: string, config: ServiceAdpaterConfig): IServiceAdapter {
+    public worker(name: string, config: ServiceConfig): IServiceAdapter {
 
         if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (worker) already exists "${name}"`);
 
@@ -241,7 +253,7 @@ export class Forge {
 
     }
 
-    public exec(name: string, config: ServiceAdpaterConfig): IServiceAdapter {
+    public exec(name: string, config: ServiceConfig): IServiceAdapter {
 
         if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (exec) already exists "${name}"`);
 
@@ -252,20 +264,9 @@ export class Forge {
 
     }
 
-//    public search(): void {
-//
-//        const files: string[] = glob.sync("**/.forge");
-//        for (const file of files) {
-//            
-//            this.parse($fs.readFileSync(file, "utf8"));
-//
-//        }
-//
-//    }
+    public watch(glob: string[], options: { ignore: string[], debounce?: number }): void {
 
-    public watch(root: string, options: { ignore: string[], debounce?: number }): void {
-
-        const watcher = chokidar.watch(["./src/**/*"], { 'ignored': this._ignoreArr });
+        const watcher = chokidar.watch(glob, { 'ignored': this._ignoreArr });
 
         const forge: Forge = this;
         watcher.on("ready", function () {
@@ -356,311 +357,3 @@ export class Forge {
     }
 
 }
-
-
-/*
-
-private _update(file: string) {
-
-        const now: number = Date.now();
-
-        console.log(now, this._lastUpdate + this._debounceDelay);
-
-        if (now < this._lastUpdate + this._debounceDelay) {
-
-            this._lastUpdate = now;
-
-            clearInterval(this._debounceTimeout);
-            this._debounceTimeout = setTimeout(this._update, this._debounceDelay);
-
-            return;
-
-        }
-
-        console.log(now - this._lastUpdate);
-
-        this._lastUpdate = now;
-
-        const startTime = Date.now();
-
-        for (const [name, forgeTask] of this._taskMap) {
-
-            // forgeTask.$watch(file);
-
-        }
-
-        console.log(`\n\n\trun time: ${Date.now() - startTime}ms : "${file}"`);
-
-    }
-
-/*
-
-
-// if (forgeTask.enabled() === false) return;
-
-        // loop through each module/melody
-        /* for (const iAction of forgeTask.actions()) {
-
-            // skip all modules that are not enabled
-            // if (actionObj.enabled === false) continue;
-
-            // run all construct tasks. Accepts tasks or sequential array
-            // const constructorTask = actionObj.construct;
-            // await this._$execAction(constructorTask, actionObj);
-
-
-            // watch triggers for CRUD
-            const [ watchData, if ] = iAction.watch();
-            if (watchData !== undefined) {
-
-                // used for chokidar in node
-                this.watchArr.push(watchData.match);
-
-                // ignore is only implemented globally
-                if (watchData.ignore !== undefined) {
-
-                    this.ignoreArr.push(triggerData.ignore);
-
-                }
-
-                if (watchData.fork !== undefined) {
-
-                    this.moduleMap.set(moduleData.name, new ForkTrigger(moduleData, forgeData, this.dependencyMap));
-
-                } else if (triggerData.spawn !== undefined) {
-
-
-
-                }
-
-            } 
-
-        }*/
-
-/*
-
-private async _$execAction(command, taskData) {
-
-        // double check that 
-        if (command !== undefined) {
-
-            console.group(`construct: ${taskData.name}`);
-            const commands = (command instanceof Array) ? command : [command];
-            for (let command of commands) {
-
-                console.log("command", command);
-
-                if (command.fork !== undefined) {
-
-                    command = command.fork;
-
-                } else if (command.spawn !== undefined) {
-
-                    command = command.spawn;
-
-                } else {
-
-                    // throw "Command invalid : " + JSON.stringify(command);
-
-                }
-
-                // inject dynamic varaibles
-                command = command.replace(/{{melody}}/g, `--task-- ${EncodeBase64(taskData)}`);
-
-                if (taskData.construct) {
-                    command = command.replace(/{{construct}}/g, `--construct-- ${EncodeBase64(taskData.construct)}`);
-                }
-
-
-
-                // try {
-
-                execSync(command, { "stdio": "inherit" });
-
-
-
-                // } catch (error) {
-
-                //	console.log("Command Failed", task);
-
-                //}
-
-            }
-            console.groupEnd();
-
-        }
-
-    }
-
-
-
-
-
-/* if (require.main === module && !module.parent) {
-
-    new RenderServer();
-
-    const maestro = new Maestro();
-    maestro.$start();
-
-    // console.log("called directly", __dirname);
-
-    const workerfiles = []; // ["./.core/Maestro.js", "./.core/Server.js"];
-    for (const workerFile of workerfiles) {
-
-        console.log(path.resolve(__dirname, workerFile));
-
-        workers.push(new Worker(path.resolve(__dirname, workerFile)));
-
-    }
-
-    // const maestor = new Worker("./.core/Maestro.js");
-
-    //new Worker("./.core/Server.js");
-    // worker.on('exit', console.log);
-
-} else {
-
-    console.log("required as a module");
-
-} */
-
-
-/* protected _$reject(delay: number): Promise<unknown>;
-protected _$reject(delay: number, reason: unknown): Promise<unknown>;
-protected _$reject(delay: number, reason?: unknown): Promise<unknown> {
-
-return new Promise(function (resolve, reject) {
-
-    setTimeout(function () {
-
-        reject(reason);
-
-    }, delay);
-
-});
-
-
-
-
-
-
-
-
-
-
-
-        return;
-
-        this._app = express();
-
-
-        this._app.all("/:task/:action/*", async function (request, response, next) {
-
-            // res.setHeader("Access-Control-Allow-Origin", "*");
-            // res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content, Accept, Content-Type, Authorization");
-            // res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-            // res.setHeader("Cross-origin-Embedder-Policy", "require-corp");
-            // res.setHeader("Cross-origin-Opener-Policy", "same-origin");
-
-            // const path = url.parse(request.url).pathname;
-
-            // const paths: strin = path.split(/.+?\//g);
-
-            const taskName: string = request.params.task;
-            const actionName: string = request.params.action;
-            const route: string = request.params[0];
-            const file: string = request.params[0] || "index.html";
-            const fileName: string = path.resolve(taskName, file);
-            const query: any = request.query;
-
-            const forgeTask: ForgeTask = this._taskMap.get(taskName);
-            if (forgeTask === undefined) {
-
-
-                console.parse("<red>NO task</red>", taskName);
-                return;
-
-            }
-
-
-
-            console.parse("<green>has task</green>", taskName);
-            const iAction: IAction = forgeTask.actions().get(actionName);
-
-            if (iAction === undefined) {
-
-                response.sendStatus(404);
-                next();
-
-                return;
-
-            }
-            console.log("has action", forgeTask.actions().keys(), String(iAction));
-
-            await iAction.$route(route, query);
-
-
-            // await $fs.readFile(fileName);
-
-            /*fs.open('foo.txt', 'r', (err, fd) => {
-                // ...
-            });
-
-            const html = fs.readFileSync("./static/task_1/index.html", "utf-8");
-
-            /* fs.access(req.path, (err) => {
-                if (err) {
-                    res.status(404).send("Sorry can't find that!");
-                    return;
-                } else { }
-            });
-
-// const html = fs.readFileSync("./symphonee/express/index.html", "utf-8"); // root;// path; // fs.readFileSync(root + "index.html", "utf-8");
-
-
-// app.use(express.static("./symphonee/express/"));
-
-
-
-//
-
-console.log(request.params);
-console.log(fileName);
-console.log(request.params[0]);
-
-// response.send(JSON.stringify(request.params) + "<br />" + JSON.stringify(request.query));
-
-const { mime, buffer } = await iAction.$route(route, query);
-
-console.log(mime, buffer);
-
-// response.setHeader("Content-Type", "text/html");
-response.set(mime).end(buffer); // .send(buffer);
-            // response.end();
-
-            // next();
-
-        }.bind(this));
-
-this._app.all("/", async function (request, response, next: Function) {
-
-    $fs.readFile("./.src/.templates/html/index.html")
-        .then(function (buffer: Buffer) {
-
-            response.set("text/html").end(buffer);
-
-        })
-        .catch(function (error: unknown) {
-
-            console.log("GOT HIM");
-            return "404";
-        })
-
-});
-
-this._app.listen(port);
-
-
-
-} */

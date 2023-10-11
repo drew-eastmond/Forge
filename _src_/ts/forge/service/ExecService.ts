@@ -1,7 +1,7 @@
 const { spawn, fork, exec, execSync } = require("child_process");
 
 import { EncodeBase64, Serialize } from "../../core/Core";
-import { AbstractServiceAdapter, ServiceAdpaterConfig } from "./AbstractServiceAdapter";
+import { AbstractServiceAdapter, ServiceConfig } from "./AbstractServiceAdapter";
 
 export class ExecService extends AbstractServiceAdapter {
 
@@ -9,7 +9,7 @@ export class ExecService extends AbstractServiceAdapter {
     private _command: string;
     private _config: Record<string, unknown>;
 
-    constructor(name: string, config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceConfig) {
 
         super(name, config);
 

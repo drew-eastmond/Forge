@@ -1,14 +1,14 @@
 const { spawn, fork, exec, execSync } = require("child_process");
 
 import { EncodeBase64, Serialize } from "../../core/Core";
-import { AbstractServiceAdapter, ServiceAdpaterConfig } from "./AbstractServiceAdapter";
+import { AbstractServiceAdapter, ServiceConfig } from "./AbstractServiceAdapter";
 
 export class SpawnService extends AbstractServiceAdapter {
 
     private _source: any;
     private _commands: string[];
 
-    constructor(name: string, config: ServiceAdpaterConfig, source?: any) {
+    constructor(name: string, config: ServiceConfig, source?: any) {
 
         super(name, config);
 
