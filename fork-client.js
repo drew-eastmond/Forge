@@ -8628,6 +8628,11 @@ var require_mime_types = __commonJS({
 
 // forge/_src_/ts/core/Core.ts
 var __HashCount = 0;
+function __CatchException(error) {
+  return error;
+}
+function EmptyFunction() {
+}
 function EncodeBase64(json) {
   const jsonStringify = JSON.stringify(json);
   const buffer = Buffer.from(jsonStringify);
@@ -8638,11 +8643,38 @@ function DecodeBase64(value) {
   const buff = Buffer.from(value, "base64");
   return buff.toString("ascii");
 }
+function Inject(command, api) {
+  for (const [key, value] of Object.entries(api)) {
+    command = command.replace(new RegExp(`{${key}}`, "g"), value);
+  }
+}
+function FlattenObject(obj, accessor) {
+  accessor = accessor === void 0 ? "" : accessor;
+  const results = [];
+  for (const [key, value] of Object.entries(obj)) {
+    const currentAccess = accessor == "" ? key : `${accessor}.${key}`;
+    if (typeof obj[key] == "object" && obj[key] !== null) {
+      results.push(...FlattenObject(obj[key], currentAccess));
+    } else {
+      results.push({ access: currentAccess, value });
+    }
+  }
+  return results;
+}
 function s4(seed) {
   return Math.floor((1 + seed) * 65536).toString(16).substring(1);
 }
 function QuickHash() {
   return s4(++__HashCount) + s4(Math.random()) + "-" + s4(++__HashCount) + "-" + s4(Math.random()) + "-" + s4(++__HashCount) + "-" + s4((/* @__PURE__ */ new Date()).getTime()) + s4(++__HashCount) + s4(Math.random());
+}
+function $UsePromise() {
+  let resolveCallback;
+  let rejectCallback;
+  const promise = new Promise(function(resolve, reject) {
+    resolveCallback = resolve;
+    rejectCallback = reject;
+  });
+  return [promise, resolveCallback, rejectCallback];
 }
 function $UseRace(delay, capture) {
   let resolveCallback;
@@ -8778,6 +8810,63 @@ ${JSON.stringify(this._args, void 0, 2)}`);
       }
     }
     super.compile();
+  }
+};
+var EnvArguments = class extends AbstractArguments {
+  get(key) {
+    return key === void 0 ? { ...this._args, ...process.env } : this._args[key] || process.env[key];
+  }
+  /* public compile(): void {
+  
+          /*
+          * 1. We only have to parse entries in the `this._validationMap` 
+          * /
+          for (const [key, validation] of this._validationMap) {
+           
+              const value: unknown = this.get(key);
+              this._args[key] = validation.sanitize(value);
+  
+          }
+  
+      } */
+  // todo change to rexexp 
+  /**
+   * Simple split alorithm to populate the arguemnt store
+   * @param contents {string} Content pulled from a .env or similiar formatted content; or you know... DIY if your a smart ass!
+   * @returns {this} Daisy chain this bad boi!
+   */
+  parse(contents) {
+    for (const line of contents.split(/\n/)) {
+      const [key, value] = line.split("=");
+      this._args[key] = value;
+    }
+    return this;
+  }
+};
+var CompositeArguments = class extends AbstractArguments {
+  _cliArguments = new CLIArguments();
+  _envArguments = new EnvArguments();
+  compile() {
+    this._cliArguments.compile();
+    this._envArguments.compile();
+    const entries = {
+      ...this._envArguments.get(),
+      ...this._cliArguments.get()
+    };
+    for (const [key, value] of Object.entries(entries)) {
+      this._args[key] = value;
+    }
+    super.compile();
+  }
+  /**
+   * Invokes the `EnvArgument.parse ( ... )` 
+   * 
+   * @param contents 
+   * @returns {this}
+   */
+  parse(contents) {
+    this._envArguments.parse(contents);
+    return this;
   }
 };
 
@@ -9179,12 +9268,27 @@ var SpawnService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/forge/client/AbstractForgeClient.ts
+// forge/_src_/ts/forge/ForgeClient.ts
 var { Worker, isMainThread } = require("worker_threads");
 var $fs = require("fs").promises;
 var path = require("path");
 var mime = require_mime_types();
-var AbstractForgeClient = class extends Subscription {
+var AbstractDelegate = class {
+  _$delegate;
+  constructor($delegate) {
+    this._$delegate = $delegate;
+  }
+  $execute(...data) {
+    return this._$delegate(...data);
+  }
+};
+var ResetDelegate = class extends AbstractDelegate {
+};
+var ExecuteDelegate = class extends AbstractDelegate {
+};
+var RouteDelegate = class extends AbstractDelegate {
+};
+var ForgeClient = class extends Subscription {
   _race;
   _executing;
   _queue = [];
@@ -9252,9 +9356,10 @@ var AbstractForgeClient = class extends Subscription {
   }
   async $route(route, parameters, race) {
     route = route || "index.html";
-    console.log("<cyan>resolving</cyan>", path.resolve(this._routeRoot, route));
-    const buffer = await $fs.readFile(path.resolve(this._routeRoot, route)).catch(function() {
-      return Buffer.from("route error", "utf8");
+    console.log("<cyan>resolving >></cyan>", path.resolve(this._routeRoot, route));
+    const buffer = await $fs.readFile(path.resolve(this._routeRoot, route)).catch(function(error) {
+      console.log(error);
+      return Buffer.from("route error found file found", "utf8");
     });
     return { mime: mime.lookup(route), contents: buffer.toString("base64") };
   }
@@ -9267,14 +9372,16 @@ cliArguments.add("key", {
   required: true
 }).compile();
 var CLIENT_KEY = cliArguments.get("key");
-new class extends AbstractForgeClient {
+new class extends ForgeClient {
   async $execute(signal, data, race) {
     console.log("come at me", signal, data, race);
     return;
   }
   async $watch(data, race) {
     console.log("cwd:", process.cwd());
-    execSync3(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`, { stdio: "inherit" });
+    console.log(data);
+    execSync3(`node ./forge/build.js --in-- ${data.in} --out-- ${data.out} --platform-- ${data.platform} --format-- ${data.format} --bundled`, { stdio: "inherit" });
+    execSync3(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: "inherit" });
     return { "just a": "test" };
   }
 }(CLIENT_KEY);

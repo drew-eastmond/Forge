@@ -1,7 +1,7 @@
 import { Serialize } from "../core/Core";
+import { Forge } from "./Forge";
 import { ActionConfig, ForgeAction, IAction } from "./ForgeAction";
 import { IServiceAdapter } from "./service/AbstractServiceAdapter";
-import { Forge } from "./Forge";
 
 export type TaskConfig = {
 
@@ -20,17 +20,19 @@ export class ForgeTask {
 
     private _enabled: boolean;
 
-    private _data: any;
+    private _data: Record<string, unknown>;
 
     public name: string;
     
 
-    constructor(forge: Forge, config?: any) {
+    constructor(forge: Forge, config?: Record<string, unknown>) {
 
         if (forge === undefined) throw new Error(`Forge Instance must be passed into ForgeTask`);
-        if (config === undefined) throw new Error(`Config data must be passed into ForgeTask`);
-
         this._forge = forge;
+
+        if (config === undefined) return; 
+        // throw new Error(`Config data must be passed into ForgeTask`);
+        
 
         this.parse(config);
 
@@ -67,10 +69,10 @@ export class ForgeTask {
 
     }
 
-    public add(iAction: IAction): this {
+    public add(name: string, iAction: IAction): this {
 
         iAction.task = this;
-        this._iActions.set(iAction.name, iAction);
+        this._iActions.set(name, iAction);
 
         return this;
 
@@ -124,7 +126,6 @@ export class ForgeTask {
                 if (iServices.has(service) === false) errors.push(`No Service has been registered for "${service}" by "${this.name}"`);
                 const iServiceAdapter: IServiceAdapter = iServices.get(service);
 
-                console.log(errors);
                 if (iServiceAdapter === undefined) {
 
                     process.exit();

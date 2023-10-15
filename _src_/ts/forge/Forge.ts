@@ -36,11 +36,12 @@ class WatchManager {
     private _forge: Forge;
 
     private _delay: number;
+    private _throttle : number;
     private _debouncer: Debouncer = new Debouncer();
 
     private readonly _watchEntries: Set<{ event: string, file: string }> = new Set(); 
 
-    constructor(forge: Forge, delay: number) {
+    constructor(forge: Forge, delay: number, throttle: number ) {
 
         this._forge = forge;
         this._delay = delay;
@@ -71,7 +72,7 @@ class WatchManager {
 
 export class Forge {
 
-    public static Search(pattern: string) : void {
+    public static Search(glob: string) : void {
         
         
         
@@ -204,9 +205,7 @@ export class Forge {
 
     }
 
-    public add(forgeTask: ForgeTask): this {
-
-        const name: string = forgeTask.name;
+    public add(name: string, forgeTask: ForgeTask): this {
 
         if (this._taskMap.has(name)) throw new Error(`task with "${name}" name already exist`);
 
@@ -301,15 +300,15 @@ export class Forge {
 
         for (const [name, forgeTask] of this._taskMap) {
 
-            await forgeTask.$reset(data);
+            // await forgeTask.$reset(data);
+            $promises.push(forgeTask.$reset(data));
 
         }
-
         await Promise.allSettled($promises);
 
         $promises.push(this._forgeStream.$reset());
 
-        return { reset: Promise.allSettled($promises) };
+        return { reset: await Promise.allSettled($promises) };
 
     }
 

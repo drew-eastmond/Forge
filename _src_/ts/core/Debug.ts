@@ -1,6 +1,6 @@
 declare global {
 	interface Console {
-		parse(...rest: unknown[]): string;
+		parse(...rest: unknown[]): void;
 	}
 
 }
@@ -136,7 +136,7 @@ class ColourFormatting<T> {
 
 export class DebugFormatter {
 
-	public static Init(options: { platform: "node" | "browser", "default": { "foreground": string, background: string } }): void {
+	public static Init(options: { platform: "node" | "browser", "default"?: { "foreground"?: string, background?: string } }): void {
 
 		__DebugFormatter
 
@@ -205,7 +205,7 @@ export class DebugFormatter {
 
 		// push the last characters left in the `input`
 		// console.log(lastIndex, input.length);
-		if (lastIndex < input.length) fragments.push(input.substr(lastIndex))
+		if (lastIndex < input.length) fragments.push(input.substring(lastIndex))
 
 		// console.log("fragments", fragments);
 
@@ -319,7 +319,7 @@ export class DebugFormatter {
 }
 
 const __DebugFormatter: DebugFormatter = new DebugFormatter();
-console.parse = function (...rest: string[]) {
+console.parse = function (...rest: unknown[]) {
 
 	console.log(...rest.map(function (log: unknown) {
 

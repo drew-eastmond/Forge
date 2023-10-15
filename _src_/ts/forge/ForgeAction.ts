@@ -2,23 +2,31 @@ import { $Promise, $UseRace, QuickHash, Serialize, TimeoutClear } from "../core/
 import { ISubscription, Subscription } from "../core/Subscription";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask } from "./ForgeTask";
+const $fs = require("fs").promises;
+
 import { IServiceAdapter } from "./service/AbstractServiceAdapter";
 
-const $fs = require("fs").promises;
 
 const __ForgeProtocol: string = "forge://";
 
-export type ActionConfig = Record<string, unknown> & {
-    _name_: string,
-    _implement_: string,
-    _service_: string,
+export type ActionConfig = {
+    name: string,
+    service: string,
 
-    _async?: boolean, 
-    _watch_?: string[],
-    _wait_?: [
+    async?: boolean,
+    triggers?: [
         {
-            task?: string,
-            action: string
+            trigger: "signal",
+            signals: string[]
+        },
+        {
+            trigger: "watch",
+            watch: string[]
+        },
+        {
+            trigger: "circuit"
+            operator: "and",
+            operands: { task?: string, action: string }[]
         }
     ]
 }
@@ -55,6 +63,7 @@ export interface IAction {
     write(...rest: Serialize[]): void;
 
 }
+
 export class ForgeAction extends Subscription implements IAction {
 
     protected _iServiceAdapter: IServiceAdapter;
@@ -84,21 +93,10 @@ export class ForgeAction extends Subscription implements IAction {
     public enabled: boolean;
     public task: ForgeTask;
 
-    constructor(iServiceAdapter: IServiceAdapter, implement: string, data: any) {
-
-        super();
-
-        this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
-        this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
-
-        this._iServiceAdapter = iServiceAdapter;
-        this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
-        this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
-
-        // this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
+    constructor(iServiceAdapter: IServiceAdapter, config: ActionConfig, data: Record<string, unknown>) {
         // this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
         
-        this._implement = implement;
+        this._implement = config.implement;
         this._data = data;
 
         // ! data.watch is a special case. Convert from a glob to 
@@ -130,9 +128,9 @@ export class ForgeAction extends Subscription implements IAction {
 
         }
 
-        this.name = this._resolveData("_name_", QuickHash()) as string;
+        this.name = config.name || QuickHash();
 
-        this._async = this._resolveData("async", false) as boolean;
+        this._async = config.async || false;
         
         this._stdio = this._resolveData("stdio", ActionStdioType.Default) as ActionStdioType;
 
@@ -148,7 +146,7 @@ export class ForgeAction extends Subscription implements IAction {
 
     protected _subscribeBroadcast(notify: string, header: any, data: any): void {
 
-        console.log(">>>>", header, data);
+        console.log("_subscribeBroadcast", header, data);
 
         /* if (notify == "message") {
 
@@ -316,53 +314,43 @@ export class ForgeAction extends Subscription implements IAction {
 
     }
 
-    public write(...rest: Serialize[]): void {
+    public write(header: Record<string, unknown>, data: Serialize): void {
 
-        throw new Error("AbstractAction.write( .. ) should be overriden");
-
-    }
-
-    
-
-    public async $load(iStorage): Promise<this> {
-
-
-        return this;
+        this._iServiceAdapter.write(header, data);
 
     }
 
-    public async $save(iStorage): Promise<this> {
-
-
-
-        return this;
-
-    }
-
-    public help(): { label: string, values: [string, string], description: string }[] {
-
-        return [
-            { label: "async", values: ["true | false", "true"], description: "does the `Action` completion event depends if execution completes" },
-            { label: "enabled", values: ["true | false", "true"], description: "weather the `Action` will execute" },
-            { label: "stdio", values: ["[ default, pipe, stdio & Dependency]", "default"], description: "An array of value combine to override the stdio to pipe from a dependency `Action`" },
-            { label: "race", values: ["0 - 9999999", "0"], description: "how long to give the `Action` to complete before aborting" },
-            { label: "rebound", values: ["0 - 5", "0"], description: "how many times to rebound $execute" },
-
-            { label: "render", values: ["internal", ""], description: "how many times to rebound $execute" },
-        ]
-
-    }
-
-    public async $route(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
+    public async $route(route: string, params: Serialize): Promise<Serialize> {
 
         return this.$signal("route", { route, params }, this._race)
-            .then(async function (response: Serialize) {
+            .then(async function (data: Serialize) {
 
-                const { mime, contents } = JSON.parse(response as string);
+                const { mime, contents } = data as { mime: string, contents: string };
                 return { mime, buffer: Buffer.from(contents, "base64") };
 
             })
             .catch(function (error: unknown) {
+
+                console.log(error);
+
+                return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
+
+            }) as Promise<{ mime: string, buffer: Buffer }>;
+
+    }
+
+    public async $serve(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
+
+        return this.$signal("serve", { route, params }, this._race)
+            .then(async function (response: Serialize) {
+
+                const { mime, contents } = response as { mime: string, contents: string };
+                return { mime, buffer: Buffer.from(contents, "base64") };
+
+            })
+            .catch(function (error: unknown) {
+
+                console.log(error);
 
                 return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
 
@@ -371,106 +359,3 @@ export class ForgeAction extends Subscription implements IAction {
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-/* return new Promise(function (resolve, reject) {
-
-            _this.write({ signal, session, key }, data);
-
-            const expiry: Expiry = (race === undefined) ? new Expiry(_this._race) : new Expiry(race);
-
-            _this.$listen("message", function (iAction: IAction, message) {
-
-                console.log("signal $listen", message);
-
-                try {
-
-                    const [response, data] = message;
-
-                    if (response.session != session) return false;
-
-                    if (response.resolve == signal) {
-
-                        resolve(data);
-                        return true;
-
-                    } else if (response.reject == signal) {
-
-                        reject(data);
-                        return true;
-
-                    }
-
-                } catch (error) {
-
-                    // ignore message!!
-                    console.error("message ignored", message);
-
-                }
-
-            }, expiry);
-
-        })
-            .catch(function (err) {
-
-                return err;
-
-            })
-            .finally(function () {
-
-                console.log("COMPLETE PARENT");
-
-                clearTimeout(timeout);
-
-            }); */
-
-/* public async $rebound(forgeStream: ForgeStream): Promise<boolean> {
-
-this._rebound -= 1;
-if (this._rebound < 0) return false;
-
-const dependencies: string[] = this.data.dependencies;
-if (dependencies === undefined) return false;
-
-for (const dependency of dependencies) {
-
-for (const iAction of forgeStream.executions()) {
-
-if (iAction.name() == dependency) {
-
-    this.$execute(forgeStream);
-
-}
-
-}
-
-}
-
-
-return true;
-
-}
-
-*/

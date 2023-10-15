@@ -3,7 +3,7 @@ import { Attributes } from "../../core/Core";
 import { ForgeServer } from "../server/ForgeServer";
 
 type ForgeStoreAttributes = Attributes & { name: string };
-export interface IForgeStorage {
+export interface IForgeModel {
 
     next(forgeStore: ForgeStore): number;
 
@@ -23,8 +23,8 @@ export interface IForgeStorage {
     $query(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean): Promise<ForgeStore[]>
     $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, parent: ForgeStore): Promise<ForgeStore[]>;
 
-    $load(iForgeStorage: IForgeStorage): Promise<void>;
-    $save(iForgeStorage: IForgeStorage): Promise<void>;
+    $load(...rest: unknown[]): Promise<void>;
+    $save(...rest: unknown[]): Promise<void>;
 
     $flush(): Promise<unknown>;
 
@@ -33,9 +33,10 @@ export interface IForgeStorage {
 
 export class ForgeStore {
 
+    private _iForgeModel: IForgeModel;
+
     private _id: number;
 
-    private _iForgeStorage: IForgeStorage;
     private _buffer: Buffer;
     private _attributes: Attributes;
 
@@ -57,7 +58,7 @@ export class ForgeStore {
 
         if (buffer === undefined) return this._buffer;
 
-        this._iForgeStorage.$update(this, this._buffer)
+        this._iForgeModel.$update(this, this._buffer)
 
     }
 
@@ -67,26 +68,34 @@ export class ForgeStore {
 
     }
 
-    public iForgeStorage(iForgeStorage: IForgeStorage): this {
+    public model(iForgeModel: IForgeModel): this {
 
-
-        this._iForgeStorage = iForgeStorage;
-        this._id = iForgeStorage.next(this);
+        this._iForgeModel = iForgeModel;
+        this._id = this._iForgeModel.next(this);
         return this;
 
     } 
 
     public async $fork(buffer: Buffer, attributes: Attributes): Promise<ForgeStore> {
 
-        return this._iForgeStorage.$fork(this, buffer, attributes);
+        return this._iForgeModel.$fork(this, buffer, attributes);
 
     }
 
-    public async push(buffer: Buffer): Promise<void> {
+    public async $push(buffer: Buffer): Promise<void> {
 
     } 
 
-    public async pull(): Promise<void> {
+    public async $pull(...queries: IQuery[]): Promise<void> {
+
+        this._iForgeModel.$pull();
+
+
+    }
+
+    public async $query(): IQuery {
+
+
 
 
 
@@ -95,14 +104,20 @@ export class ForgeStore {
 
 }
 
-export class ForgeStorage implements IForgeStorage {
+export class ForgeModel implements IForgeModel {
 
     private _count: number = 0;
 
+    private _root: ForgeStore = new ForgeStore(new Buffer(), { root: true });
+
     protected readonly _idMap: Map<number, ForgeStore> = new Map();
-    protected readonly _tree: Tree<ForgeStore> = new Tree();
+    protected readonly _tree: Tree<ForgeStore> = new Tree ();
+
+    protected readonly _queryManager: QueryManager<ForgeStore> = new QueryManager();
     
     constructor() {
+
+        this._tree.add(_root);
 
     }
 
@@ -190,9 +205,29 @@ export class ForgeStorage implements IForgeStorage {
 
     public $flush(): Promise<void> {
 
+        return;
         
-        
-    } 
+    }
+
+    public query(parent: ForgeStore): ForgeStore[] {
+
+
+
+        return;
+
+    }
+
+    public async $load(): Promise<this> {
+
+        return this;
+
+    }
+
+    public async $save(): Promise<this> {
+
+        return this;
+
+    }
 
 }
 

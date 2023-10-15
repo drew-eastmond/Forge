@@ -13,11 +13,12 @@ const $fs = require("node:fs/promises");
 * imports
 *
 */
-import { build as esBuild, Platform, Format } from "esbuild";
+import { Format, Platform, build as esBuild } from "esbuild";
+import { DependencyHelper } from "./DependencyHelper";
 import { CLIArguments } from "./core/Argument";
 import { $UsePromise } from "./core/Core";
-import { DependencyHelper } from "./DependencyHelper";
 import { DebugFormatter } from "./core/Debug";
+import { ForgeClient } from "./forge/ForgeClient";
 
 /*
 *
@@ -95,7 +96,7 @@ async function $SaveMetaFile(entryFile: string, outFile: string, fileManifest: s
         })
         .catch(function (error: unknown) {
 
-            console.parse(`<red>${error.message}</red> from <cyan>${fetchURL}<cyan>`);
+            if (error instanceof Error) console.parse(`<red>${error.message}</red> from <cyan>${fetchURL}<cyan>`);
 
         });
 
@@ -224,17 +225,20 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
     await $fs.writeFile(outFile, code);
 
-    console.parse(`<green>Build Successful (${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
-\t* ${(options.bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}\n
-\t* <cyan>format</cyan> : ${options.format}\n
+    console.parse(`<green>Build Successful : "${outFile}" (${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
+\t* ${(options.bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
+\t* <cyan>format</cyan> : ${options.format}
 \t* <cyan>platform</cyan> : ${options.platform}
+\t* <cyan>tree shaking</cyan> : ${options.treeShaking}
 `);
 
 }
 
 async function $watch() {
 
-    const forgeClient: ForgeClient = new ForgeClient();
+    const key: string = "";
+
+    const forgeClient: ForgeClient = new ForgeClient(key);
 
     /* process.on("message", function (message: ) {
 
@@ -362,7 +366,6 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
     const watch: boolean = cliArguments.get("watch") as boolean;
     const externals: string[] = cliArguments.get("external") as string[];
-    console.log("externals", externals);
 
     // parse the folder and filename from the --out-- CLI arguments
     const outFilePath = path.parse(outFile);
@@ -379,7 +382,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
 
     } else {
 
-        $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: true, write: true });
+        $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true });
 
     }
 
