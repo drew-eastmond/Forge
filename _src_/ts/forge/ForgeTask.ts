@@ -1,7 +1,7 @@
 import { Serialize } from "../core/Core";
+import { Forge } from "./Forge";
 import { ActionConfig, ForgeAction, IAction } from "./ForgeAction";
 import { IServiceAdapter } from "./service/AbstractServiceAdapter";
-import { Forge } from "./Forge";
 
 export type TaskConfig = {
 
@@ -124,7 +124,6 @@ export class ForgeTask {
                 if (iServices.has(service) === false) errors.push(`No Service has been registered for "${service}" by "${this.name}"`);
                 const iServiceAdapter: IServiceAdapter = iServices.get(service);
 
-                console.log(errors);
                 if (iServiceAdapter === undefined) {
 
                     process.exit();

@@ -4,10 +4,11 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 const __ForgeProtocol: string = "forge://";
 
 export type ServiceConfig = {
-    command: string
-    debounce: number,
-    race: number,
+    command?: string
+    debounce?: number,
+    race?: number,
 
+    key?: string,
     reboot?: boolean,
     route_root?: string
 }

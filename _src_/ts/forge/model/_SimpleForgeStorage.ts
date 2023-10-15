@@ -1,8 +1,8 @@
 import { $ParseRequestBody, ForgeServer } from "../server/ForgeServer";
 import { DelegateRoute } from "../server/Route";
-import { ForgeStorage } from "./ForgeStorage";
+import { ForgeModel } from "./ForgeModel";
 
-export class SimpleForgeStorage extends ForgeStorage {
+export class SimpleForgeStorage extends ForgeModel {
 
     private async _routeSave(request, response, next: Function): Promise<void> {
 
@@ -14,7 +14,7 @@ export class SimpleForgeStorage extends ForgeStorage {
 
             // const requestBody: string = String(await this._requestBodyParser.$parse(request));
             const { mime, buffer } = await $ParseRequestBody(request);
-            await this.$save(`${taskName}/${actionName}`, key, mime, buffer);
+            // await this.$save(`${taskName}/${actionName}`, key, mime, buffer);
 
             response
                 .sendStatus(200)
@@ -22,7 +22,8 @@ export class SimpleForgeStorage extends ForgeStorage {
 
         } catch (error: unknown) {
 
-            console.parse(`<red>${error.message}</red>`);
+            if (error instanceof Error) console.parse(`<red>${error.message}</red>`);
+
             response.sendStatus(404).end();
 
         }
@@ -47,7 +48,8 @@ export class SimpleForgeStorage extends ForgeStorage {
 
             } catch (error: unknown) {
 
-                console.parse(`<red>${error.message}</red>`);
+                if (error instanceof Error) console.parse(`<red>${error.message}</red>`);
+
                 response.sendStatus(404).end();
 
             }
@@ -71,7 +73,8 @@ export class SimpleForgeStorage extends ForgeStorage {
 
             } catch (error: unknown) {
 
-                console.parse(`<red>${error.message}</red>`);
+                if (error instanceof Error) console.parse(`<red>${error.message}</red>`);
+
                 response.sendStatus(404).end();
 
             }

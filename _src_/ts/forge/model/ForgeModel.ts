@@ -3,7 +3,7 @@ import { Attributes } from "../../core/Core";
 import { ForgeServer } from "../server/ForgeServer";
 
 type ForgeStoreAttributes = Attributes & { name: string };
-export interface IForgeStorage {
+export interface IForgeModel {
 
     next(forgeStore: ForgeStore): number;
 
@@ -23,8 +23,8 @@ export interface IForgeStorage {
     $query(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean): Promise<ForgeStore[]>
     $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, parent: ForgeStore): Promise<ForgeStore[]>;
 
-    $load(iForgeStorage: IForgeStorage): Promise<void>;
-    $save(iForgeStorage: IForgeStorage): Promise<void>;
+    $load(...rest: unknown[]): Promise<void>;
+    $save(...rest: unknown[]): Promise<void>;
 
     $flush(): Promise<unknown>;
 
@@ -35,7 +35,7 @@ export class ForgeStore {
 
     private _id: number;
 
-    private _iForgeStorage: IForgeStorage;
+    private _iForgeStorage: IForgeModel;
     private _buffer: Buffer;
     private _attributes: Attributes;
 
@@ -67,7 +67,7 @@ export class ForgeStore {
 
     }
 
-    public iForgeStorage(iForgeStorage: IForgeStorage): this {
+    public iForgeStorage(iForgeStorage: IForgeModel): this {
 
 
         this._iForgeStorage = iForgeStorage;
@@ -95,7 +95,7 @@ export class ForgeStore {
 
 }
 
-export class ForgeStorage implements IForgeStorage {
+export class ForgeModel implements IForgeModel {
 
     private _count: number = 0;
 
@@ -190,9 +190,27 @@ export class ForgeStorage implements IForgeStorage {
 
     public $flush(): Promise<void> {
 
+        return;
         
-        
-    } 
+    }
+
+    public async $query(): Promise<ForgeStore[]> {
+
+        return;
+
+    }
+
+    public async $load(): Promise<this> {
+
+        return this;
+
+    }
+
+    public async $save(): Promise<this> {
+
+        return this;
+
+    }
 
 }
 

@@ -2,7 +2,7 @@ const { spawn, fork, exec, execSync } = require("child_process");
 
 import { CLIArguments } from "./_src_/ts/core/Argument";
 import { Serialize } from "./_src_/ts/core/Core";
-import { AbstractForgeClient } from "./_src_/ts/forge/client/AbstractForgeClient";
+import { ForgeClient } from "./_src_/ts/forge/ForgeClient";
 
 
 const cliArguments: CLIArguments = new CLIArguments();
@@ -13,7 +13,7 @@ cliArguments.
     .compile();
 
 const CLIENT_KEY: string = cliArguments.get("key") as string;
-new class extends AbstractForgeClient {
+new class extends ForgeClient {
 
     public async $execute(signal: string, data: Serialize, race: number): Promise<Serialize> {
 
@@ -25,8 +25,11 @@ new class extends AbstractForgeClient {
     public async $watch(data: Serialize, race: number): Promise<Serialize> {
 
         console.log("cwd:", process.cwd());
-        execSync(`node ./forge/build.js --in-- ${data.file} --out-- ./build/www/js/compiled.js --platform-- browser --format-- cjs --bundled`, { stdio: 'inherit' });
-        // execSync(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: 'inherit' });
+        console.log(data);
+
+
+        execSync(`node ./forge/build.js --in-- ${data.in} --out-- ${data.out} --platform-- ${data.platform} --format-- ${data.format} --bundled`, { stdio: 'inherit' });
+        execSync(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: 'inherit' });
 
         return { "just a": "test" };
 

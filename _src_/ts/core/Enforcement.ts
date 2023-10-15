@@ -1,5 +1,3 @@
-import { ArgumentError, RunTimeError } from "../core/error/Error";
-
 type EnforceableValue = unknown | Promise<unknown>;
 type EnforceableInquiry = Promise<unknown> | (($value: EnforceableValue) => Promise<unknown>);
 
@@ -40,7 +38,7 @@ export function $Enforce<T = unknown[]>(overloadA: EnforceableValue[] | Iterable
 
 	} else {
 
-		throw new ArgumentError(`Parameters are incorrenct for $Enforce(${overloadA}, ${overloadB}));`);
+		throw new Error(`Parameters are incorrenct for $Enforce(${overloadA}, ${overloadB}));`);
 
 	}
 
@@ -135,7 +133,7 @@ class Enforcement {
 
 			} else {
 
-				throw new RunTimeError(`Enforcement.$enforce() has been passed an invalid inquiry : ${$inquiry}`);
+				throw new Error(`Enforcement.$enforce() has been passed an invalid inquiry : ${$inquiry}`);
 
 			}
 
