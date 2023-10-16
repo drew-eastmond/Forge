@@ -205,7 +205,9 @@ export class Forge {
 
     }
 
-    public add(name: string, forgeTask: ForgeTask): this {
+    public add(forgeTask: ForgeTask): this {
+
+        const name: string = forgeTask.name;
 
         if (this._taskMap.has(name)) throw new Error(`task with "${name}" name already exist`);
 
@@ -263,7 +265,7 @@ export class Forge {
 
     }
 
-    public watch(glob: string[], options: { ignore: string[], debounce?: number }): void {
+    public watch(glob: string[], options: { ignore: string[], debounce?: number, throttle?: number }): void {
 
         const watcher = chokidar.watch(glob, { 'ignored': this._ignoreArr });
 

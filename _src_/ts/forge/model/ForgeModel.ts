@@ -23,8 +23,8 @@ export interface IForgeModel {
     $query(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean): Promise<ForgeStore[]>
     $traverse(delegate: (forgeStore: ForgeStore, ...rest: unknown[]) => boolean, parent: ForgeStore): Promise<ForgeStore[]>;
 
-    $load(...rest: unknown[]): Promise<void>;
-    $save(...rest: unknown[]): Promise<void>;
+    $load(...rest: unknown[]): Promise<this>;
+    $save(...rest: unknown[]): Promise<this>;
 
     $flush(): Promise<unknown>;
 
@@ -108,8 +108,7 @@ export class ForgeModel implements IForgeModel {
 
     private _count: number = 0;
 
-    private _root: ForgeStore = new ForgeStore(new Buffer(), { root: true });
-
+    protected readonly _root: ForgeStore = new ForgeStore(new Buffer(), { root: true });
     protected readonly _idMap: Map<number, ForgeStore> = new Map();
     protected readonly _tree: Tree<ForgeStore> = new Tree ();
 
@@ -117,7 +116,7 @@ export class ForgeModel implements IForgeModel {
     
     constructor() {
 
-        this._tree.add(_root);
+        this._tree.add(this._root);
 
     }
 

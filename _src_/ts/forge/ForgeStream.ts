@@ -1,5 +1,5 @@
 import { Serialize } from "../core/Core";
-import { IAction } from "./ForgeAction";
+import { IAction } from "./action/ForgeAction";
 import { ForgeTask } from "./ForgeTask";
 
 export class ForgeStream {
@@ -37,39 +37,25 @@ export class ForgeStream {
     *
     */
 
-    public actions(): Iterable<[string, IAction]> {
+    get actions(): Iterable<[string, IAction]> {
 
         return this._iActions;
 
     }
 
-    public signal(): string;
-    public signal(value: string): string;
-    public signal(value?: string): string {
+    get signal(): string {
 
-        return (value === undefined) ? this._signal : this._signal = value;
+        return this._signal;
 
     }
 
-    public data(): Serialize;
-    public data(value: Serialize): Serialize;
-    public data(value?: Serialize): Serialize {
+    get data(): Serialize {
 
-        return (value === undefined) ? this._data : this._data = value;
+        return this._data;
 
     }
 
-    public executions(): Set<IAction>;
-    public executions(iterable: Iterable<IAction>): Set<IAction>;
-    public executions(iterable?: Iterable<IAction>): Set<IAction> {
-
-        if (iterable === undefined) return this._executions;
-
-        for (const iAction of iterable) {
-
-            this._executions.add(iAction);
-
-        }
+    get executions(): Set<IAction> {
 
         return this._executions;
 
@@ -104,9 +90,13 @@ export class ForgeStream {
         if (iAction === undefined) throw new Error(`IAction : "${actionName}" does not exist within "${taskName}"`);
 
         return iAction;
+
     }
 
     public async $reset(): Promise<Serialize> {
+
+        this._signal = undefined;
+        this._data = undefined;
 
         this._executions.clear();
 
@@ -123,6 +113,9 @@ export class ForgeStream {
 
     public async $signal(signal: string, data?: Serialize): Promise<Serialize> {
 
+        this._signal = signal;
+        this._data = data;
+
         // collectiosn of all responses
         
         const executedActions: Set<IAction> = this._executions;
@@ -132,20 +125,12 @@ export class ForgeStream {
         for (const [name, iAction] of this._iActions) {
 
             // only one execution per reset and action must implement the signal
-            const errors: string[] = [];
-            if (this._executions.has(iAction)) errors.push(`${name} already executed`);
-            if (iAction.implement() != signal) errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);;
-            if (iAction.dependencies.length) errors.push(`already executed`);;
+            // const errors: string[] = [];
+            if (this._executions.has(iAction)) continue; // errors.push(`${name} already executed`);
+            // if (iAction.implement() != signal) errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);;
+            // f (iAction.dependencies.length) errors.push(`${name} has dependencies`);
 
-            if (errors.length) {
-
-                $executions.push(Promise.reject({
-                    name,
-                    reject: errors
-                }));
-                continue;
-
-            } else {
+            if (await iAction.$trigger(this)) {
 
                 $executions.push(iAction.$signal(signal, data)
                     .then(function (data: Serialize) {
@@ -169,6 +154,20 @@ export class ForgeStream {
                     }));
 
             }
+
+            /* if (errors.length) {
+
+                $executions.push(Promise.reject({
+                    name,
+                    reject: errors
+                }));
+                continue;
+
+            } else {
+
+                
+
+            } */
 
         }
 
@@ -202,8 +201,7 @@ export class ForgeStream {
 
                 console.log("rebounding", iAction.name);
 
-                const implement: string = iAction.implement();
-                $rebounds.push(iAction.$signal(implement, data)
+                $rebounds.push(iAction.$signal(signal, data)
                     .then(function (data: Serialize) {
 
                         executedActions.add(iAction);
@@ -242,38 +240,6 @@ export class ForgeStream {
             executions,
             rebounds
         };
-
-
-
-        // do dependencies
-        /* for (const [name, iAction] of this._iActions) {
-
-            console.log("_executions", this._executions.has(iAction));
-            console.log(iAction.implement(), iAction.implement() != "dependency");
-            // console.log(iAction.resolveDependencies(this))
-
-            // actions should only be executed once
-            if (this._executions.has(iAction)) continue; 
-            if (iAction.implement() != "dependency") continue;
-            // if (iAction.resolveDependencies(this) === false) continue;
-
-            console.log("dependecy found");
-
-            const response: Serialize | Error = await iAction.$signal("dependency", data)
-                .then(function (data: Serialize) {
-
-                    executedActions.add(iAction);
-
-                    return data;
-
-                })
-                .catch(this._bindings.get(this._$catchRaced$Execute) as (error) => unknown);
-
-            results.push(response);
-
-        }
-
-        return results; */
 
     }
 

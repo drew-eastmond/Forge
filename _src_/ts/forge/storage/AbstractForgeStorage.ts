@@ -37,7 +37,7 @@ export class ForgeStorage implements IForgeStorage {
 
     public async $read(): Promise<Serialize> {
 
-
+        return {};
 
     }
 

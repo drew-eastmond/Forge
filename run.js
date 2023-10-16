@@ -34664,21 +34664,16 @@ var ForgeStream = class {
   *
   *
   */
-  actions() {
+  get actions() {
     return this._iActions;
   }
-  signal(value) {
-    return value === void 0 ? this._signal : this._signal = value;
+  get signal() {
+    return this._signal;
   }
-  data(value) {
-    return value === void 0 ? this._data : this._data = value;
+  get data() {
+    return this._data;
   }
-  executions(iterable) {
-    if (iterable === void 0)
-      return this._executions;
-    for (const iAction of iterable) {
-      this._executions.add(iAction);
-    }
+  get executions() {
     return this._executions;
   }
   add(forgeTask) {
@@ -34698,6 +34693,8 @@ var ForgeStream = class {
     return iAction;
   }
   async $reset() {
+    this._signal = void 0;
+    this._data = void 0;
     this._executions.clear();
     const promises = [];
     for (const [name, iAction] of this._iActions) {
@@ -34706,25 +34703,14 @@ var ForgeStream = class {
     return { reset: await Promise.allSettled(promises) };
   }
   async $signal(signal, data) {
+    this._signal = signal;
+    this._data = data;
     const executedActions = this._executions;
     const $executions = [];
     for (const [name, iAction] of this._iActions) {
-      const errors = [];
       if (this._executions.has(iAction))
-        errors.push(`${name} already executed`);
-      if (iAction.implement() != signal)
-        errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);
-      ;
-      if (iAction.dependencies.length)
-        errors.push(`already executed`);
-      ;
-      if (errors.length) {
-        $executions.push(Promise.reject({
-          name,
-          reject: errors
-        }));
         continue;
-      } else {
+      if (await iAction.$trigger(this)) {
         $executions.push(iAction.$signal(signal, data).then(function(data2) {
           executedActions.add(iAction);
           return {
@@ -34757,8 +34743,7 @@ var ForgeStream = class {
       }
       if (dependenciesResolved && this._executions.has(iAction) === false) {
         console.log("rebounding", iAction.name);
-        const implement = iAction.implement();
-        $rebounds.push(iAction.$signal(implement, data).then(function(data2) {
+        $rebounds.push(iAction.$signal(signal, data).then(function(data2) {
           executedActions.add(iAction);
           return {
             name: iAction.name,
@@ -34960,9 +34945,90 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/ts/forge/ForgeAction.ts
+// forge/_src_/ts/forge/action/ForgeTrigger.ts
+var ResolverValues = /* @__PURE__ */ ((ResolverValues2) => {
+  ResolverValues2["Any"] = "any";
+  ResolverValues2["All"] = "all";
+  return ResolverValues2;
+})(ResolverValues || {});
+function ParseTrigger(triggerData) {
+  if ("signal" in triggerData) {
+    return new SignalTrigger(triggerData.signal);
+  } else if ("watch" in triggerData) {
+    console.log(triggerData);
+    const watches = triggerData.watch.map(WatchTrigger.ParseWatch);
+    return new WatchTrigger(watches);
+  } else if ("resolves:any" in triggerData) {
+    const resolves = triggerData["resolves:or"];
+    return new ResolveTrigger("any" /* Any */, resolves);
+  } else if ("resolves:and" in triggerData) {
+  } else {
+    throw new Error("Trigger Data in incorrect");
+  }
+}
+var SignalTrigger = class {
+  _signals;
+  constructor(signals) {
+    this._signals = new Set(signals);
+  }
+  async $trigger(forgeStream) {
+    return this._signals.has(forgeStream.signal);
+  }
+};
+var WatchTrigger = class {
+  static ParseWatch(watch) {
+    if (watch.constructor == String) {
+      if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
+        watch = watch.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\/\\\\].+?)$");
+      } else if (/[\/\\]\*/.test(watch)) {
+        watch = watch.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
+      }
+      return new RegExp(watch);
+    }
+    return watch;
+  }
+  _regExps;
+  constructor(regExps) {
+    this._regExps = regExps;
+  }
+  async $trigger(forgeStream) {
+    const file = forgeStream.data.file;
+    for (const regExp of this._regExps) {
+      if (regExp.test(file))
+        return true;
+    }
+    return false;
+  }
+};
+var ResolveTrigger = class {
+  _resolver;
+  _resolves;
+  constructor(resolver, resolves) {
+    this._resolver = resolver;
+    this._resolves = resolves;
+  }
+  async $trigger(forgeStream) {
+    const file = forgeStream.data.file;
+    if (this._resolver == "any" /* Any */) {
+      for (let { task, action } of this._resolves) {
+        const iAction = forgeStream.find(task, action);
+        if (forgeStream.executions.has(iAction))
+          return true;
+      }
+    } else if (this._resolver == "all" /* All */) {
+      let allSettled = true;
+      for (let { task, action } of this._resolves) {
+        const iAction = forgeStream.find(task, action);
+        if (forgeStream.executions.has(iAction) === false)
+          allSettled = false;
+      }
+    }
+    return false;
+  }
+};
+
+// forge/_src_/ts/forge/action/ForgeAction.ts
 var $fs2 = require("fs").promises;
-var __ForgeProtocol = "forge://";
 var ActionStdioType = /* @__PURE__ */ ((ActionStdioType2) => {
   ActionStdioType2["Default"] = "pipe";
   ActionStdioType2["Pipe"] = "pipe";
@@ -34976,10 +35042,14 @@ var ActionRouter = /* @__PURE__ */ ((ActionRouter2) => {
   ActionRouter2["Remote"] = "remote";
   return ActionRouter2;
 })(ActionRouter || {});
-var ForgeAction = class extends Subscription {
+var ForgeAction = class _ForgeAction extends Subscription {
+  static Parse(iServiceAdapter, actionData, data) {
+    const triggerData = actionData.triggers;
+    const iForgeTriggers = triggerData.map(ParseTrigger);
+    return new _ForgeAction(iServiceAdapter, { ...actionData, triggers: iForgeTriggers }, data);
+  }
   _iServiceAdapter;
   _data;
-  _implement;
   _watch;
   _async;
   _stdio;
@@ -34989,38 +35059,30 @@ var ForgeAction = class extends Subscription {
   _renderer;
   _bindings = /* @__PURE__ */ new Map();
   _sessions = /* @__PURE__ */ new Map();
+  _iForgeTriggers = /* @__PURE__ */ new Set();
   dependencies;
   stdout;
   stderr;
   name;
   enabled;
   task;
-  constructor(iServiceAdapter, implement, data) {
+  constructor(iServiceAdapter, config, data) {
     super();
-    this._bindings.set(this._subscribeBroadcast, this._subscribeBroadcast.bind(this));
-    this._bindings.set(this._subscribeMessage, this._subscribeMessage.bind(this));
+    const errors = [];
+    if (iServiceAdapter === void 0)
+      errors.push(`iServiceAdapter is undefined`);
     this._iServiceAdapter = iServiceAdapter;
-    this._iServiceAdapter.subscribe("broadcast", this._bindings.get(this._subscribeBroadcast));
-    this._iServiceAdapter.subscribe("message", this._bindings.get(this._subscribeMessage));
-    this._implement = implement;
     this._data = data;
     if ("_watch_" in data) {
       const watch = String(data._watch_);
       let globStr = watch;
-      if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
-        globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\/\\\\].+?)$");
-      } else if (/[\/\\]\*/.test(watch)) {
-        globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
-      }
       console.parse(`<blue>${globStr}</blue>`);
       this._watch = new RegExp(globStr);
     }
-    this.name = this._resolveData("_name_", QuickHash());
-    this._async = this._resolveData("_async_", false);
-    this._stdio = this._resolveData("stdio", "pipe" /* Default */);
-    this._race = this._resolveData("_race_", this._iServiceAdapter.race);
-    this.dependencies = this._resolveData("_wait_", []);
-    this.enabled = this._resolveData("enabled", true);
+    this.name = config.name || QuickHash();
+    this._async = config.async || false;
+    this._race = config.race || this._iServiceAdapter.race;
+    this.enabled = config.enabled || true;
     this.stdout = [];
     this.stderr = [];
   }
@@ -35030,14 +35092,21 @@ var ForgeAction = class extends Subscription {
   _subscribeMessage(notify, header, ...data) {
     console.error("_subscribeMessage", notify, header, data);
   }
-  _resolveData(key, defaultValue) {
-    const value = this._data[key];
-    return value === void 0 ? defaultValue : value;
-  }
-  implement() {
-    return this._implement;
+  async $trigger(forgeStream) {
+    if (this.enabled === false)
+      return false;
+    for (const iForgeTrigger of this._iForgeTriggers) {
+      if (await iForgeTrigger.$trigger(forgeStream))
+        return true;
+    }
+    return false;
   }
   $signal(signal, data, race) {
+    let triggered = false;
+    for (const iForgeTrigger of this._iForgeTriggers) {
+    }
+    if (triggered === false)
+      return Promise.reject({});
     if (signal == "watch" && this._watch) {
       const { file, event } = data;
       console.log(`${this.name} watching:`, this._watch, this._watch.test(file), data);
@@ -35048,14 +35117,21 @@ var ForgeAction = class extends Subscription {
     }
     return this._iServiceAdapter.$signal(signal, { ...this._data, ...data }, race);
   }
-  $watch(data) {
-    const { file, event } = data;
-    console.log(this._watch, this._watch.test(file), data);
-    if (this._watch && this._watch.test(file) === false) {
-      console.warn(`"watch" Signal Ignored`);
-      return Promise.reject({ task: this.task.name, name: this._data.name, watch: "ignored" });
-    }
-  }
+  /* public $watch(data: Serialize): Promise<boolean> {
+  
+          // optimize the `watch` signals only if a watch value is provided
+  
+          const { file, event } = data as { file: string, event: string };
+  
+          console.log(this._watch, this._watch.test(file), data);
+          if (this._watch && this._watch.test(file) === false) {
+  
+              console.warn(`"watch" Signal Ignored`);
+              return Promise.reject({ task: this.task.name, name: this._data.name, watch: "ignored" });
+  
+          }
+  
+      } */
   async $reset(data) {
     this._startTime = Date.now();
     this.stdout = [];
@@ -35124,9 +35200,9 @@ var ForgeTask3 = class {
   constructor(forge, config) {
     if (forge === void 0)
       throw new Error(`Forge Instance must be passed into ForgeTask`);
-    if (config === void 0)
-      throw new Error(`Config data must be passed into ForgeTask`);
     this._forge = forge;
+    if (config === void 0)
+      return;
     this.parse(config);
   }
   data() {
@@ -35149,25 +35225,20 @@ var ForgeTask3 = class {
     this._enabled = configObj.enabled;
     const errors = [];
     const iServices = this._forge.services;
-    const actionConfigs = this._data.actions;
-    if (actionConfigs) {
-      for (const actionConfig of actionConfigs) {
-        const name = actionConfig._name_;
-        const implement = actionConfig._implement_;
-        const service = actionConfig._service_;
-        if (name === void 0)
-          errors.push(`Action "_name_" is undefined for ${this.constructor.name} : ${this.name}"`);
-        if (implement === void 0)
-          errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
+    const actionData = this._data.actions;
+    if (actionData) {
+      for (const [actionObj, data] of actionData) {
+        const service = actionObj.service;
         if (service === void 0)
-          errors.push(`Action "_service_" is undefined for ${this.constructor.name} : ${this.name}"`);
+          errors.push(`Action "service" is undefined for ${this.constructor.name} : ${this.name}"`);
         if (iServices.has(service) === false)
           errors.push(`No Service has been registered for "${service}" by "${this.name}"`);
         const iServiceAdapter = iServices.get(service);
         if (iServiceAdapter === void 0) {
+          console.log(`hmmmmmmmmmmmm no service found, ${service}`);
           process.exit();
         }
-        this.add(new ForgeAction(iServiceAdapter, implement, actionConfig));
+        this.add(ForgeAction.Parse(iServiceAdapter, actionObj, data));
       }
     }
     if (errors.length)
@@ -35269,8 +35340,8 @@ var Tree = class {
 
 // forge/_src_/ts/forge/model/ForgeModel.ts
 var ForgeStore = class {
+  _iForgeModel;
   _id;
-  _iForgeStorage;
   _buffer;
   _attributes;
   constructor(buffer, attributes) {
@@ -35280,29 +35351,35 @@ var ForgeStore = class {
   $buffer(buffer) {
     if (buffer === void 0)
       return this._buffer;
-    this._iForgeStorage.$update(this, this._buffer);
+    this._iForgeModel.$update(this, this._buffer);
   }
   attributes() {
     return this._attributes;
   }
-  iForgeStorage(iForgeStorage) {
-    this._iForgeStorage = iForgeStorage;
-    this._id = iForgeStorage.next(this);
+  model(iForgeModel) {
+    this._iForgeModel = iForgeModel;
+    this._id = this._iForgeModel.next(this);
     return this;
   }
   async $fork(buffer, attributes) {
-    return this._iForgeStorage.$fork(this, buffer, attributes);
+    return this._iForgeModel.$fork(this, buffer, attributes);
   }
-  async push(buffer) {
+  async $push(buffer) {
   }
-  async pull() {
+  async $pull(...queries) {
+    this._iForgeModel.$pull();
+  }
+  async $query() {
   }
 };
 var ForgeModel = class {
   _count = 0;
+  _root = new ForgeStore(new Buffer(), { root: true });
   _idMap = /* @__PURE__ */ new Map();
   _tree = new Tree();
+  _queryManager = new QueryManager();
   constructor() {
+    this._tree.add(this._root);
   }
   $traverse(delegate, forgeStore) {
     throw new Error("Method not implemented.");
@@ -35358,7 +35435,7 @@ var ForgeModel = class {
   $flush() {
     return;
   }
-  async $query() {
+  query(parent) {
     return;
   }
   async $load() {
@@ -35615,7 +35692,7 @@ var ForgeServer2 = class {
         response.sendStatus(404);
         return;
       }
-      const { mime, buffer } = await iAction.$route(route, query);
+      const { mime, buffer } = await iAction.$serve(route, query);
       response.setHeader("Content-Type", mime).end(buffer);
     }.bind(this));
     this._app.all("*", async function(request, response, next) {
@@ -35705,7 +35782,7 @@ var ForgeServer2 = class {
 };
 
 // forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
-var __ForgeProtocol2 = "forge://";
+var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
   _name;
   _key;
@@ -35763,7 +35840,7 @@ var AbstractServiceAdapter = class extends Subscription {
         this.notify("broadcast", header, data);
         return true;
       }
-      if (protocol != __ForgeProtocol2)
+      if (protocol != __ForgeProtocol)
         return;
       if (header.key != this._key)
         return;
@@ -35996,9 +36073,10 @@ var path2 = require("path");
 var WatchManager = class {
   _forge;
   _delay;
+  _throttle;
   _debouncer = new Debouncer();
   _watchEntries = /* @__PURE__ */ new Set();
-  constructor(forge, delay) {
+  constructor(forge, delay, throttle) {
     this._forge = forge;
     this._delay = delay;
   }
@@ -36015,7 +36093,7 @@ var WatchManager = class {
   }
 };
 var Forge3 = class {
-  static Search(pattern) {
+  static Search(glob2) {
   }
   _lastUpdate = Date.now();
   _forgeServer;
@@ -36130,11 +36208,11 @@ var Forge3 = class {
     }
     await Promise.allSettled($promises);
     for (const [name, forgeTask] of this._taskMap) {
-      await forgeTask.$reset(data);
+      $promises.push(forgeTask.$reset(data));
     }
     await Promise.allSettled($promises);
     $promises.push(this._forgeStream.$reset());
-    return { reset: Promise.allSettled($promises) };
+    return { reset: await Promise.allSettled($promises) };
   }
   async $signal(signal, data) {
     const results = await this._forgeStream.$signal(signal, data);

@@ -1,6 +1,6 @@
 import { Serialize } from "../core/Core";
 import { Forge } from "./Forge";
-import { ActionConfig, ForgeAction, IAction } from "./ForgeAction";
+import { ActionConfig, ActionData, ForgeAction, IAction } from "./action/ForgeAction";
 import { IServiceAdapter } from "./service/AbstractServiceAdapter";
 
 export type TaskConfig = {
@@ -69,10 +69,10 @@ export class ForgeTask {
 
     }
 
-    public add(name: string, iAction: IAction): this {
+    public add(iAction: IAction): this {
 
         iAction.task = this;
-        this._iActions.set(name, iAction);
+        this._iActions.set(iAction.name, iAction);
 
         return this;
 
@@ -106,20 +106,16 @@ export class ForgeTask {
         * 
         */
 
-        const actionConfigs: { _name_: string, _implement_: string, _race_?: number, _service_: string }[] = this._data.actions;
-        if (actionConfigs) {
+        const actionData: [ActionData, Record<string, unknown>][] = this._data.actions as [ActionData, Record<string, unknown>][];
+        if (actionData) {
 
-            for (const actionConfig of actionConfigs) {
+            for (const [actionObj, data] of actionData) {
 
                 //try {
 
-                const name: string = actionConfig._name_;
-                const implement: string = actionConfig._implement_;
-                const service: string = actionConfig._service_;
+                const service: string = actionObj.service;
 
-                if (name === undefined) errors.push(`Action "_name_" is undefined for ${this.constructor.name} : ${this.name}"`);
-                if (implement === undefined) errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
-                if (service === undefined) errors.push(`Action "_service_" is undefined for ${this.constructor.name} : ${this.name}"`);
+                if (service === undefined) errors.push(`Action "service" is undefined for ${this.constructor.name} : ${this.name}"`);
 
                 // todo Replace these queries with `Enforce`
                 // retrieve the service. Assert that the Service exists or add en error
@@ -128,11 +124,12 @@ export class ForgeTask {
 
                 if (iServiceAdapter === undefined) {
 
+                    console.log(`hmmmmmmmmmmmm no service found, ${service}`);
                     process.exit();
 
                 }
 
-                this.add(new ForgeAction(iServiceAdapter, implement, actionConfig));
+                this.add(ForgeAction.Parse(iServiceAdapter, actionObj, data));
 
 
                 //} catch (error: unknown) {
