@@ -9324,9 +9324,13 @@ new class extends ForgeClient {
   async $watch(data, race) {
     console.log("cwd:", process.cwd());
     console.log(data);
+<<<<<<< HEAD
     console.log("-- client -- build --");
     execSync3(`node ./forge/build.js --in-- ${data.in} --out-- ${data.out} --platform-- ${data.platform} --format-- ${data.format} --bundled`, { stdio: "inherit" });
     console.log("-- client -- tailwindcss --");
+=======
+    execSync3(`node ./forge/build.js --in-- ${data.in} --out-- ${data.out} --platform-- ${data.platform} --format-- ${data.format} --bundled`, { stdio: "inherit" });
+>>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
     execSync3(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: "inherit" });
     return { "just a": "test" };
   }

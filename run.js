@@ -34958,6 +34958,10 @@ var ResolveTrigger = class {
 
 // forge/_src_/ts/forge/action/ForgeAction.ts
 var $fs2 = require("fs").promises;
+<<<<<<< HEAD
+=======
+var __ForgeProtocol = "forge://";
+>>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
 var ActionStdioType = /* @__PURE__ */ ((ActionStdioType2) => {
   ActionStdioType2["Default"] = "pipe";
   ActionStdioType2["Pipe"] = "pipe";
@@ -34971,6 +34975,7 @@ var ActionRouter = /* @__PURE__ */ ((ActionRouter2) => {
   ActionRouter2["Remote"] = "remote";
   return ActionRouter2;
 })(ActionRouter || {});
+<<<<<<< HEAD
 var ForgeAction = class _ForgeAction extends Subscription {
   static Parse(iServiceAdapter, actionData, data) {
     const triggerData = actionData.triggers;
@@ -34981,6 +34986,9 @@ var ForgeAction = class _ForgeAction extends Subscription {
     }
     return iAction;
   }
+=======
+var ForgeAction = class extends Subscription {
+>>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
   _iServiceAdapter;
   _data;
   _watch;
@@ -35006,6 +35014,26 @@ var ForgeAction = class _ForgeAction extends Subscription {
     this._race = actionConfig.race || this._iServiceAdapter.race;
     this.enabled = actionConfig.enabled || true;
     this._data = data;
+<<<<<<< HEAD
+=======
+    if ("_watch_" in data) {
+      const watch = String(data._watch_);
+      let globStr = watch;
+      if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
+        globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\/\\\\].+?)$");
+      } else if (/[\/\\]\*/.test(watch)) {
+        globStr = globStr.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
+      }
+      console.parse(`<blue>${globStr}</blue>`);
+      this._watch = new RegExp(globStr);
+    }
+    this.name = this._resolveData("_name_", QuickHash());
+    this._async = this._resolveData("_async_", false);
+    this._stdio = this._resolveData("stdio", "pipe" /* Default */);
+    this._race = this._resolveData("_race_", this._iServiceAdapter.race);
+    this.dependencies = this._resolveData("_wait_", []);
+    this.enabled = this._resolveData("enabled", true);
+>>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
     this.stdout = [];
     this.stderr = [];
   }
@@ -35409,7 +35437,11 @@ var ForgeModel = class {
   $flush() {
     return;
   }
+<<<<<<< HEAD
   query(parent) {
+=======
+  async $query() {
+>>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
     return;
   }
   async $load() {
@@ -35756,7 +35788,7 @@ var ForgeServer2 = class {
 };
 
 // forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
-var __ForgeProtocol = "forge://";
+var __ForgeProtocol2 = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
   _name;
   _key;
@@ -35820,7 +35852,7 @@ var AbstractServiceAdapter = class extends Subscription {
         this.notify("broadcast", header, data);
         return true;
       }
-      if (protocol != __ForgeProtocol)
+      if (protocol != __ForgeProtocol2)
         return;
       if (header.key != this._key)
         return;
@@ -35986,8 +36018,34 @@ var glob = require_commonjs();
 var express2 = require_express2();
 var url3 = require("url");
 var path2 = require("path");
+<<<<<<< HEAD
 var Forge3 = class {
   static Search(glob2) {
+=======
+var WatchManager = class {
+  _forge;
+  _delay;
+  _debouncer = new Debouncer();
+  _watchEntries = /* @__PURE__ */ new Set();
+  constructor(forge, delay) {
+    this._forge = forge;
+    this._delay = delay;
+  }
+  async _debounceWatch() {
+    const watchEntries = Array.from(this._watchEntries);
+    this._watchEntries.clear();
+    for (const watchEntry of watchEntries) {
+      await this._forge.$signal("watch", watchEntry);
+    }
+  }
+  add(file, event) {
+    this._watchEntries.add({ file, event });
+    this._debouncer.debounce(this._debounceWatch, [], this._delay);
+  }
+};
+var Forge3 = class {
+  static Search(pattern) {
+>>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
   }
   _lastUpdate = Date.now();
   _forgeServer;
