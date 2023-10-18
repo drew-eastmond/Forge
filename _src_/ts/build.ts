@@ -194,11 +194,11 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
         format: options.format,
         metafile: true,
         loader: { ".ts": "tsx", ".js": "jsx" },
-        // outdir: outFilePath.dir,
+        outdir: outFilePath.dir,
 
         treeShaking: options.treeShaking,
-        outfile: outFile,
-        // sourcemap: "external"
+        // outfile: outFile,
+        // sourcemap: "linked"
 
 
         // plugins: [yourPlugin]

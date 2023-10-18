@@ -12,8 +12,8 @@ type ActionSearch = { task?: string | undefined, action: string };
 export type TriggerData = (
     { signal: string[] } |
     { watch: (RegExp | string)[] } |
-    { "resolves:or": ActionSearch[] } |
-    { "resolves:and": ActionSearch[] }
+    { "resolves:any": ActionSearch[] } |
+    { "resolves:all": ActionSearch[] }
 );
 export interface IForgeTrigger {
 
@@ -29,17 +29,18 @@ export function ParseTrigger(triggerData: TriggerData): IForgeTrigger {
 
     } else if ("watch" in triggerData) {
 
-        console.log(triggerData);
-
         const watches: RegExp[] = triggerData.watch.map(WatchTrigger.ParseWatch);
         return new WatchTrigger(watches);
 
     } else if ("resolves:any" in triggerData) {
 
-        const resolves: ActionSearch[] = triggerData["resolves:or"];
+        const resolves: ActionSearch[] = triggerData["resolves:any"];
         return new ResolveTrigger(ResolverValues.Any, resolves as ActionSearch[]);
 
-    } else if ("resolves:and" in triggerData) {
+    } else if ("resolves:all" in triggerData) {
+
+        const resolves: ActionSearch[] = triggerData["resolves:all"];
+        return new ResolveTrigger(ResolverValues.All, resolves as ActionSearch[]);
 
     } else {
 

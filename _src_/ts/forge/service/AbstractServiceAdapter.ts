@@ -61,6 +61,8 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const lines: string[] = String(message).split(/\r\n|\r|\n/g);
 
+        let output: string[] = [];
+
         for (const line of lines) {
 
             try {
@@ -73,13 +75,15 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
             } catch (error: unknown) {
 
-                if (line != "") {
-
-                    console.parse(`<cyan>${line}</cyan>`);
-
-                }
+                if (line != "") output.push(line);
 
             }
+
+        }
+
+        if (output.length) {
+
+            console.parse(`<cyan>${output.join("\n")}</cyan>`);
 
         }
 
@@ -89,6 +93,8 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const lines: string[] = String(message).split(/\r\n|\r|\n/g);
 
+        let output: string[] = [];
+
         for (const line of lines) {
 
             try {
@@ -101,13 +107,15 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
             } catch (error: unknown) {
 
-                if (line != "") {
-
-                    console.parse(`<magenta>${line}</magenta>`);
-
-                }
+                if (line != "") output.push(line);
 
             }
+
+        }
+
+        if (output.length) {
+
+            console.parse(`<magenta>${output.join("\n")}</magenta>`);
 
         }
 

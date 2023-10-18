@@ -34567,64 +34567,6 @@ console.parse = function(...rest) {
   }));
 };
 
-// forge/_src_/ts/core/timing/Debounce.ts
-var Debouncer = class {
-  _callbackMap = /* @__PURE__ */ new Map();
-  constructor() {
-  }
-  /* private _onBounce = function() {
-  
-          const now: number = Date.now();
-  
-          const callbacks: Function[] = []; 
-          for (const [callback, debounceEntry] of this._callbackMap) {
-              
-              const expiry: number = debounceEntry.previous + debounceEntry.delay;
-              if (expiry < now) {
-  
-                  clearTimeout(debounceEntry.timeout);
-                  callback(...debounceEntry.parameters);
-  				callbacks.push(callback);
-  
-  			}
-  
-          }
-  
-          for (const callback of callbacks) {
-  
-              this._callbackMap.delete(callback);
-  
-          }
-  
-      }.bind(this); */
-  debounce(delegate, parameters, delay) {
-    if (this._callbackMap.has(delegate) === false) {
-      const debounceEntry2 = {
-        parameters,
-        timeout: null,
-        delegate: null
-      };
-      debounceEntry2.delegate = function() {
-        delegate(...debounceEntry2.parameters);
-      };
-      this._callbackMap.set(delegate, debounceEntry2);
-    }
-    const debounceEntry = this._callbackMap.get(delegate);
-    debounceEntry.parameters = parameters;
-    clearTimeout(debounceEntry.timeout);
-    debounceEntry.timeout = setTimeout(debounceEntry.delegate, delay);
-  }
-  reset() {
-    for (const [callback, debounceEntry] of this._callbackMap) {
-      clearTimeout(debounceEntry.timeout);
-    }
-  }
-  clear() {
-    this.reset();
-    this._callbackMap.clear();
-  }
-};
-
 // forge/_src_/ts/io/ForgeIO.ts
 var $fs = require("node:fs/promises");
 var ForgeIO = class {
@@ -34705,68 +34647,54 @@ var ForgeStream = class {
   async $signal(signal, data) {
     this._signal = signal;
     this._data = data;
-    const executedActions = this._executions;
-    const $executions = [];
-    for (const [name, iAction] of this._iActions) {
-      if (this._executions.has(iAction))
-        continue;
-      if (await iAction.$trigger(this)) {
+    const executions = this._executions;
+    const signalStatus = {};
+    let reboundSignal = true;
+    let reboundCount = 0;
+    while (reboundSignal) {
+      reboundSignal = false;
+      const triggeredActions = [];
+      const $executions = [];
+      for (const [name, iAction] of this._iActions) {
+        if (await iAction.$trigger(this)) {
+          triggeredActions.push(iAction);
+        }
+      }
+      for (const iAction of triggeredActions) {
+        executions.add(iAction);
         $executions.push(iAction.$signal(signal, data).then(function(data2) {
-          executedActions.add(iAction);
           return {
             name: iAction.name,
             resolve: data2
           };
         }).catch(function(error) {
           console.parse(error);
-          return {
-            name,
-            reject: error
-          };
-        }));
-      }
-    }
-    const executions = await Promise.allSettled($executions);
-    const failedDependencies = [];
-    const $rebounds = [];
-    for (const [name, iAction] of this._iActions) {
-      const dependencies = iAction.dependencies;
-      if (dependencies.length == 0) {
-        failedDependencies.push(`${iAction.task.name}\\${iAction.name}`);
-        continue;
-      }
-      let dependenciesResolved = true;
-      for (const dependencyObj of dependencies) {
-        const dependentAction = this.find(dependencyObj.task || iAction.task.name, dependencyObj.action);
-        if (this._executions.has(dependentAction) === false)
-          dependenciesResolved = false;
-      }
-      if (dependenciesResolved && this._executions.has(iAction) === false) {
-        console.log("rebounding", iAction.name);
-        $rebounds.push(iAction.$signal(signal, data).then(function(data2) {
-          executedActions.add(iAction);
-          return {
+          throw {
             name: iAction.name,
-            resolve: data2
-          };
-        }).catch(function(error) {
-          console.parse(error);
-          return {
-            name,
             reject: error
           };
         }));
       }
+      const allSettled = await Promise.allSettled($executions);
+      if (allSettled.length) {
+        reboundSignal = true;
+        if (reboundCount == 0) {
+          signalStatus.executions = allSettled;
+        } else {
+          if (reboundCount == 1) {
+            signalStatus.rebound = allSettled;
+          } else {
+            signalStatus[`rebound(${reboundCount})`] = allSettled;
+          }
+        }
+        reboundCount++;
+      }
     }
-    const rebounds = await Promise.allSettled($rebounds);
-    console.log({
-      executions,
-      rebounds
-    });
-    return {
-      executions,
-      rebounds
-    };
+    console.group(signal);
+    console.log(data);
+    console.log(signalStatus);
+    console.groupEnd();
+    return signalStatus;
   }
 };
 
@@ -34955,13 +34883,14 @@ function ParseTrigger(triggerData) {
   if ("signal" in triggerData) {
     return new SignalTrigger(triggerData.signal);
   } else if ("watch" in triggerData) {
-    console.log(triggerData);
     const watches = triggerData.watch.map(WatchTrigger.ParseWatch);
     return new WatchTrigger(watches);
   } else if ("resolves:any" in triggerData) {
-    const resolves = triggerData["resolves:or"];
+    const resolves = triggerData["resolves:any"];
     return new ResolveTrigger("any" /* Any */, resolves);
-  } else if ("resolves:and" in triggerData) {
+  } else if ("resolves:all" in triggerData) {
+    const resolves = triggerData["resolves:all"];
+    return new ResolveTrigger("all" /* All */, resolves);
   } else {
     throw new Error("Trigger Data in incorrect");
   }
@@ -35046,13 +34975,15 @@ var ForgeAction = class _ForgeAction extends Subscription {
   static Parse(iServiceAdapter, actionData, data) {
     const triggerData = actionData.triggers;
     const iForgeTriggers = triggerData.map(ParseTrigger);
-    return new _ForgeAction(iServiceAdapter, { ...actionData, triggers: iForgeTriggers }, data);
+    const iAction = new _ForgeAction(iServiceAdapter, { name: actionData.name, ...actionData }, data);
+    for (const iForgeTrigger of iForgeTriggers) {
+      iAction.add(iForgeTrigger);
+    }
+    return iAction;
   }
   _iServiceAdapter;
   _data;
   _watch;
-  _async;
-  _stdio;
   _startTime;
   _race;
   _cancelable;
@@ -35060,29 +34991,21 @@ var ForgeAction = class _ForgeAction extends Subscription {
   _bindings = /* @__PURE__ */ new Map();
   _sessions = /* @__PURE__ */ new Map();
   _iForgeTriggers = /* @__PURE__ */ new Set();
-  dependencies;
+  // public readonly dependencies: { task: string, action: string }[];
   stdout;
   stderr;
   name;
   enabled;
   task;
-  constructor(iServiceAdapter, config, data) {
+  constructor(iServiceAdapter, actionConfig, data) {
     super();
-    const errors = [];
     if (iServiceAdapter === void 0)
-      errors.push(`iServiceAdapter is undefined`);
+      throw new Error(`iServiceAdapter is undefined`);
     this._iServiceAdapter = iServiceAdapter;
+    this.name = actionConfig.name || QuickHash();
+    this._race = actionConfig.race || this._iServiceAdapter.race;
+    this.enabled = actionConfig.enabled || true;
     this._data = data;
-    if ("_watch_" in data) {
-      const watch = String(data._watch_);
-      let globStr = watch;
-      console.parse(`<blue>${globStr}</blue>`);
-      this._watch = new RegExp(globStr);
-    }
-    this.name = config.name || QuickHash();
-    this._async = config.async || false;
-    this._race = config.race || this._iServiceAdapter.race;
-    this.enabled = config.enabled || true;
     this.stdout = [];
     this.stderr = [];
   }
@@ -35092,8 +35015,14 @@ var ForgeAction = class _ForgeAction extends Subscription {
   _subscribeMessage(notify, header, ...data) {
     console.error("_subscribeMessage", notify, header, data);
   }
+  add(overload) {
+    this._iForgeTriggers.add(overload);
+    return this;
+  }
   async $trigger(forgeStream) {
     if (this.enabled === false)
+      return false;
+    if (forgeStream.executions.has(this))
       return false;
     for (const iForgeTrigger of this._iForgeTriggers) {
       if (await iForgeTrigger.$trigger(forgeStream))
@@ -35102,19 +35031,6 @@ var ForgeAction = class _ForgeAction extends Subscription {
     return false;
   }
   $signal(signal, data, race) {
-    let triggered = false;
-    for (const iForgeTrigger of this._iForgeTriggers) {
-    }
-    if (triggered === false)
-      return Promise.reject({});
-    if (signal == "watch" && this._watch) {
-      const { file, event } = data;
-      console.log(`${this.name} watching:`, this._watch, this._watch.test(file), data);
-      if (this._watch.test(file) === false) {
-        console.warn(`"watch" Signal Ignored`);
-        return Promise.reject({ name: this._data._name_, watch: "ignored" });
-      }
-    }
     return this._iServiceAdapter.$signal(signal, { ...this._data, ...data }, race);
   }
   /* public $watch(data: Serialize): Promise<boolean> {
@@ -35212,7 +35128,7 @@ var ForgeTask3 = class {
     return this._iActions;
   }
   async $reset(data) {
-    return { "please": "implement or subcalss" };
+    return { resolve: "not implemented" };
   }
   add(iAction) {
     iAction.task = this;
@@ -35243,6 +35159,64 @@ var ForgeTask3 = class {
     }
     if (errors.length)
       throw new Error("\n\n" + errors.join("\n") + "\n");
+  }
+};
+
+// forge/_src_/ts/core/timing/Debounce.ts
+var Debouncer = class {
+  _callbackMap = /* @__PURE__ */ new Map();
+  constructor() {
+  }
+  /* private _onBounce = function() {
+  
+          const now: number = Date.now();
+  
+          const callbacks: Function[] = []; 
+          for (const [callback, debounceEntry] of this._callbackMap) {
+              
+              const expiry: number = debounceEntry.previous + debounceEntry.delay;
+              if (expiry < now) {
+  
+                  clearTimeout(debounceEntry.timeout);
+                  callback(...debounceEntry.parameters);
+  				callbacks.push(callback);
+  
+  			}
+  
+          }
+  
+          for (const callback of callbacks) {
+  
+              this._callbackMap.delete(callback);
+  
+          }
+  
+      }.bind(this); */
+  debounce(delegate, parameters, delay) {
+    if (this._callbackMap.has(delegate) === false) {
+      const debounceEntry2 = {
+        parameters,
+        timeout: null,
+        delegate: null
+      };
+      debounceEntry2.delegate = function() {
+        delegate(...debounceEntry2.parameters);
+      };
+      this._callbackMap.set(delegate, debounceEntry2);
+    }
+    const debounceEntry = this._callbackMap.get(delegate);
+    debounceEntry.parameters = parameters;
+    clearTimeout(debounceEntry.timeout);
+    debounceEntry.timeout = setTimeout(debounceEntry.delegate, delay);
+  }
+  reset() {
+    for (const [callback, debounceEntry] of this._callbackMap) {
+      clearTimeout(debounceEntry.timeout);
+    }
+  }
+  clear() {
+    this.reset();
+    this._callbackMap.clear();
   }
 };
 
@@ -35801,6 +35775,7 @@ var AbstractServiceAdapter = class extends Subscription {
   }
   _pipeStdio(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
+    let output = [];
     for (const line of lines) {
       try {
         const [forge, header, data] = JSON.parse(line);
@@ -35808,14 +35783,17 @@ var AbstractServiceAdapter = class extends Subscription {
           return;
         this.read([forge, header, data]);
       } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
+        if (line != "")
+          output.push(line);
       }
+    }
+    if (output.length) {
+      console.parse(`<cyan>${output.join("\n")}</cyan>`);
     }
   }
   _pipeError(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
+    let output = [];
     for (const line of lines) {
       try {
         const [forge, header, data] = JSON.parse(line);
@@ -35823,10 +35801,12 @@ var AbstractServiceAdapter = class extends Subscription {
           return;
         this.read([forge, header, data]);
       } catch (error) {
-        if (line != "") {
-          console.parse(`<magenta>${line}</magenta>`);
-        }
+        if (line != "")
+          output.push(line);
       }
+    }
+    if (output.length) {
+      console.parse(`<magenta>${output.join("\n")}</magenta>`);
     }
   }
   get race() {
@@ -35923,8 +35903,6 @@ var ExecService = class extends AbstractServiceAdapter {
     }
     return output;
   }
-  _onExit() {
-  }
   write(header, data) {
   }
   $signal(signal, data, race) {
@@ -35937,15 +35915,15 @@ var ExecService = class extends AbstractServiceAdapter {
       const child = exec(command, { stdio: "pipe" });
       child.on("exit", function(error, stdout, stderr) {
         if (error) {
-          reject({ name, "reject": "hehehe" });
+          reject({ name, "reject": `execution error (${error})` });
         } else {
-          resolve({ name, "resolve": "hehehe" });
+          resolve({ name, "resolve": "successfully executed" });
         }
       });
       child.stdout.on("data", pipeStdio);
       child.stderr.on("data", pipeError);
       setTimeout(function() {
-        reject({ name, "rejected": "timeout" });
+        reject({ name, "reject": `signal timeout: ${race}ms` });
       }, race);
     }.bind(this));
   }
@@ -35961,7 +35939,6 @@ var ForkService = class extends AbstractServiceAdapter {
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
-      console.log(config);
       this._commands = config.command.split(/\s+/g);
       const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
       this._source = source || fork2(this._commands[0], args, { stdio: "pipe", signal });
@@ -35969,49 +35946,9 @@ var ForkService = class extends AbstractServiceAdapter {
       this._source = source;
     }
     this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
+    this._source.stderr.on("data", this._bindings.get(this._pipeError));
     this._source.on("exit", this._onExit.bind(this));
     this._source.on("message", this._bindings.get(this.read));
-  }
-  /* private _onStdoutData(message: string): void {
-  
-          const lines: string[] = String(message).split(/\r\n|\r|\n/g);
-  
-          for (const line of lines) {
-  
-              try {
-  
-                  const [forge, header, data] = JSON.parse(line);
-  
-                  if (header.key != this._key) return;
-  
-                  this.read([forge, header, data]);
-  
-              } catch (error: unknown) {
-  
-                  // message ignored
-                  // console.log("ignore -- ", error);
-                  // console.log("line", line);
-  
-                  if (line != "") {
-  
-                      console.parse(`<cyan>${line}</cyan>`);
-  
-                  }
-  
-              }
-  
-  
-  
-  
-          }
-  
-      } */
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<magenta>${line}</magenta>`);
-    }
   }
   _onExit() {
   }
@@ -36031,29 +35968,8 @@ var SpawnService = class extends AbstractServiceAdapter {
     const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
     this._source = source || spawn3(this._commands[0], args, { stdio: "pipe" });
     this._source.on("exit", this._onExit.bind(this));
-    this._source.stdout.on("data", this._onStdoutData.bind(this));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
-  }
-  _onStdoutData(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      try {
-        const [forge, header, data] = JSON.parse(line);
-        if (header.key != this._key)
-          return;
-        this.read([forge, header, data]);
-      } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<cyan>${line}</cyan>`);
-    }
+    this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
+    this._source.stderr.on("data", this._bindings.get(this._pipeError));
   }
   _onExit() {
   }
@@ -36070,28 +35986,6 @@ var glob = require_commonjs();
 var express2 = require_express2();
 var url3 = require("url");
 var path2 = require("path");
-var WatchManager = class {
-  _forge;
-  _delay;
-  _throttle;
-  _debouncer = new Debouncer();
-  _watchEntries = /* @__PURE__ */ new Set();
-  constructor(forge, delay, throttle) {
-    this._forge = forge;
-    this._delay = delay;
-  }
-  async _debounceWatch() {
-    const watchEntries = Array.from(this._watchEntries);
-    this._watchEntries.clear();
-    for (const watchEntry of watchEntries) {
-      await this._forge.$signal("watch", watchEntry);
-    }
-  }
-  add(file, event) {
-    this._watchEntries.add({ file, event });
-    this._debouncer.debounce(this._debounceWatch, [], this._delay);
-  }
-};
 var Forge3 = class {
   static Search(glob2) {
   }
@@ -36193,25 +36087,29 @@ var Forge3 = class {
     watcher.on("ready", function() {
       watcher.on("all", async function(event, file) {
         const resetNow = Date.now();
+        console.group("------------------ watch ------------------");
+        console.parse("<blue>start:", resetNow);
         const resets = await forge.$reset({ file, event });
-        console.log("resetTime:", Date.now() - resetNow);
-        const watchNow = Date.now();
+        console.parse("<blue>reset complete:", Date.now() - resetNow);
+        const signalNow = Date.now();
         await forge.$signal("watch", { file, event });
-        console.log("watchTime:", Date.now() - watchNow);
+        console.parse(`<blue>end: <yellow>${Date.now() - signalNow}ms`);
+        console.log("");
+        console.groupEnd();
       });
     });
   }
-  async $reset(data) {
+  async $reset(data, race) {
     const $promises = [];
     for (const [name, iService] of this.services) {
       $promises.push(iService.$reset(data));
     }
     await Promise.allSettled($promises);
+    $promises.push(this._forgeStream.$reset());
+    await Promise.allSettled($promises);
     for (const [name, forgeTask] of this._taskMap) {
       $promises.push(forgeTask.$reset(data));
     }
-    await Promise.allSettled($promises);
-    $promises.push(this._forgeStream.$reset());
     return { reset: await Promise.allSettled($promises) };
   }
   async $signal(signal, data) {

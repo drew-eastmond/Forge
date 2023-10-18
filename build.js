@@ -9249,6 +9249,7 @@ var AbstractServiceAdapter = class extends Subscription {
   }
   _pipeStdio(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
+    let output = [];
     for (const line of lines) {
       try {
         const [forge, header, data] = JSON.parse(line);
@@ -9256,14 +9257,17 @@ var AbstractServiceAdapter = class extends Subscription {
           return;
         this.read([forge, header, data]);
       } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
+        if (line != "")
+          output.push(line);
       }
+    }
+    if (output.length) {
+      console.parse(`<cyan>${output.join("\n")}</cyan>`);
     }
   }
   _pipeError(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
+    let output = [];
     for (const line of lines) {
       try {
         const [forge, header, data] = JSON.parse(line);
@@ -9271,10 +9275,12 @@ var AbstractServiceAdapter = class extends Subscription {
           return;
         this.read([forge, header, data]);
       } catch (error) {
-        if (line != "") {
-          console.parse(`<magenta>${line}</magenta>`);
-        }
+        if (line != "")
+          output.push(line);
       }
+    }
+    if (output.length) {
+      console.parse(`<magenta>${output.join("\n")}</magenta>`);
     }
   }
   get race() {
@@ -9351,7 +9357,6 @@ var ForkService = class extends AbstractServiceAdapter {
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
-      console.log(config);
       this._commands = config.command.split(/\s+/g);
       const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
       this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
@@ -9359,49 +9364,9 @@ var ForkService = class extends AbstractServiceAdapter {
       this._source = source;
     }
     this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
+    this._source.stderr.on("data", this._bindings.get(this._pipeError));
     this._source.on("exit", this._onExit.bind(this));
     this._source.on("message", this._bindings.get(this.read));
-  }
-  /* private _onStdoutData(message: string): void {
-  
-          const lines: string[] = String(message).split(/\r\n|\r|\n/g);
-  
-          for (const line of lines) {
-  
-              try {
-  
-                  const [forge, header, data] = JSON.parse(line);
-  
-                  if (header.key != this._key) return;
-  
-                  this.read([forge, header, data]);
-  
-              } catch (error: unknown) {
-  
-                  // message ignored
-                  // console.log("ignore -- ", error);
-                  // console.log("line", line);
-  
-                  if (line != "") {
-  
-                      console.parse(`<cyan>${line}</cyan>`);
-  
-                  }
-  
-              }
-  
-  
-  
-  
-          }
-  
-      } */
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<magenta>${line}</magenta>`);
-    }
   }
   _onExit() {
   }
@@ -9421,29 +9386,8 @@ var SpawnService = class extends AbstractServiceAdapter {
     const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
     this._source = source || spawn2(this._commands[0], args, { stdio: "pipe" });
     this._source.on("exit", this._onExit.bind(this));
-    this._source.stdout.on("data", this._onStdoutData.bind(this));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
-  }
-  _onStdoutData(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      try {
-        const [forge, header, data] = JSON.parse(line);
-        if (header.key != this._key)
-          return;
-        this.read([forge, header, data]);
-      } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<cyan>${line}</cyan>`);
-    }
+    this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
+    this._source.stderr.on("data", this._bindings.get(this._pipeError));
   }
   _onExit() {
   }
@@ -9615,10 +9559,10 @@ async function $build(entryFile, outFile, options) {
     format: options.format,
     metafile: true,
     loader: { ".ts": "tsx", ".js": "jsx" },
-    // outdir: outFilePath.dir,
-    treeShaking: options.treeShaking,
-    outfile: outFile
-    // sourcemap: "external"
+    outdir: outFilePath.dir,
+    treeShaking: options.treeShaking
+    // outfile: outFile,
+    // sourcemap: "linked"
     // plugins: [yourPlugin]
     // external: []
   });

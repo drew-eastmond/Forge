@@ -65,7 +65,7 @@ export class ForgeTask {
 
         console.log(results, Date.now() - startTime); */
 
-        return {"please" : "implement or subcalss"};
+        return { resolve: "not implemented" };
 
     }
 

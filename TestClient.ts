@@ -28,7 +28,10 @@ new class extends ForgeClient {
         console.log(data);
 
 
+        console.log("-- client -- build --");
         execSync(`node ./forge/build.js --in-- ${data.in} --out-- ${data.out} --platform-- ${data.platform} --format-- ${data.format} --bundled`, { stdio: 'inherit' });
+
+        console.log("-- client -- tailwindcss --");
         execSync(`npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css`, { stdio: 'inherit' });
 
         return { "just a": "test" };

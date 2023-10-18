@@ -29,47 +29,6 @@ type ForgeConfig = {
     tasks: TaskConfig[]
 }
 
-// relay class defitions
-
-class WatchManager {
-
-    private _forge: Forge;
-
-    private _delay: number;
-    private _throttle : number;
-    private _debouncer: Debouncer = new Debouncer();
-
-    private readonly _watchEntries: Set<{ event: string, file: string }> = new Set(); 
-
-    constructor(forge: Forge, delay: number, throttle: number ) {
-
-        this._forge = forge;
-        this._delay = delay;
-
-    }
-
-    private async _debounceWatch (): Promise<void> {
-
-        const watchEntries: { file: String, event: string }[] = Array.from(this._watchEntries);
-        this._watchEntries.clear();
-        for (const watchEntry of watchEntries) {
-
-            await this._forge.$signal("watch", watchEntry);
-
-        }
-
-    }
-
-    public add(file: string, event: string): void {
-
-        this._watchEntries.add({ file, event });
-
-        this._debouncer.debounce(this._debounceWatch, [], this._delay);
-
-    }
-
-}
-
 export class Forge {
 
     public static Search(glob: string) : void {
@@ -274,13 +233,17 @@ export class Forge {
             watcher.on("all", async function (event: string, file : string) {
 
                 const resetNow: number = Date.now();
+                console.group("------------------ watch ------------------");
+                console.parse("<blue>start:", resetNow);
                 const resets: Serialize = await forge.$reset({ file, event });
-                console.log("resetTime:", Date.now() - resetNow);
+                console.parse("<blue>reset complete:", Date.now() - resetNow);
                 // console.log("ForgeStream reset", resets);
 
-                const watchNow: number = Date.now();
+                const signalNow: number = Date.now();
                 await forge.$signal("watch", { file, event });
-                console.log("watchTime:", Date.now() - watchNow);
+                console.parse(`<blue>end: <yellow>${Date.now() - signalNow}ms`);
+                console.log("");
+                console.groupEnd();
 
             });
 
@@ -288,7 +251,7 @@ export class Forge {
 
     }
 
-    public async $reset(data: Serialize): Promise<Serialize> {
+    public async $reset(data: Serialize, race?: number): Promise<Serialize> {
 
         const $promises: Promise<Serialize>[] = [];
         for (const [name, iService] of this.services) {
@@ -300,16 +263,19 @@ export class Forge {
         // we need to await services for synchronization reasons.
         await Promise.allSettled($promises);
 
+        $promises.push(this._forgeStream.$reset());
+        await Promise.allSettled($promises);
+
+        /*
+        * x. ForgeTask is implmented via inheritance. Otherwise returna  
+        */
         for (const [name, forgeTask] of this._taskMap) {
 
             // await forgeTask.$reset(data);
             $promises.push(forgeTask.$reset(data));
 
         }
-        await Promise.allSettled($promises);
-
-        $promises.push(this._forgeStream.$reset());
-
+        
         return { reset: await Promise.allSettled($promises) };
 
     }
