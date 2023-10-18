@@ -4,6 +4,7 @@ export class Tree<T = unknown> {
 
 	private _parentMap: Map<T, T> = new Map();
 	private _childMap: Map<T, Set<T>> = new Map();
+	private _traversalSet: Set<T> = new Set();
 
 	public *[Symbol.iterator](): Iterator<T> {
 
@@ -36,9 +37,14 @@ export class Tree<T = unknown> {
 
 	}
 
-	public add(instance: T): this {
+	public add(instance: T): this;
+	public add(instance: T, parent: T): this;
+	public add(instance: T, parent?: T): this {
 
 		this._instanceSet.add(instance);
+
+		// if parent was included, then add it directly to the parent map
+		if (parent) this._parentMap.set(instance, parent);
 
 		return this;
 
@@ -54,9 +60,11 @@ export class Tree<T = unknown> {
 
 	}
 
-	public parent(instance: T): T {
+	public parent(child: T, parent: T): this {
 
-		return this._parentMap.get(instance);
+		this._parentMap.set(child, parent);
+
+		return this;
 
 	}
 

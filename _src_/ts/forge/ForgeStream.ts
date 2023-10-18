@@ -1,5 +1,5 @@
 import { Serialize } from "../core/Core";
-import { IAction } from "./ForgeAction";
+import { IAction } from "./action/ForgeAction";
 import { ForgeTask } from "./ForgeTask";
 
 export class ForgeStream {
@@ -37,39 +37,25 @@ export class ForgeStream {
     *
     */
 
-    public actions(): Iterable<[string, IAction]> {
+    get actions(): Iterable<[string, IAction]> {
 
         return this._iActions;
 
     }
 
-    public signal(): string;
-    public signal(value: string): string;
-    public signal(value?: string): string {
+    get signal(): string {
 
-        return (value === undefined) ? this._signal : this._signal = value;
+        return this._signal;
 
     }
 
-    public data(): Serialize;
-    public data(value: Serialize): Serialize;
-    public data(value?: Serialize): Serialize {
+    get data(): Serialize {
 
-        return (value === undefined) ? this._data : this._data = value;
+        return this._data;
 
     }
 
-    public executions(): Set<IAction>;
-    public executions(iterable: Iterable<IAction>): Set<IAction>;
-    public executions(iterable?: Iterable<IAction>): Set<IAction> {
-
-        if (iterable === undefined) return this._executions;
-
-        for (const iAction of iterable) {
-
-            this._executions.add(iAction);
-
-        }
+    get executions(): Set<IAction> {
 
         return this._executions;
 
@@ -104,9 +90,13 @@ export class ForgeStream {
         if (iAction === undefined) throw new Error(`IAction : "${actionName}" does not exist within "${taskName}"`);
 
         return iAction;
+
     }
 
     public async $reset(): Promise<Serialize> {
+
+        this._signal = undefined;
+        this._data = undefined;
 
         this._executions.clear();
 
@@ -123,34 +113,50 @@ export class ForgeStream {
 
     public async $signal(signal: string, data?: Serialize): Promise<Serialize> {
 
+        this._signal = signal;
+        this._data = data;
+
         // collectiosn of all responses
+
+        const executions: Set<IAction> = this._executions;
+
+        const signalStatus: Record<string, unknown> = {};
+        let reboundSignal: boolean = true;
+        let reboundCount: number = 0;
+
         
-        const executedActions: Set<IAction> = this._executions;
+
+        while (reboundSignal) {
+
+            reboundSignal = false;
+
+            const triggeredActions: IAction[] = [];
+            const $executions: Promise<Serialize>[] = [];
+
+            for (const [name, iAction] of this._iActions) {
+
+                // only one execution per reset and action must implement the signal
+                // const errors: string[] = [];
+                // if (this._executions.has(iAction)) continue; // errors.push(`${name} already executed`);
+                // if (iAction.implement() != signal) errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);;
+                // f (iAction.dependencies.length) errors.push(`${name} has dependencies`);
 
 
-        const $executions: Promise<Serialize>[] = [];
-        for (const [name, iAction] of this._iActions) {
+                if (await iAction.$trigger(this)) {
 
-            // only one execution per reset and action must implement the signal
-            const errors: string[] = [];
-            if (this._executions.has(iAction)) errors.push(`${name} already executed`);
-            if (iAction.implement() != signal) errors.push(`${name}->"${iAction.implement()}" does not implement signal : "${signal}"`);;
-            if (iAction.dependencies.length) errors.push(`already executed`);;
+                    triggeredActions.push(iAction);
 
-            if (errors.length) {
+                }
 
-                $executions.push(Promise.reject({
-                    name,
-                    reject: errors
-                }));
-                continue;
+            }
 
-            } else {
+
+            for (const iAction of triggeredActions) {
+
+                executions.add(iAction);
 
                 $executions.push(iAction.$signal(signal, data)
                     .then(function (data: Serialize) {
-
-                        executedActions.add(iAction);
 
                         return {
                             name: iAction.name,
@@ -161,8 +167,8 @@ export class ForgeStream {
                     .catch(function (error: unknown) {
 
                         console.parse(error);
-                        return {
-                            name,
+                        throw {
+                            name: iAction.name,
                             reject: error
                         };
 
@@ -170,18 +176,61 @@ export class ForgeStream {
 
             }
 
+            const allSettled: PromiseSettledResult<Serialize>[] = await Promise.allSettled($executions);
+
+            if (allSettled.length) {
+
+                reboundSignal = true;
+
+                if (reboundCount == 0) {
+
+                    signalStatus.executions = allSettled;
+
+                } else {
+
+                    if (reboundCount == 1) {
+
+                        signalStatus.rebound = allSettled;
+
+                    } else {
+
+                        signalStatus[`rebound(${reboundCount})`] = allSettled;
+
+                    }
+                    
+
+                }
+
+                reboundCount++;
+
+            }
         }
 
-        const executions: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled($executions);
-        // console.log("forgeStream executions !!!>>>", executions);
+        console.group(signal);
+        console.log(data);
+        console.log(signalStatus);
+        console.groupEnd();
+
+        return signalStatus;
+        
+
+    }
+
+}
+
+            /*
+
+
+
+
 
         const failedDependencies: string[] = [];
         const $rebounds: Promise<Serialize>[] = [];
         for (const [name, iAction] of this._iActions) {
 
-            const dependencies: { task?: string, action?: string }[] = iAction.dependencies; 
+            // const dependencies: { task?: string, action?: string }[] = iAction.dependencies;
 
-            if (dependencies.length == 0) {
+            /*if (dependencies.length == 0) {
 
                 failedDependencies.push(`${iAction.task.name}\\${iAction.name}`);
                 continue;
@@ -195,86 +244,49 @@ export class ForgeStream {
                 const dependentAction: IAction = this.find(dependencyObj.task || iAction.task.name, dependencyObj.action);
                 if (this._executions.has(dependentAction) === false) dependenciesResolved = false;
 
+            } * /
+
+// if the current iAction passed the previous `dependenciesResolved` test
+// if (dependenciesResolved && this._executions.has(iAction) === false) {
+if (await iAction.$trigger(this)) {
+
+    console.log("rebounding", iAction.name);
+    executedActions.add(iAction);
+
+    $rebounds.push(iAction.$signal(signal, data)
+        .then(function (data: Serialize) {
+
+            return {
+                name: iAction.name,
+                resolve: data
             }
 
-            // if the current iAction passed the previous `dependenciesResolved` test
-            if (dependenciesResolved && this._executions.has(iAction) === false) {
+        })
+        .catch(function (error: unknown) {
 
-                console.log("rebounding", iAction.name);
+            console.parse(error);
+            return {
+                name,
+                reject: error
+            };
 
-                const implement: string = iAction.implement();
-                $rebounds.push(iAction.$signal(implement, data)
-                    .then(function (data: Serialize) {
+        }));
 
-                        executedActions.add(iAction);
 
-                        return {
-                            name: iAction.name,
-                            resolve: data
-                        }
 
-                    })
-                    .catch(function (error: unknown) {
-
-                        console.parse(error);
-                        return {
-                            name,
-                            reject: error
-                        };
-
-                    }));
-                
-                
-
-            }
+}
             
 
         }
 
-        const rebounds: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled($rebounds);
+const rebounds: ({ status: "fulfilled", value: unknown } | { status: "rejected", reason: unknown })[] | unknown[] = await Promise.allSettled($rebounds);
 
-        console.log({
-            executions,
-            rebounds
-        });
+console.log(signal, data, {
+    executions,
+    rebounds
+});
 
-        return {
-            executions,
-            rebounds
-        };
-
-
-
-        // do dependencies
-        /* for (const [name, iAction] of this._iActions) {
-
-            console.log("_executions", this._executions.has(iAction));
-            console.log(iAction.implement(), iAction.implement() != "dependency");
-            // console.log(iAction.resolveDependencies(this))
-
-            // actions should only be executed once
-            if (this._executions.has(iAction)) continue; 
-            if (iAction.implement() != "dependency") continue;
-            // if (iAction.resolveDependencies(this) === false) continue;
-
-            console.log("dependecy found");
-
-            const response: Serialize | Error = await iAction.$signal("dependency", data)
-                .then(function (data: Serialize) {
-
-                    executedActions.add(iAction);
-
-                    return data;
-
-                })
-                .catch(this._bindings.get(this._$catchRaced$Execute) as (error) => unknown);
-
-            results.push(response);
-
-        }
-
-        return results; */
-
-    }
-
-}
+return {
+    executions,
+    rebounds
+}; */

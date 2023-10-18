@@ -1,8 +1,16 @@
 import { Serialize } from "../core/Core";
-import { ForgeAction, IAction } from "./ForgeAction";
-import { ForgeStream } from "./ForgeStream";
-import { IServiceAdapter, ServiceAdpaterConfig } from "./service/AbstractServiceAdapter";
 import { Forge } from "./Forge";
+import { ActionConfig, ActionData, ForgeAction, IAction } from "./action/ForgeAction";
+import { IServiceAdapter } from "./service/AbstractServiceAdapter";
+
+export type TaskConfig = {
+
+    name: string,
+    enabled: boolean,
+
+    actions: ActionConfig[]
+
+}
 
 export class ForgeTask {
 
@@ -12,17 +20,19 @@ export class ForgeTask {
 
     private _enabled: boolean;
 
-    private _data: any;
+    private _data: Record<string, unknown>;
 
     public name: string;
     
 
-    constructor(forge: Forge, config?: any) {
+    constructor(forge: Forge, config?: Record<string, unknown>) {
 
         if (forge === undefined) throw new Error(`Forge Instance must be passed into ForgeTask`);
-        if (config === undefined) throw new Error(`Config data must be passed into ForgeTask`);
-
         this._forge = forge;
+
+        if (config === undefined) return; 
+        // throw new Error(`Config data must be passed into ForgeTask`);
+        
 
         this.parse(config);
 
@@ -55,7 +65,7 @@ export class ForgeTask {
 
         console.log(results, Date.now() - startTime); */
 
-        return {"please" : "implement or subcalss"};
+        return { resolve: "not implemented" };
 
     }
 
@@ -96,64 +106,30 @@ export class ForgeTask {
         * 
         */
 
-        const actionConfigs: { _name_: string, _implement_: string, _race_?: number, _spawn_?: string, _fork_?: string, _exec_?: string, worker?: string }[] = this._data.actions;
-        if (actionConfigs) {
+        const actionData: [ActionData, Record<string, unknown>][] = this._data.actions as [ActionData, Record<string, unknown>][];
+        if (actionData) {
 
-            for (const actionConfig of actionConfigs) {
-
-                let iAction: IAction;
+            for (const [actionObj, data] of actionData) {
 
                 //try {
 
-                    const name: string = actionConfig._name_;
-                    const implement: string = actionConfig._implement_;
+                const service: string = actionObj.service;
 
-                    if (name === undefined) errors.push(`Action "_name_" is undefined for ${this.constructor.name} : ${this.name}"`);
-                    if (implement === undefined) errors.push(`Action "_implement_" is undefined for ${this.constructor.name} : ${this.name}"`);
-                    
-                if ("_spawn_" in actionConfig) {
+                if (service === undefined) errors.push(`Action "service" is undefined for ${this.constructor.name} : ${this.name}"`);
 
-                    const serviceName: string = actionConfig._spawn_;
+                // todo Replace these queries with `Enforce`
+                // retrieve the service. Assert that the Service exists or add en error
+                if (iServices.has(service) === false) errors.push(`No Service has been registered for "${service}" by "${this.name}"`);
+                const iServiceAdapter: IServiceAdapter = iServices.get(service);
 
-                    // todo Replace these queries with `Enforce`
-                    // retrieve the service. Assert that the Service exists or add en error
-                    if (iServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
-                    const spawnService: IServiceAdapter = iServices.get(serviceName);
+                if (iServiceAdapter === undefined) {
 
-                    this.add(new ForgeAction(spawnService, implement, actionConfig));
-
-                } else if ("_fork_" in actionConfig) {
-
-                    const serviceName: string = actionConfig._fork_;
-
-                    // retrieve the service. Enforce that the Service exists or add en error
-                    if (iServices.has(serviceName) === false) errors.push(`No Spawn Service has been registered for ${this.constructor.name} : "${this.name}"`);
-                    const forkService: IServiceAdapter = iServices.get(serviceName);
-
-                    this.add(new ForgeAction(forkService, implement, actionConfig));
-
-                } else if ("_worker_" in actionConfig) {
-
-
-
-                } else if ("_exec_") {
-
-                    const serviceName: string = actionConfig._exec_;
-
-                    // retrieve the service. Enforce that the Service exists or add en error
-                    if (iServices.has(serviceName) === false) errors.push(`No Execute Service has been registered for ${this.constructor.name} : "${this.name}"`);
-                    const execService: IServiceAdapter = iServices.get(serviceName);
-
-                    this.add(new ForgeAction(execService, implement, actionConfig));
-
-                } else {
-
-                    console.error("total failure");
-                    process.exit(1);
+                    console.log(`hmmmmmmmmmmmm no service found, ${service}`);
+                    process.exit();
 
                 }
 
-                    
+                this.add(ForgeAction.Parse(iServiceAdapter, actionObj, data));
 
 
                 //} catch (error: unknown) {

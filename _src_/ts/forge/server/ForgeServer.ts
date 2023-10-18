@@ -7,10 +7,10 @@ const mimeTypes = require("mime-types");
 
 import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
 import { Debouncer } from "../../core/timing/Debounce";
-import { IAction } from "../ForgeAction";
+import { IAction } from "../action/ForgeAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
-import { ForgeStorage, ForgeStore, IForgeStorage } from "../storage/ForgeStorage";
+import { ForgeModel, ForgeStore, IForgeModel } from "../model/ForgeModel";
 import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./Route";
 
 /*
@@ -119,7 +119,7 @@ export class ForgeServer {
 
     // temporary for now. Connect to `ether` or `ForgeStorage`
     private readonly _database: Map<string, Map<string, StoreEntry>> = new Map();
-    private _iForgeStorage: IForgeStorage;
+    private _iForgeStorage: IForgeModel;
 
     constructor(forge: Forge, port: number, base : string) {
 
@@ -190,7 +190,8 @@ export class ForgeServer {
 
             } catch (error: unknown) {
 
-                console.parse(`<red>${error.message}</red>`);
+                if (error instanceof Error) console.parse(`<red>${error.message}</red>`);
+
                 response.sendStatus(404).end();
 
             }
@@ -211,7 +212,8 @@ export class ForgeServer {
 
             } catch (error: unknown) {
 
-                console.parse(`<red>${error.message}</red>`);
+                if (error instanceof Error) console.parse(`<red>${error.message}</red>`);
+
                 response.sendStatus(404).end();
 
             }
@@ -235,7 +237,8 @@ export class ForgeServer {
 
             } catch (error: unknown) {
 
-                console.parse(`<red>${error.message}</red>`);
+                if (error instanceof Error) console.parse(`<red>${error.message}</red>`);
+
                 response.sendStatus(404).end();
 
             }
@@ -287,7 +290,7 @@ export class ForgeServer {
 
             // response.send(JSON.stringify(request.params) + "<br />" + JSON.stringify(request.query));
 
-            const { mime, buffer } = await iAction.$route(route, query);
+            const { mime, buffer } = await iAction.$serve(route, query);
             response
                 .setHeader("Content-Type", mime)
                 .end(buffer);
@@ -448,16 +451,16 @@ export class ForgeServer {
 
     }
 
-    public add(overload: IForgeServerRoute | IForgeStorage) : this {
+    public add(overload: IForgeServerRoute | IForgeModel) : this {
 
         if (overload instanceof AbstractRoute) {
             
             const iForgeServerRoute: IForgeServerRoute = overload as IForgeServerRoute;
             this._routeSet.add(iForgeServerRoute);
         
-        } else if (overload instanceof ForgeStorage) {
+        } else if (overload instanceof ForgeModel) {
 
-            const forgeStorage: IForgeStorage = overload as IForgeStorage;
+            const forgeStorage: IForgeModel = overload as IForgeModel;
             this._iForgeStorage = forgeStorage;
             this._iForgeStorage.connect(this);
 

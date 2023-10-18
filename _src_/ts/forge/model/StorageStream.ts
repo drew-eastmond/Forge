@@ -1,6 +1,6 @@
 import { Tree } from "../../core/collection/Tree";
 import { Attributes } from "../../core/Core";
-import { ForgeStore } from "./ForgeStorage";
+import { ForgeStore } from "./ForgeModel";
 
 const $fs = require("$fs");
 export interface IForgeStorageStream {
@@ -43,7 +43,8 @@ export class FileStorageStream {
         
     }
 
-    public async $write(buffer: Buffer): Promise<unknown> {
+    public async $write(buffer: Buffer): Promise<void> {
+
 
 
     }

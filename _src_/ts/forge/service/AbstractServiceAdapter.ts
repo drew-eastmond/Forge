@@ -3,11 +3,14 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 
 const __ForgeProtocol: string = "forge://";
 
-export type ServiceAdpaterConfig = {
-    command?: string,
-    race: number,
+export type ServiceConfig = {
+    command?: string
+    debounce?: number,
+    race?: number,
+
     key?: string,
-    reboot?: boolean
+    reboot?: boolean,
+    route_root?: string
 }
 
 export interface IServiceAdapter extends ISubscription {
@@ -38,7 +41,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     protected readonly _bindings: Map<Function, Function> = new Map();
 
 
-    constructor(name: string, config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceConfig) {
 
         super();
 
@@ -58,6 +61,8 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const lines: string[] = String(message).split(/\r\n|\r|\n/g);
 
+        let output: string[] = [];
+
         for (const line of lines) {
 
             try {
@@ -70,13 +75,15 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
             } catch (error: unknown) {
 
-                if (line != "") {
-
-                    console.parse(`<cyan>${line}</cyan>`);
-
-                }
+                if (line != "") output.push(line);
 
             }
+
+        }
+
+        if (output.length) {
+
+            console.parse(`<cyan>${output.join("\n")}</cyan>`);
 
         }
 
@@ -86,6 +93,8 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const lines: string[] = String(message).split(/\r\n|\r|\n/g);
 
+        let output: string[] = [];
+
         for (const line of lines) {
 
             try {
@@ -98,13 +107,15 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
             } catch (error: unknown) {
 
-                if (line != "") {
-
-                    console.parse(`<magenta>${line}</magenta>`);
-
-                }
+                if (line != "") output.push(line);
 
             }
+
+        }
+
+        if (output.length) {
+
+            console.parse(`<magenta>${output.join("\n")}</magenta>`);
 
         }
 

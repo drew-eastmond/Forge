@@ -1,7 +1,7 @@
 const { spawn, fork, exec, execSync } = require("child_process");
 
 import { EncodeBase64, Serialize } from "../../core/Core";
-import { AbstractServiceAdapter, ServiceAdpaterConfig } from "./AbstractServiceAdapter";
+import { AbstractServiceAdapter, ServiceConfig } from "./AbstractServiceAdapter";
 
 export class ExecService extends AbstractServiceAdapter {
 
@@ -9,7 +9,7 @@ export class ExecService extends AbstractServiceAdapter {
     private _command: string;
     private _config: Record<string, unknown>;
 
-    constructor(name: string, config: ServiceAdpaterConfig) {
+    constructor(name: string, config: ServiceConfig) {
 
         super(name, config);
 
@@ -54,13 +54,6 @@ export class ExecService extends AbstractServiceAdapter {
 
     }
 
-    private _onExit(): void {
-
-        // const commands: string[] = this._command.split(/\s+/g);
-        // this._child = spawn(commands[0], commands.slice(1));
-
-    }
-
     public write(header: Serialize, data: Serialize): void {
 
         // ! `ExecService` write is not supported
@@ -88,11 +81,11 @@ export class ExecService extends AbstractServiceAdapter {
 
                 if (error) {
 
-                    reject({ name, "reject": "hehehe" });
+                    reject({ name, "reject": `execution error (${error})` });
 
                 } else {
 
-                    resolve({ name, "resolve": "hehehe" });
+                    resolve({ name, "resolve": "successfully executed" });
 
                 }
 
@@ -103,7 +96,7 @@ export class ExecService extends AbstractServiceAdapter {
 
             setTimeout(function () {
 
-                reject({ name, "rejected": "timeout" });
+                reject({ name, "reject": `signal timeout: ${race}ms` });
 
             }, race);
 
@@ -112,16 +105,3 @@ export class ExecService extends AbstractServiceAdapter {
     } 
 
 }
-
-
-/*const commandData: string = EncodeBase64({ ...this._config, ...data });
-
-// 1. Replace all `static variables` : {var}
-for (const { access, value } of entries) {
-
-config = config.replace(new RegExp(`{{${access}}}`, "g"), String(value));
-
-}
-
-
-const command: string = `${this._command} "--key--", ${this._key} "{{data}}", ${commandData}`; */

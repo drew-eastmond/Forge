@@ -1,5 +1,4 @@
 import { IPoolable, PoolManager } from "./PoolManager";
-import { Expiry } from "./Expiry";
 
 export type Notification = string | RegExp | unknown;
 
@@ -12,7 +11,7 @@ export interface ISubscription {
 	$notify(notify: Notification, ...rest: unknown[]): Promise<void>;
 	clear(): void;
 
-	$listen(notify: unknown, callback: Function, expiry: Expiry): Promise<unknown>;
+	$listen(notify: unknown, callback: Function, race: number): Promise<unknown>;
 	
 }
 

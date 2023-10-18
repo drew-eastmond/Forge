@@ -1,14 +1,14 @@
 const { spawn, fork, exec, execSync } = require("child_process");
 
 import { EncodeBase64, Serialize } from "../../core/Core";
-import { AbstractServiceAdapter, ServiceAdpaterConfig } from "./AbstractServiceAdapter";
+import { AbstractServiceAdapter, ServiceConfig } from "./AbstractServiceAdapter";
 
 export class SpawnService extends AbstractServiceAdapter {
 
     private _source: any;
     private _commands: string[];
 
-    constructor(name: string, config: ServiceAdpaterConfig, source?: any) {
+    constructor(name: string, config: ServiceConfig, source?: any) {
 
         super(name, config);
 
@@ -17,55 +17,8 @@ export class SpawnService extends AbstractServiceAdapter {
         this._source = source || spawn(this._commands[0], args, { stdio: "pipe" });
 
         this._source.on("exit", this._onExit.bind(this));
-        this._source.stdout.on("data", this._onStdoutData.bind(this));
-        this._source.stderr.on("data", this._onStdoutError.bind(this));
-
-    }
-
-    private _onStdoutData(message: string): void {
-
-        const lines: string[] = String(message).split(/\r\n|\r|\n/g);
-
-        for (const line of lines) {
-
-            try {
-
-                const [forge, header, data] = JSON.parse(line);
-
-                if (header.key != this._key) return;
-
-                this.read([forge, header, data]);
-
-            } catch (error: unknown) {
-
-                // message ignored
-                // console.log("ignore -- ", error);
-                // console.log("line", line);
-
-                if (line != "") {
-
-                    console.parse(`<cyan>${line}</cyan>`);
-
-                }
-
-            }
-
-
-
-
-        }
-
-    }
-
-    private _onStdoutError(message: string): void {
-
-        const lines: string[] = String(message).split(/\r\n|\r|\n/g);
-        // console.log("_onStdoutData", String(message), lines);
-        for (const line of lines) {
-
-            console.parse(`<cyan>${line}</cyan>`);
-
-        }
+        this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
+        this._source.stderr.on("data", this._bindings.get(this._pipeError));
 
     }
 

@@ -1,8 +1,8 @@
-import { $Promise, $UseRace, Serialize } from "../../core/Core";
-import { Subscription } from "../../core/Subscription";
-import { IServiceAdapter } from "../service/AbstractServiceAdapter";
-import { ForkService } from "../service/ForkService";
-import { SpawnService } from "../service/SpawnService";
+import { $Promise, $UseRace, Serialize } from "../core/Core";
+import { Subscription } from "../core/Subscription";
+import { IServiceAdapter } from "./service/AbstractServiceAdapter";
+import { ForkService } from "./service/ForkService";
+import { SpawnService } from "./service/SpawnService";
 
 const { Worker, isMainThread } = require("worker_threads");
 const $fs = require("fs").promises;
@@ -36,7 +36,7 @@ export class ExecuteDelegate extends AbstractDelegate { }
 
 export class RouteDelegate extends AbstractDelegate { }
 
-export class AbstractForgeClient extends Subscription {
+export class ForgeClient extends Subscription {
 
     protected _race: number;
 
@@ -179,15 +179,16 @@ export class AbstractForgeClient extends Subscription {
 
         route = route || "index.html";
 
-        console.log("<cyan>resolving</cyan>", path.resolve(this._routeRoot, route));
+        console.log("<cyan>resolving >></cyan>", path.resolve(this._routeRoot, route));
 
         const buffer = await $fs.readFile(path.resolve(this._routeRoot, route))
-            .catch(function () {
+            .catch(function (error: unknown) {
 
-                return Buffer.from("route error", "utf8");
+                console.log(error);
+
+                return Buffer.from("route error found file found", "utf8");
 
             });
-
 
         return { mime: mime.lookup(route), contents: buffer.toString("base64") };
 

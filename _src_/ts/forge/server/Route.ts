@@ -1,6 +1,6 @@
 const url = require("url");
 
-import { IAction } from "../action/GenericAction";
+import { IAction } from "../action/ForgeAction";
 
 type Route = string;
 type RequestDelegate = Function; //  ((params: { get: any, post: any, request: any }) => any) | ((req: Request, res: Response, next: Function) => any);
