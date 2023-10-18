@@ -9249,10 +9249,7 @@ var AbstractServiceAdapter = class extends Subscription {
   }
   _pipeStdio(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
-<<<<<<< HEAD
     let output = [];
-=======
->>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
     for (const line of lines) {
       try {
         const [forge, header, data] = JSON.parse(line);
@@ -9260,7 +9257,6 @@ var AbstractServiceAdapter = class extends Subscription {
           return;
         this.read([forge, header, data]);
       } catch (error) {
-<<<<<<< HEAD
         if (line != "")
           output.push(line);
       }
@@ -9272,16 +9268,6 @@ var AbstractServiceAdapter = class extends Subscription {
   _pipeError(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
     let output = [];
-=======
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
-  _pipeError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
->>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
     for (const line of lines) {
       try {
         const [forge, header, data] = JSON.parse(line);
@@ -9289,7 +9275,6 @@ var AbstractServiceAdapter = class extends Subscription {
           return;
         this.read([forge, header, data]);
       } catch (error) {
-<<<<<<< HEAD
         if (line != "")
           output.push(line);
       }
@@ -9297,13 +9282,6 @@ var AbstractServiceAdapter = class extends Subscription {
     if (output.length) {
       console.parse(`<magenta>${output.join("\n")}</magenta>`);
     }
-=======
-        if (line != "") {
-          console.parse(`<magenta>${line}</magenta>`);
-        }
-      }
-    }
->>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
   }
   get race() {
     return this._race;
@@ -9379,10 +9357,6 @@ var ForkService = class extends AbstractServiceAdapter {
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
-<<<<<<< HEAD
-=======
-      console.log(config);
->>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
       this._commands = config.command.split(/\s+/g);
       const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
       this._source = source || fork(this._commands[0], args, { stdio: "pipe", signal });
@@ -9390,57 +9364,10 @@ var ForkService = class extends AbstractServiceAdapter {
       this._source = source;
     }
     this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
-<<<<<<< HEAD
     this._source.stderr.on("data", this._bindings.get(this._pipeError));
     this._source.on("exit", this._onExit.bind(this));
     this._source.on("message", this._bindings.get(this.read));
   }
-=======
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
-    this._source.on("exit", this._onExit.bind(this));
-    this._source.on("message", this._bindings.get(this.read));
-  }
-  /* private _onStdoutData(message: string): void {
-  
-          const lines: string[] = String(message).split(/\r\n|\r|\n/g);
-  
-          for (const line of lines) {
-  
-              try {
-  
-                  const [forge, header, data] = JSON.parse(line);
-  
-                  if (header.key != this._key) return;
-  
-                  this.read([forge, header, data]);
-  
-              } catch (error: unknown) {
-  
-                  // message ignored
-                  // console.log("ignore -- ", error);
-                  // console.log("line", line);
-  
-                  if (line != "") {
-  
-                      console.parse(`<cyan>${line}</cyan>`);
-  
-                  }
-  
-              }
-  
-  
-  
-  
-          }
-  
-      } */
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<magenta>${line}</magenta>`);
-    }
-  }
->>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
   _onExit() {
   }
   write(header, data) {
@@ -9459,34 +9386,8 @@ var SpawnService = class extends AbstractServiceAdapter {
     const args = [...this._commands.slice(1), "--key--", this._key, "{{data}}", EncodeBase64(config)];
     this._source = source || spawn2(this._commands[0], args, { stdio: "pipe" });
     this._source.on("exit", this._onExit.bind(this));
-<<<<<<< HEAD
     this._source.stdout.on("data", this._bindings.get(this._pipeStdio));
     this._source.stderr.on("data", this._bindings.get(this._pipeError));
-=======
-    this._source.stdout.on("data", this._onStdoutData.bind(this));
-    this._source.stderr.on("data", this._onStdoutError.bind(this));
-  }
-  _onStdoutData(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      try {
-        const [forge, header, data] = JSON.parse(line);
-        if (header.key != this._key)
-          return;
-        this.read([forge, header, data]);
-      } catch (error) {
-        if (line != "") {
-          console.parse(`<cyan>${line}</cyan>`);
-        }
-      }
-    }
-  }
-  _onStdoutError(message) {
-    const lines = String(message).split(/\r\n|\r|\n/g);
-    for (const line of lines) {
-      console.parse(`<cyan>${line}</cyan>`);
-    }
->>>>>>> 3d0f3ab7bc8b7054467202480f3f9a193a1e93d6
   }
   _onExit() {
   }
