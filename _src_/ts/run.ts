@@ -42,9 +42,20 @@ if (require.main === module && !module.parent) {
 					return (fs.existsSync(value));
 
 				}
-			})
-			.parse(await $fs.readFile("./.env", "utf-8"))
-			.compile();
+			});
+
+			$fs.readFile("./.env", "utf-8")
+				.then((fileData: string) => {
+
+					compositeArguments.parse(fileData);
+
+				})
+				.finally(() => {
+
+					compositeArguments.compile();
+
+				});
+			
 
 		/*
 		* 2. setup and extract the arguments
@@ -56,12 +67,23 @@ if (require.main === module && !module.parent) {
 		* 3. intiatiate a `Forge` instance
 		*/
 		const forge: Forge = new Forge();
-		forge
-			.parse(await $fs.readFile(".forge", "utf-8"));
+
+		await $fs.readFile(".forge", "utf-8")
+			.then((fileData: string) {
+
+				forge.parse(fileData);
+
+			})
+			.catch((error: unknown) {
+
+				console.parse(`<red>".forge" file not loaded or parse`);;
+
+			});
+		
 
 		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
 
-		forge.$signal("construct", { "so l can get my": "satifacation" });
+		await forge.$signal("construct", {});
 
 		forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
 

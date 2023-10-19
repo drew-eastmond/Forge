@@ -1,0 +1,1 @@
+if (require.main === module && !module.parent) {

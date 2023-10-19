@@ -16687,9 +16687,6 @@ var require_lib = __commonJS({
       }
       require_extend_node()(iconv);
     }
-    if (false) {
-      console.error("iconv-lite warning: javascript files use encoding different from utf-8. See https://github.com/ashtuchkin/iconv-lite/wiki/Javascript-source-file-encodings for more info.");
-    }
     var nodeVerArr;
   }
 });
@@ -36146,17 +36143,28 @@ if (require.main === module && !module.parent) {
         return parseInt(value);
       }
     }).add("WWW_ROOT", {
-      required: true,
       validate: function(value, args) {
         return fs.existsSync(value);
       }
-    }).parse(await $fs5.readFile("./.env", "utf-8")).compile();
+    }).parse(await $fs5.readFile("./.env", "utf-8").catch(() => { return "" })).compile();
     const PORT = compositeArguments.get("PORT");
     const WWW_ROOT = compositeArguments.get("WWW_ROOT");
     const forge = new Forge3();
-    forge.parse(await $fs5.readFile(".forge", "utf-8"));
+    await $fs.readFile(".forge", "utf-8")
+			.then((fileData) => {
+
+				forge.parse(fileData);
+
+			})
+			.catch((error) => {
+
+				console.parse(`<red>".forge" file not loaded or parse`);;
+
+			});
+    
     const forgeServer = await forge.$serve(PORT, WWW_ROOT);
-    forge.$signal("construct", { "so l can get my": "satifacation" });
+
+    forge.$signal("construct", {forge: "init"});
     forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
   })();
 } else {
