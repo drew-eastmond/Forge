@@ -44,7 +44,7 @@ if (require.main === module && !module.parent) {
 				}
 			});
 
-			$fs.readFile("./.env", "utf-8")
+			await $fs.readFile("./.env", "utf-8")
 				.then((fileData: string) => {
 
 					compositeArguments.parse(fileData);
@@ -69,17 +69,19 @@ if (require.main === module && !module.parent) {
 		const forge: Forge = new Forge();
 
 		await $fs.readFile(".forge", "utf-8")
-			.then((fileData: string) {
+			.then(function (fileData: string) {
 
 				forge.parse(fileData);
 
 			})
-			.catch((error: unknown) {
+			.catch(function (error: unknown) {
 
 				console.parse(`<red>".forge" file not loaded or parse`);;
 
 			});
-		
+
+		console.log(PORT, WWW_ROOT);
+		process.exit(1);
 
 		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
 
