@@ -112,7 +112,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
             let dependencyHelper: DependencyHelper;
 
-            const contentType: string = response.headers.get("Content-Type");
+            const contentType: string = response.headers.get("Content-Type") as string;
             switch (contentType) {
 
                 case "application/json":

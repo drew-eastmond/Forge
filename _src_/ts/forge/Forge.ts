@@ -7,8 +7,7 @@ const url = require("url");
 const path = require("path");
 
 import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } from "../core/Core";
-import { Debouncer } from "../core/timing/Debounce";
-import { ForgeIO } from "../io/ForgeIO";
+import { ForgeIO } from "./ForgeIO";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask, TaskConfig } from "./ForgeTask";
 import { ForgeServer } from "./server/ForgeServer";
