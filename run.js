@@ -8076,9 +8076,9 @@ var require_cjs2 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/minipass@7.0.3/node_modules/minipass/dist/cjs/index.js
-var require_cjs3 = __commonJS({
-  "node_modules/.pnpm/minipass@7.0.3/node_modules/minipass/dist/cjs/index.js"(exports2) {
+// node_modules/.pnpm/minipass@7.0.4/node_modules/minipass/dist/commonjs/index.js
+var require_commonjs = __commonJS({
+  "node_modules/.pnpm/minipass@7.0.4/node_modules/minipass/dist/commonjs/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -8969,7 +8969,7 @@ var require_cjs3 = __commonJS({
 });
 
 // node_modules/.pnpm/path-scurry@1.10.1/node_modules/path-scurry/dist/cjs/index.js
-var require_cjs4 = __commonJS({
+var require_cjs3 = __commonJS({
   "node_modules/.pnpm/path-scurry@1.10.1/node_modules/path-scurry/dist/cjs/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
@@ -9013,7 +9013,7 @@ var require_cjs4 = __commonJS({
     var fs_1 = require("fs");
     var realpathSync = fs_1.realpathSync.native;
     var promises_1 = require("fs/promises");
-    var minipass_1 = require_cjs3();
+    var minipass_1 = require_commonjs();
     var defaultFS = {
       lstatSync: fs_1.lstatSync,
       readdir: fs_1.readdir,
@@ -10728,9 +10728,9 @@ var require_cjs4 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/pattern.js
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/pattern.js
 var require_pattern = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/pattern.js"(exports2) {
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/pattern.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Pattern = void 0;
@@ -10902,9 +10902,9 @@ var require_pattern = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/ignore.js
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/ignore.js
 var require_ignore = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/ignore.js"(exports2) {
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/ignore.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Ignore = void 0;
@@ -10990,9 +10990,9 @@ var require_ignore = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/processor.js
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/processor.js
 var require_processor = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/processor.js"(exports2) {
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/processor.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Processor = exports2.SubWalks = exports2.MatchRecord = exports2.HasWalkedCache = void 0;
@@ -11223,13 +11223,13 @@ var require_processor = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/walker.js
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/walker.js
 var require_walker = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/walker.js"(exports2) {
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/walker.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GlobStream = exports2.GlobWalker = exports2.GlobUtil = void 0;
-    var minipass_1 = require_cjs3();
+    var minipass_1 = require_commonjs();
     var ignore_js_1 = require_ignore();
     var processor_js_1 = require_processor();
     var makeIgnore = (ignore, opts) => typeof ignore === "string" ? new ignore_js_1.Ignore([ignore], opts) : Array.isArray(ignore) ? new ignore_js_1.Ignore(ignore, opts) : ignore;
@@ -11540,14 +11540,14 @@ var require_walker = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/glob.js
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/glob.js
 var require_glob = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/glob.js"(exports2) {
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/glob.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Glob = void 0;
     var minimatch_1 = require_cjs();
-    var path_scurry_1 = require_cjs4();
+    var path_scurry_1 = require_cjs3();
     var url_1 = require("url");
     var pattern_js_1 = require_pattern();
     var walker_js_1 = require_walker();
@@ -11747,9 +11747,9 @@ var require_glob = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/has-magic.js
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/has-magic.js
 var require_has_magic = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/has-magic.js"(exports2) {
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/has-magic.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.hasMagic = void 0;
@@ -11768,9 +11768,9 @@ var require_has_magic = __commonJS({
   }
 });
 
-// node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/index.js
-var require_commonjs = __commonJS({
-  "node_modules/.pnpm/glob@10.3.9/node_modules/glob/dist/commonjs/index.js"(exports2) {
+// node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/index.js
+var require_commonjs2 = __commonJS({
+  "node_modules/.pnpm/glob@10.3.10/node_modules/glob/dist/commonjs/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.glob = exports2.hasMagic = exports2.Glob = exports2.unescape = exports2.escape = exports2.sync = exports2.iterate = exports2.iterateSync = exports2.stream = exports2.streamSync = exports2.globIterate = exports2.globIterateSync = exports2.globSync = exports2.globStream = exports2.globStreamSync = void 0;
@@ -26403,44 +26403,70 @@ var require_has_proto = __commonJS({
   }
 });
 
-// node_modules/.pnpm/function-bind@1.1.1/node_modules/function-bind/implementation.js
+// node_modules/.pnpm/function-bind@1.1.2/node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "node_modules/.pnpm/function-bind@1.1.1/node_modules/function-bind/implementation.js"(exports2, module2) {
+  "node_modules/.pnpm/function-bind@1.1.2/node_modules/function-bind/implementation.js"(exports2, module2) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
-    var slice = Array.prototype.slice;
     var toStr = Object.prototype.toString;
+    var max = Math.max;
     var funcType = "[object Function]";
+    var concatty = function concatty2(a, b) {
+      var arr = [];
+      for (var i = 0; i < a.length; i += 1) {
+        arr[i] = a[i];
+      }
+      for (var j = 0; j < b.length; j += 1) {
+        arr[j + a.length] = b[j];
+      }
+      return arr;
+    };
+    var slicy = function slicy2(arrLike, offset) {
+      var arr = [];
+      for (var i = offset || 0, j = 0; i < arrLike.length; i += 1, j += 1) {
+        arr[j] = arrLike[i];
+      }
+      return arr;
+    };
+    var joiny = function(arr, joiner) {
+      var str = "";
+      for (var i = 0; i < arr.length; i += 1) {
+        str += arr[i];
+        if (i + 1 < arr.length) {
+          str += joiner;
+        }
+      }
+      return str;
+    };
     module2.exports = function bind(that) {
       var target = this;
-      if (typeof target !== "function" || toStr.call(target) !== funcType) {
+      if (typeof target !== "function" || toStr.apply(target) !== funcType) {
         throw new TypeError(ERROR_MESSAGE + target);
       }
-      var args = slice.call(arguments, 1);
+      var args = slicy(arguments, 1);
       var bound;
       var binder = function() {
         if (this instanceof bound) {
           var result = target.apply(
             this,
-            args.concat(slice.call(arguments))
+            concatty(args, arguments)
           );
           if (Object(result) === result) {
             return result;
           }
           return this;
-        } else {
-          return target.apply(
-            that,
-            args.concat(slice.call(arguments))
-          );
         }
+        return target.apply(
+          that,
+          concatty(args, arguments)
+        );
       };
-      var boundLength = Math.max(0, target.length - args.length);
+      var boundLength = max(0, target.length - args.length);
       var boundArgs = [];
       for (var i = 0; i < boundLength; i++) {
-        boundArgs.push("$" + i);
+        boundArgs[i] = "$" + i;
       }
-      bound = Function("binder", "return function (" + boundArgs.join(",") + "){ return binder.apply(this,arguments); }")(binder);
+      bound = Function("binder", "return function (" + joiny(boundArgs, ",") + "){ return binder.apply(this,arguments); }")(binder);
       if (target.prototype) {
         var Empty = function Empty2() {
         };
@@ -26453,21 +26479,24 @@ var require_implementation = __commonJS({
   }
 });
 
-// node_modules/.pnpm/function-bind@1.1.1/node_modules/function-bind/index.js
+// node_modules/.pnpm/function-bind@1.1.2/node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "node_modules/.pnpm/function-bind@1.1.1/node_modules/function-bind/index.js"(exports2, module2) {
+  "node_modules/.pnpm/function-bind@1.1.2/node_modules/function-bind/index.js"(exports2, module2) {
     "use strict";
     var implementation = require_implementation();
     module2.exports = Function.prototype.bind || implementation;
   }
 });
 
-// node_modules/.pnpm/has@1.0.3/node_modules/has/src/index.js
+// node_modules/.pnpm/has@1.0.4/node_modules/has/src/index.js
 var require_src2 = __commonJS({
-  "node_modules/.pnpm/has@1.0.3/node_modules/has/src/index.js"(exports2, module2) {
+  "node_modules/.pnpm/has@1.0.4/node_modules/has/src/index.js"(exports2, module2) {
     "use strict";
-    var bind = require_function_bind();
-    module2.exports = bind.call(Function.call, Object.prototype.hasOwnProperty);
+    var hasOwnProperty = {}.hasOwnProperty;
+    var call = Function.prototype.call;
+    module2.exports = call.bind ? call.bind(hasOwnProperty) : function(O, P) {
+      return call.call(hasOwnProperty, O, P);
+    };
   }
 });
 
@@ -26839,16 +26868,16 @@ var require_callBound = __commonJS({
   }
 });
 
-// node_modules/.pnpm/object-inspect@1.12.3/node_modules/object-inspect/util.inspect.js
+// node_modules/.pnpm/object-inspect@1.13.0/node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "node_modules/.pnpm/object-inspect@1.12.3/node_modules/object-inspect/util.inspect.js"(exports2, module2) {
+  "node_modules/.pnpm/object-inspect@1.13.0/node_modules/object-inspect/util.inspect.js"(exports2, module2) {
     module2.exports = require("util").inspect;
   }
 });
 
-// node_modules/.pnpm/object-inspect@1.12.3/node_modules/object-inspect/index.js
+// node_modules/.pnpm/object-inspect@1.13.0/node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "node_modules/.pnpm/object-inspect@1.12.3/node_modules/object-inspect/index.js"(exports2, module2) {
+  "node_modules/.pnpm/object-inspect@1.13.0/node_modules/object-inspect/index.js"(exports2, module2) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -27061,6 +27090,12 @@ var require_object_inspect = __commonJS({
       }
       if (isString(obj)) {
         return markBoxed(inspect(String(obj)));
+      }
+      if (obj === global) {
+        if (typeof window !== "undefined") {
+          return "{ [object Window] }";
+        }
+        return "{ [object global] }";
       }
       if (!isDate(obj) && !isRegExp(obj)) {
         var ys = arrObjKeys(obj, inspect);
@@ -35982,7 +36017,7 @@ var SpawnService = class extends AbstractServiceAdapter {
 var { spawn: spawn4, fork: fork4, exec: exec4, execSync: execSync4 } = require("child_process");
 var chokidar = require_chokidar();
 var $fs4 = require("fs").promises;
-var glob = require_commonjs();
+var glob = require_commonjs2();
 var express2 = require_express2();
 var url3 = require("url");
 var path2 = require("path");
@@ -36140,36 +36175,56 @@ if (require.main === module && !module.parent) {
   (async function() {
     const compositeArguments = new CompositeArguments();
     compositeArguments.add("PORT", {
-      required: true,
       default: 1234,
       sanitize: function(value, args) {
         return parseInt(value);
       }
     }).add("WWW_ROOT", {
-      required: true,
+      validate: function(value, args) {
+        return fs.existsSync(value);
+      }
+    }).add("WATCH", {
+      default: [],
       validate: function(value, args) {
         return fs.existsSync(value);
       }
     });
     await $fs5.readFile("./.env", "utf-8").then((fileData) => {
       compositeArguments.parse(fileData);
+    }).catch(function(error) {
     }).finally(() => {
       compositeArguments.compile();
     });
-    const PORT = compositeArguments.get("PORT");
-    const WWW_ROOT = compositeArguments.get("WWW_ROOT");
+    let PORT = compositeArguments.get("PORT");
+    let WWW_ROOT = compositeArguments.get("WWW_ROOT");
+    let WATCH = compositeArguments.get("WATCH");
     const forge = new Forge3();
     await $fs5.readFile(".forge", "utf-8").then(function(fileData) {
+      const config = JSON.parse(fileData);
+      console.log(config);
+      const port = config?.forge?.port;
+      if (isNaN(port))
+        PORT = port;
+      const wwwRoot = config?.forge?.www;
+      if (wwwRoot && $fs5.existsSync(wwwRoot))
+        WWW_ROOT = wwwRoot;
+      const watch = config?.forge?.watch;
+      console.log("WATCH", watch);
+      if (watch && watch.constructor === Array)
+        console.log("IS ARRAY");
+      console.log(PORT, WWW_ROOT, WATCH);
       forge.parse(fileData);
     }).catch(function(error) {
-      console.parse(`<red>".forge" file not loaded or parse`);
-      ;
+      console.parse(`<red>${error.message}`);
     });
-    console.log(PORT, WWW_ROOT);
-    process.exit(1);
-    const forgeServer = await forge.$serve(PORT, WWW_ROOT);
+    console.log(">>>>", WWW_ROOT);
+    if (WWW_ROOT) {
+      const forgeServer = await forge.$serve(PORT, WWW_ROOT);
+    }
     await forge.$signal("construct", {});
-    forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
+    if (WATCH) {
+      forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
+    }
   })();
 } else {
   console.log("required as a module");

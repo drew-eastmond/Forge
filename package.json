@@ -6,7 +6,8 @@
 		"esbuild": "^0.19.4",
 
 		"compression": "^1.7.4",
-		"express": "^4.18.2"
+		"express": "^4.18.2",
+		"mime-types": "^2.1.35"
 		
 	},
 	"devDependencies": {
@@ -15,7 +16,6 @@
 		"react-dom": "^18.2.0"
 	},
 	"graveyard": {
-		"mime-types": "^2.1.35",
 		"tailwind-merge": "^1.14.0",
 		"tailwindcss": "^3.3.3",
 		"tailwindcss-animate": "^1.0.7"

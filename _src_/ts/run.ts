@@ -27,7 +27,6 @@ if (require.main === module && !module.parent) {
 		const compositeArguments: CompositeArguments = new CompositeArguments();
 		compositeArguments
 			.add("PORT", {
-				required: true,
 				default: 1234,
 				sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
 					
@@ -36,7 +35,14 @@ if (require.main === module && !module.parent) {
 				}
 			})
 			.add("WWW_ROOT", {
-				required: true,
+				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
+
+					return (fs.existsSync(value));
+
+				}
+			})
+			.add("WATCH", {
+				default: [],
 				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
 
 					return (fs.existsSync(value));
@@ -44,24 +50,30 @@ if (require.main === module && !module.parent) {
 				}
 			});
 
-			await $fs.readFile("./.env", "utf-8")
-				.then((fileData: string) => {
+		await $fs.readFile("./.env", "utf-8")
+			.then((fileData: string) => {
 
-					compositeArguments.parse(fileData);
+				compositeArguments.parse(fileData);
 
-				})
-				.finally(() => {
+			})
+			.catch(function (error: unknown) {
 
-					compositeArguments.compile();
 
-				});
+
+			})
+			.finally(() => {
+
+				compositeArguments.compile();
+
+			});
 			
 
 		/*
 		* 2. setup and extract the arguments
 		*/
-		const PORT: number = compositeArguments.get("PORT") as number;
-		const WWW_ROOT: string = compositeArguments.get("WWW_ROOT") as string;
+		let PORT: number = compositeArguments.get("PORT") as number;
+		let WWW_ROOT: string = compositeArguments.get("WWW_ROOT") as string;
+		let WATCH: string[] = compositeArguments.get("WATCH") as string[];
 
 		/*
 		* 3. intiatiate a `Forge` instance
@@ -71,23 +83,46 @@ if (require.main === module && !module.parent) {
 		await $fs.readFile(".forge", "utf-8")
 			.then(function (fileData: string) {
 
+				const config: Record<string, any> = JSON.parse(fileData);
+				console.log(config);
+
+				// override 
+				const port: number = config?.forge?.port;
+				if (isNaN(port)) PORT = port; 
+
+
+				const wwwRoot: string = config?.forge?.www;
+				if (wwwRoot && $fs.existsSync(wwwRoot)) WWW_ROOT = wwwRoot; 
+
+				const watch: string[] = config?.forge?.watch;
+				if (watch && watch.constructor === Array) WATCH = watch;
+
+				console.log(PORT, WWW_ROOT, WATCH);
+
 				forge.parse(fileData);
 
 			})
 			.catch(function (error: unknown) {
 
-				console.parse(`<red>".forge" file not loaded or parse`);;
+				console.parse(`<red>${error.message}`);
 
 			});
 
-		console.log(PORT, WWW_ROOT);
-		process.exit(1);
+		if (WWW_ROOT) {
 
-		const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
+			const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
+
+		} 
+
+		
+
+		if (WATCH) {
+
+			forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
+
+		}
 
 		await forge.$signal("construct", {});
-
-		forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
 
 	}());
 
