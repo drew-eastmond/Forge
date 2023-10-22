@@ -15,16 +15,16 @@ export type ActionData = {
     service: string,
 
     enabled?: boolean,
-    race?: number
-
+    race?: number,
+    route?: boolean
 }
 
 export type ActionConfig = {
 
     name: string,
-
-    enabled?: boolean,
-    race?: number
+    route: boolean
+    enabled: boolean,
+    race: number,
 
 }
 export enum ActionStdioType {

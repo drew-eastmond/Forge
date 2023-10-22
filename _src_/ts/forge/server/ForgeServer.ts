@@ -6,12 +6,15 @@ const $fs = require("fs").promises;
 const mimeTypes = require("mime-types");
 
 import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
+import { DebugFormatter } from "../../core/Debug";
 import { Debouncer } from "../../core/timing/Debounce";
 import { IAction } from "../action/ForgeAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
 import { ForgeModel, ForgeStore, IForgeModel } from "../model/ForgeModel";
 import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./Route";
+
+DebugFormatter.Init({ platform: "node" });
 
 /*
 *   

@@ -34932,8 +34932,8 @@ function ParseTrigger(triggerData) {
 }
 var SignalTrigger = class {
   _signals;
-  constructor(signals) {
-    this._signals = new Set(signals);
+  constructor(signal) {
+    this._signals = new Set(signal);
   }
   async $trigger(forgeStream) {
     return this._signals.has(forgeStream.signal);
@@ -35559,6 +35559,7 @@ var url2 = require("url");
 var path = require("path");
 var $fs3 = require("fs").promises;
 var mimeTypes = require_mime_types();
+DebugFormatter.Init({ platform: "node" });
 async function $ParseRequestBody(request) {
   return new Promise(function(resolve, reject) {
     const buffers = [];
@@ -36171,7 +36172,7 @@ var Forge3 = class {
 var fs = require("fs");
 var $fs5 = require("node:fs/promises");
 DebugFormatter.Init({ platform: "node" });
-if (require.main === module && !module.parent) {
+if (require.main === module) {
   (async function() {
     const compositeArguments = new CompositeArguments();
     compositeArguments.add("PORT", {
@@ -36180,14 +36181,22 @@ if (require.main === module && !module.parent) {
         return parseInt(value);
       }
     }).add("WWW_ROOT", {
+      default: false,
       validate: function(value, args) {
         return fs.existsSync(value);
       }
     }).add("WATCH", {
       default: [],
       validate: function(value, args) {
+        console.log("validate-------------");
         return fs.existsSync(value);
+      },
+      sanitize: function(value, args) {
+        console.log("sanitize------------");
+        return value.split(",");
       }
+    }).add("start", {
+      default: {}
     });
     await $fs5.readFile("./.env", "utf-8").then((fileData) => {
       compositeArguments.parse(fileData);
@@ -36198,6 +36207,8 @@ if (require.main === module && !module.parent) {
     let PORT = compositeArguments.get("PORT");
     let WWW_ROOT = compositeArguments.get("WWW_ROOT");
     let WATCH = compositeArguments.get("WATCH");
+    let START = compositeArguments.get("start");
+    console.log("WATCH", WATCH);
     const forge = new Forge3();
     await $fs5.readFile(".forge", "utf-8").then(function(fileData) {
       const config = JSON.parse(fileData);
@@ -36209,22 +36220,20 @@ if (require.main === module && !module.parent) {
       if (wwwRoot && $fs5.existsSync(wwwRoot))
         WWW_ROOT = wwwRoot;
       const watch = config?.forge?.watch;
-      console.log("WATCH", watch);
       if (watch && watch.constructor === Array)
-        console.log("IS ARRAY");
+        WATCH.concat(watch);
       console.log(PORT, WWW_ROOT, WATCH);
       forge.parse(fileData);
     }).catch(function(error) {
       console.parse(`<red>${error.message}`);
     });
-    console.log(">>>>", WWW_ROOT);
     if (WWW_ROOT) {
       const forgeServer = await forge.$serve(PORT, WWW_ROOT);
     }
-    await forge.$signal("construct", {});
     if (WATCH) {
-      forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
+      forge.watch(WATCH, { ignore: [], debounce: 500 });
     }
+    await forge.$signal("start", START);
   })();
 } else {
   console.log("required as a module");
