@@ -2,7 +2,7 @@ import { Serialize } from "../../core/Core";
 import { ForgeStream } from "../ForgeStream";
 import { IAction } from "./ForgeAction";
 
-enum ResolverValues {
+export enum ResolverValues {
     Any = "any",
     All = "all"
 }
@@ -62,9 +62,9 @@ export function ParseTrigger(triggerData: TriggerData): IForgeTrigger {
 export class SignalTrigger implements IForgeTrigger {
 
     private _signals: Set<string>;
-    constructor(signals: string[]) {
+    constructor(signal: string[]) {
 
-        this._signals = new Set(signals);
+        this._signals = new Set(signal);
 
     }
 

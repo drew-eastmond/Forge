@@ -17,7 +17,7 @@ DebugFormatter.Init({ platform: "node" });
 
 }); */
 
-if (require.main === module && !module.parent) {
+if (require.main === module) {
 
 	(async function () {
 
@@ -35,6 +35,7 @@ if (require.main === module && !module.parent) {
 				}
 			})
 			.add("WWW_ROOT", {
+				default: false,
 				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
 
 					return (fs.existsSync(value));
@@ -45,10 +46,22 @@ if (require.main === module && !module.parent) {
 				default: [],
 				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
 
+					console.log("validate-------------")
+
 					return (fs.existsSync(value));
 
+				},
+				sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
+
+
+					console.log("sanitize------------")
+					return (value as string).split(",");
+
 				}
-			});
+			})
+			.add("start", {
+				default: {}
+			})
 
 		await $fs.readFile("./.env", "utf-8")
 			.then((fileData: string) => {
@@ -74,6 +87,9 @@ if (require.main === module && !module.parent) {
 		let PORT: number = compositeArguments.get("PORT") as number;
 		let WWW_ROOT: string = compositeArguments.get("WWW_ROOT") as string;
 		let WATCH: string[] = compositeArguments.get("WATCH") as string[];
+		let START: Record<string, unknown> = compositeArguments.get("start") as Record<string, unknown>;
+
+		console.log("WATCH", WATCH);
 
 		/*
 		* 3. intiatiate a `Forge` instance
@@ -95,7 +111,7 @@ if (require.main === module && !module.parent) {
 				if (wwwRoot && $fs.existsSync(wwwRoot)) WWW_ROOT = wwwRoot; 
 
 				const watch: string[] = config?.forge?.watch;
-				if (watch && watch.constructor === Array) WATCH = watch;
+				if (watch && watch.constructor === Array) WATCH.concat(watch);
 
 				console.log(PORT, WWW_ROOT, WATCH);
 
@@ -112,17 +128,16 @@ if (require.main === module && !module.parent) {
 
 			const forgeServer: ForgeServer = await forge.$serve(PORT, WWW_ROOT);
 
-		} 
-
-		
+		}
 
 		if (WATCH) {
 
-			forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
+			forge.watch(WATCH, { ignore: [], debounce: 500 });
 
 		}
 
-		await forge.$signal("construct", {});
+		// you can pass 
+		await forge.$signal("start", START);
 
 	}());
 
