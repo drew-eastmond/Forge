@@ -233,10 +233,8 @@ export class Forge {
 
                 const resetNow: number = Date.now();
                 console.group("------------------ watch ------------------");
-                console.parse("<blue>start:", resetNow);
                 const resets: Serialize = await forge.$reset({ file, event });
-                console.parse("<blue>reset complete:", Date.now() - resetNow);
-                // console.log("ForgeStream reset", resets);
+                console.parse("<blue>start:", resetNow, "<blue>reset complete:", Date.now() - resetNow);
 
                 const signalNow: number = Date.now();
                 await forge.$signal("watch", { file, event });

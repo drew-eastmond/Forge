@@ -85,6 +85,17 @@ var AbstractArguments = class {
   constructor() {
   }
   /**
+   * Iterates via Object.entries(...) on the internal _args property
+   * 
+   * @generator
+   * @yields {[string, unknown]}
+   */
+  *[Symbol.iterator]() {
+    for (const entry of Object.entries(this._args)) {
+      yield entry;
+    }
+  }
+  /**
    * This function will 
    *      1. Inject a default if no value is provided
    *      2. Test if it is a required parameter, or add to internal errors 
@@ -105,6 +116,7 @@ var AbstractArguments = class {
     if (validation.validate) {
       const result = validation.validate(value, this._args);
       if (result === false || result === void 0) {
+        console.log();
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       } else if (result instanceof Error) {
@@ -125,22 +137,25 @@ var AbstractArguments = class {
     return value;
   }
   get(key) {
+    if (key && key.constructor === RegExp) {
+      const regExp = key;
+      for (const [key2, value] of Object.entries(this._args)) {
+        if (regExp.test(key2))
+          return value;
+      }
+      return void 0;
+    }
     return key === void 0 ? this._args : this._args[key];
   }
   /**
    * Assigns a validation check to specific arguments via the key provided
    * 
-   * @param key 
+   * @param key {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
    * @param validationEntry {ValidationEntry}
    * @returns {this} return this so you can daisy chain calls
    */
   add(key, validationEntry) {
-    this._validationMap.set(key, {
-      default: validationEntry.default,
-      sanitize: validationEntry.sanitize,
-      required: validationEntry.required || false,
-      error: validationEntry.error
-    });
+    this._validationMap.set(key, { ...validationEntry, required: validationEntry.required || false });
     return this;
   }
   /**
@@ -150,11 +165,23 @@ var AbstractArguments = class {
    */
   compile() {
     for (const [key, validation] of this._validationMap) {
+      if (key.constructor === RegExp)
+        continue;
       const value = this._args[key];
       this._args[key] = this._validate(key, value, validation);
     }
+    for (const [key, value] of Object.entries(this._args)) {
+      for (const [query, validation] of this._validationMap) {
+        if (query.constructor === String)
+          continue;
+        if (query.test(key) === false)
+          continue;
+        console.log(key, query, query.test(key));
+        const value2 = this._args[key];
+        this._args[key] = this._validate(key, value2, validation);
+      }
+    }
     if (this._errors.length) {
-      console.log(this._errors);
       throw new Error(this._errors.join("\n"));
     }
   }
@@ -176,8 +203,7 @@ var CLIArguments = class extends AbstractArguments {
         this._args[results[1]] = true;
       } else {
         throw new Error(`(Executing) node ${args.slice(1).join(" ")}
-
-\x1B[31;1mIncorrect formatting encountered parsing key arguments : "\x1B[34;1m${keyQuery}\x1B[31;1m"\x1B[0m
+<red>Incorrect formatting encountered parsing key arguments : "<blue>${keyQuery}</blue>"
 ${JSON.stringify(this._args, void 0, 2)}`);
       }
     }
@@ -532,17 +558,22 @@ if (require.main === module) {
       sanitize: function(value, args) {
         return parseInt(value);
       }
-    }).add("INIT", {
-      default: false,
+    }).add(/init/i, {
       validate: function(value, args) {
-        return $fs.existsSync(value);
+        console.log("init is good", value);
+        return true;
+      },
+      sanitize: function(value, args) {
+        return String(value).toUpperCase();
       }
     }).add("I", {
       default: false,
       validate: function(value, args) {
-        return $fs.existsSync(value);
+        return true;
       }
     }).compile();
+    console.log(cliArguments.get(/init/), cliArguments.get());
+    process.exit(1);
     const currentPath = path.parse(__filename);
     console.log(currentPath);
     const INIT = cliArguments.get("INIT") || cliArguments.get("I");

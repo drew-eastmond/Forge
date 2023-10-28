@@ -137,8 +137,6 @@ function gitClone(url: string) {
 
 if (require.main === module) {
 
-
-
     (async function () {
 
         const cliArguments: CLIArguments = new CLIArguments();
@@ -152,11 +150,17 @@ if (require.main === module) {
 
                 }
             })
-            .add("INIT", {
-                default: false,
+            .add(/init/i, {
                 validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
 
-                    return ($fs.existsSync(value));
+                    console.log("init is good", value);
+                    //return ($fs.existsSync(value));
+                    return true;
+
+                },
+                sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
+
+                    return String(value).toUpperCase();
 
                 }
             })
@@ -164,7 +168,8 @@ if (require.main === module) {
                 default: false,
                 validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
 
-                    return ($fs.existsSync(value));
+                    // return ($fs.existsSync(value));
+                    return true;
 
                 }
             })

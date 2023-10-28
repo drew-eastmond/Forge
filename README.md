@@ -224,112 +224,108 @@ by setting up a .forge config file. Forge will parse this file, inject variables
 {
     "forge": {
         "queue": true,
-        "port": 1234,
-        "debounce": 500,
-        "race": 2000
-    },
-    "variables": {
-        "www_root": "./build/www",
-        "route_root": "build/_route_",
-        "src_root": "./src",
-        "build_root": "./build",
-        "forge": "./forge"
+        "verbose": "low",
+        "port": 1234
     },
 
+    "variables": {
+        "debounce": 500,
+        "race": 2500,
+        "thottle": 5,
+        "www_root": ""
+    },
+    
     "services": {
 
         "spawn": {
 
-            "typescript_spawn": {
-                "command": "node ./forge/hello.js",
-                "debounce": 500,
-                "race": 2000,
+            "example_spawn": {
+                "command": "node {forge}/example.js --spawn",
+                "debounce": {debounce},
+                "race": {race},
+                "thottle": {thottle},
                 "reboot": true,
 
-                "route_root": "{route_root}/typescript/"
-            },
-
-            "spawn python": {
-                "command": "python ./forge/hello.py",
-                "debounce": 500,
-                "race": 2000
+                "route": {
+                    "root" : false
+                }
             }
-            
         },
 
         "fork": {
 
-            "typescript_fork": {
-                "command": "{forge}/fork-client.js",
-                "debounce": 500,
-                "race": 2000,
+            "example_fork": {
+                "command": "{forge}/example.js --fork",
+                "debounce": {debounce},
+                "race": {race},
+                "thottle": {thottle},
+
                 "reboot": true,
-                "route_root": "{route_root}/typescript/"
+
+                "route": {
+                    "root": false
+                }
             }
-            
+
         },
+
         "exec": {
-            "typescript_exec": {
+
+            "example_exec": {
                 "command": "{{command}}",
                 "debounce": 500,
-                "race": 2000,
-                "route_root": "{route_root}/typescript/"
-            },
-            "uglify_test": {
-                "command": "python ./forge/hello.py",
-                "debounce": 500,
-                "race": 250
-            }
-        },
-        "plugin": {
-        }
-    },
-    "tasks": [
-        {
-            "name": "SASS - node ( task )",
-            "enabled": true,
-            
-            "actions": [
-                {
-                    "_name_": "tailwindCSS compile",
-                    "_implement_": "watch",
-                    "_exec_": "typescript_exec",
-                    "_watch_": [ "src/**/*.css" ],
-                    "old_watch_": [ "{src_root}/scss/.+?\\.scss$" ],
+                "race": 2500,
 
-                    "command": "npx tailwindcss -i ./src/css/style.css -o ./build/www/css/output.css"
-                }
-            ]
+                "FOOLISH-SECURITY-RISK": true
+            }
+
         },
+
+        "plugin": {
+
+        }
+
+    },
+    
+    "tasks": [    
         {
             "name": "esbuild",
             "enabled": true,
+
             "actions": [
 
-                {
-                    "_name_": "typescript",
-                    "_implement_": "watch",
-                    "_fork_": "typescript_fork",
-                    "_watch_": [ "src/**/*.ts" ],
+                [
+                    {
+                        "name": "action example",
+                        "service": "example_fork",
+                        "triggers": [
+                            { "watch": [ "src/**/*.ts$" ] }  
+                        ]
+                    },
+                    {
+                        "in": "{src_root}/ts/main.tsx",
+                        "out": "{build_root}/www/js/compiled.js",
+                        "bundled": true,
+                        "platform": "browser",
+                        "format": "cjs"
+                    }
+                ],
 
-                    "in": "{src_root}/ts/main.tsx",
-                    "out": "{build_root}/www/js/compiled.js",
-                    "bundled": true,
-                    "platform": "browser",
-                    "format": "cjs"
-
-                },
-                {
-                    "_name_": "uglify teypescript",
-                    "_implement_": "execute_direct_doesnt_matter_whatever",
-                    "_exec_": "uglify_test",
-                    "_wait_": [
-                        {
-                            "task": "esbuild",
-                            "action": "typescript"
-                        }
-                    ]
-                }
+                [
+                    {
+                        "service": "example_fork",
+                        "triggers": [
+                            { "watch": [ "src/**/*.tsx" ] }
+                        ]
+                    },
+                    {
+                        "in": "{src_root}/ts/onyx.tsx",
+                        "out": "{build_root}/www/js/onyx.js",
+                        "bundled": true,
+                        "platform": "browser",
+                        "format": "cjs"
+                    }
+                ]
             ]
         }
     ]

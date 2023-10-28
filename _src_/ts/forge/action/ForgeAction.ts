@@ -1,19 +1,29 @@
-const $fs = require("fs").promises;
-
-import { $Promise, $UseRace, QuickHash, Serialize, TimeoutClear } from "../../core/Core";
-
-import { ISubscription, Subscription } from "../../core/Subscription";
+import { QuickHash, Serialize } from "../../core/Core";
+import { Subscription } from "../../core/Subscription";
 import { ForgeStream } from "../ForgeStream";
 import { ForgeTask } from "../ForgeTask";
 import { IServiceAdapter } from "../service/AbstractServiceAdapter";
 import { IForgeTrigger, ParseTrigger, TriggerData } from "./ForgeTrigger";
 
+/**
+ * 
+ * 
+ * @typedef {Object} ActionData
+ * 
+ * @property {TriggerData[]}  triggers - The default value if none is provided.
+ * @property {string}  service - Is this argument required. Provide an error if `undefined`.
+ * @property {(string|undefined)}  name - (optional) the default error message.
+ * @property {(boolean|undefined)}  enabled - (optional) A callback to transform the supplied value for an aurgument.
+ * @property {(number|undefined)}  race - (optional) Used suring
+ * @property {(boolean|undefined)}  route - (optional) Used by `ForgeServer` to determine if an `IAction` should attempt to route a request 
+ * 
+ */
 export type ActionData = {
-
-    name: string,
-    triggers: TriggerData[],
+    
+    triggers: TriggerData[], // dfdsfdsfds
     service: string,
 
+    name?: string,
     enabled?: boolean,
     race?: number,
     route?: boolean
@@ -21,26 +31,10 @@ export type ActionData = {
 
 export type ActionConfig = {
 
-    name: string,
+    name?: string,
     route: boolean
     enabled: boolean,
     race: number,
-
-}
-export enum ActionStdioType {
-
-    Default = "pipe",
-    Pipe = "pipe",
-    Inherit = "inherit",
-    Silent = "silent"
-
-}
-
-export enum ActionRouter {
-
-    Service = "service",
-    Local = "local",
-    Remote = "remote"
 
 }
 
@@ -48,11 +42,11 @@ export interface IAction {
 
     name: string;
     task: ForgeTask;
+    route: boolean;
 
-    // dependencies: { task: string, action: string }[];
-
-    // implement(): string;
-
+    /**
+     * Bias: bias_text[rating.bias[0]],
+     */
     $reset(data: Serialize): Promise<Serialize>;
 
     $trigger(forgeStream: ForgeStream): Promise<boolean>;
@@ -60,8 +54,6 @@ export interface IAction {
     $signal(signal: string, data: Serialize, race?: number): Promise<Serialize>;
 
     $stream(stdoutCallback: (message: string | string[]) => void, stderrCallback?: (error: string | string[]) => void): Promise<void>
-
-    $serve(url: string, request): Promise<{ mime: string, buffer: Buffer }>;
 
     $route(url: string, request): Promise<Serialize>;
 
@@ -71,19 +63,26 @@ export interface IAction {
 
 }
 
+/**
+ * ForgeAction is the base class to eval signal dispatching from triggers, dispatch `$signals`, route requests, or stream output during `ForgeStream.$signal( ... )`
+ * 
+ */
 export class ForgeAction extends Subscription implements IAction {
 
-    public static Parse(iServiceAdapter: IServiceAdapter, actionData: Record<string, unknown>, data: Record<string, unknown>): IAction {
+    public static Parse(iServiceAdapter: IServiceAdapter, actionData: ActionData, data: Record<string, unknown>): IAction {
+
+        const route: boolean = actionData.route || false;
+        const name: string = actionData.name;
+        const enabled: boolean = actionData.enabled || true;
+        const race: number = actionData.race;
+
+        const iAction: IAction = new ForgeAction(iServiceAdapter, { name, route, enabled, race }, data);
 
         const triggerData: TriggerData[] = actionData.triggers as TriggerData[];
         const iForgeTriggers: IForgeTrigger[] = triggerData.map(ParseTrigger);
-
-        const iAction: IAction = new ForgeAction(iServiceAdapter, { name: actionData.name as string, ...actionData }, data);
-
         for (const iForgeTrigger of iForgeTriggers) {
 
             iAction.add(iForgeTrigger);
-
 
         }
 
@@ -93,20 +92,14 @@ export class ForgeAction extends Subscription implements IAction {
 
     protected _iServiceAdapter: IServiceAdapter;
     protected _data: any;
-    protected _watch: RegExp;
 
     protected _startTime: number;
     protected _race: number;
     protected _cancelable: boolean;
-    protected _renderer: ActionRouter;
 
     protected readonly _bindings: Map<Function, Function> = new Map();
 
-    protected readonly _sessions: Map<string, $Promise<Serialize>> = new Map();
-
     protected _iForgeTriggers: Set<IForgeTrigger> = new Set();
-
-    // public readonly dependencies: { task: string, action: string }[];
 
     public stdout: [string, number][];
     public stderr: [string, number][];
@@ -114,6 +107,7 @@ export class ForgeAction extends Subscription implements IAction {
     public name: string;
     public enabled: boolean;
     public task: ForgeTask;
+    public route: boolean;
 
     constructor(iServiceAdapter: IServiceAdapter, actionConfig: ActionConfig, data: Record<string, unknown>) {
 
@@ -125,11 +119,11 @@ export class ForgeAction extends Subscription implements IAction {
 
         this.name = actionConfig.name || QuickHash();
 
-        this._race = actionConfig.race || this._iServiceAdapter.race; // this._resolveData("_race_", this._iServiceAdapter.race) as number;
+        this._race = actionConfig.race || this._iServiceAdapter.race;
 
-        // this.dependencies = this._resolveData("_wait_", []) as { task: string, action: string }[];
         this.enabled = actionConfig.enabled || true;
 
+        this.route = actionConfig.route || false;
 
         // this get merged, injected, then sent via `signals`
         this._data = data;
@@ -142,41 +136,6 @@ export class ForgeAction extends Subscription implements IAction {
     protected _subscribeBroadcast(notify: string, header: any, data: any): void {
 
         console.log("_subscribeBroadcast", header, data);
-
-        /* if (notify == "message") {
-
-            if (header.resolve) {
-
-                const resolve: string = header.resolve;
-                if (this._sessions.has(resolve)) {
-
-                    const $promise: $Promise = this._sessions.get(resolve);
-                    $promise[1](data);
-
-                    this._sessions.delete(resolve);
-
-                }
-
-            } else if (header.reject) {
-
-                const reject: string = header.reject;
-                if (this._sessions.has(reject)) {
-
-                    const $promise: $Promise = this._sessions.get(reject);
-                    $promise[2](data);
-
-                    this._sessions.delete(reject);
-
-                }
-
-            } else if (header.signal !== undefined) {
-
-                console.log("NOOOOOO");
-                this.notify(header.signal, data);
-
-            }
-
-        } */
 
     }
 
@@ -212,42 +171,9 @@ export class ForgeAction extends Subscription implements IAction {
 
     public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
 
-        // optimize the `watch` signals only if a watch value is provided
-        /* if (signal == "watch" && this._watch) {
-
-            const { file, event } = data as { file: string, event: string };
-
-            console.log(`${this.name} watching:`, this._watch, this._watch.test(file), data);
-            if (this._watch.test(file) === false) {
-
-                console.warn(`"watch" Signal Ignored`);
-                return Promise.reject({ name: this._data._name_, watch: "ignored" });
-
-            }
-
-        } */
-
-        // console.log({ ...this._data, ...data as object });
-
         return this._iServiceAdapter.$signal(signal, { ...this._data, ...data as object }, race);
 
     }
-
-    /* public $watch(data: Serialize): Promise<boolean> {
-
-        // optimize the `watch` signals only if a watch value is provided
-
-        const { file, event } = data as { file: string, event: string };
-
-        console.log(this._watch, this._watch.test(file), data);
-        if (this._watch && this._watch.test(file) === false) {
-
-            console.warn(`"watch" Signal Ignored`);
-            return Promise.reject({ task: this.task.name, name: this._data.name, watch: "ignored" });
-
-        }
-
-    } */
 
     public async $reset(data: Serialize): Promise<Serialize> {
 
@@ -325,7 +251,7 @@ export class ForgeAction extends Subscription implements IAction {
 
     }
 
-    public async $route(route: string, params: Serialize): Promise<Serialize> {
+    public async $route(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
 
         return this.$signal("route", { route, params }, this._race)
             .then(async function (data: Serialize) {
@@ -344,7 +270,7 @@ export class ForgeAction extends Subscription implements IAction {
 
     }
 
-    public async $serve(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
+    /* public async $serve(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
 
         return this.$signal("serve", { route, params }, this._race)
             .then(async function (response: Serialize) {
@@ -361,6 +287,6 @@ export class ForgeAction extends Subscription implements IAction {
 
             }) as Promise<{ mime: string, buffer: Buffer }>;
 
-    }
+    } */
 
 }

@@ -1,22 +1,21 @@
 /*
 *
-* imports
+* require and external imports
 *
 */
 const path = require("path");
 const fs = require("fs");
 const $fs = require("node:fs/promises");
 
+import { Format, Platform, build as esBuild } from "esbuild";
 
 /*
 *
 * imports
 *
 */
-import { Format, Platform, build as esBuild } from "esbuild";
-import { DependencyHelper } from "./DependencyHelper";
+import { DependencyHelper } from "./util/DependencyHelper";
 import { CLIArguments } from "./core/Argument";
-import { $UsePromise } from "./core/Core";
 import { DebugFormatter } from "./core/Debug";
 import { ForgeClient } from "./forge/ForgeClient";
 

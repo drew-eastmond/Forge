@@ -72,7 +72,7 @@ const wasmService: IServiceAdapter = forge.exec("WASM Compile", {
 			route: true //
 		},
 		{
-			in: "./src/ts/main.tsx",
+			in: "main.tsx",
 			out: "./build/www/js/compiled.js",
 			platform: "browser",
 			format: "cjs",
@@ -157,25 +157,19 @@ const wasmService: IServiceAdapter = forge.exec("WASM Compile", {
 /*
 * Will serve files from "./build/www/"
 */
-/*forge.$serve(1234, "./build/www/")
+forge.$serve(1234, "./build/www/")
 	.then(function (forgeServer: ForgeServer) {
 
 		// customize forgeServer
 
-	})
-	.catch(function (error: unknown) {
-
-		// console.log(error);
-
-	}); */
+	});
 
 
 /*
 * Watch all "OS file event" from "root" folder
 */
-console.log("watch started");
-forge.watch(["**/*"], { ignore: [], debounce: 350, throttle: 5 });
-console.log("watch started");
+forge.watch(["./"], { ignore: [], debounce: 350, throttle: 5 });
+
 /*
 *
 * load and continue from last session
