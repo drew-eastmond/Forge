@@ -157,7 +157,7 @@ const wasmService: IServiceAdapter = forge.exec("WASM Compile", {
 /*
 * Will serve files from "./build/www/"
 */
-/*forge.$serve(1234, "./build/www/")
+forge.$serve(1234, "./build/www/")
 	.then(function (forgeServer: ForgeServer) {
 
 		// customize forgeServer
@@ -167,7 +167,7 @@ const wasmService: IServiceAdapter = forge.exec("WASM Compile", {
 
 		// console.log(error);
 
-	}); */
+	});
 
 
 /*
@@ -181,4 +181,4 @@ console.log("watch started");
 * load and continue from last session
 *
 */
-// forge.$load("./session.json");
+forge.$load("./session.json");

@@ -332,7 +332,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
 
                 if (args.plugins === undefined) return [];
 
-
+                
 
                 // if (fs.existsSync(args.out) === false) return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
 
@@ -365,6 +365,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
     const watch: boolean = cliArguments.get("watch") as boolean;
     const externals: string[] = cliArguments.get("external") as string[];
+    const Plugins: IForgePlugin = cliArguments.get(/plugins/i) as IForgePlugin;
 
     // parse the folder and filename from the --out-- CLI arguments
     const outFilePath = path.parse(outFile);
