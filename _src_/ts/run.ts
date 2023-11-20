@@ -26,23 +26,29 @@ if (require.main === module) {
 		*/
 		const compositeArguments: CompositeArguments = new CompositeArguments();
 		compositeArguments
-			.add("PORT", {
+			.add(/^port$/i, {
 				default: 1234,
 				sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
-					
-					return parseInt(value as string);
-					
+
+					switch (value.constructor) {
+						case Number:
+							return value;
+
+						case String:
+							return parseInt(value as string);		
+					}
 				}
 			})
-			.add("WWW_ROOT", {
-				default: false,
+			.add(/www_root/i, {
 				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
+
+					if (value === undefined) return true;
 
 					return (fs.existsSync(value));
 
 				}
 			})
-			.add("WATCH", {
+			.add(/watch/i, {
 				default: [],
 				validate: function (value: unknown, args: Record<string, unknown>): boolean | Error {
 
@@ -53,13 +59,17 @@ if (require.main === module) {
 				},
 				sanitize: function (value: unknown, args: Record<string, unknown>): unknown {
 
+					console.log("sanitize-------------", value)
 
-					console.log("sanitize------------")
-					return (value as string).split(",");
+					if (value instanceof Array) return value;
+					if (value.constructor === String) return (value as string).split(",");
 
+
+					return value;
+					
 				}
 			})
-			.add("start", {
+			.add(/start/i, {
 				default: {}
 			})
 
@@ -80,16 +90,13 @@ if (require.main === module) {
 
 			});
 			
-
 		/*
 		* 2. setup and extract the arguments
 		*/
-		let PORT: number = compositeArguments.get("PORT") as number;
-		let WWW_ROOT: string = compositeArguments.get("WWW_ROOT") as string;
-		let WATCH: string[] = compositeArguments.get("WATCH") as string[];
-		let START: Record<string, unknown> = compositeArguments.get("start") as Record<string, unknown>;
-
-		console.log("WATCH", WATCH);
+		let PORT: number = compositeArguments.get(/^port$/i) as number;
+		let WWW_ROOT: string = compositeArguments.get(/^www_root$/i) as string;
+		let WATCH: string[] = compositeArguments.get(/^watch$/i) as string[];
+		let START: Record<string, unknown> = compositeArguments.get(/^start$/i) as Record<string, unknown>;
 
 		/*
 		* 3. intiatiate a `Forge` instance
@@ -103,15 +110,16 @@ if (require.main === module) {
 				console.log(config);
 
 				// override 
+				console.log(config?.forge?.port, PORT);
 				const port: number = config?.forge?.port;
-				if (isNaN(port)) PORT = port; 
+				if (isNaN(port)) PORT = port;
 
 
 				const wwwRoot: string = config?.forge?.www;
 				if (wwwRoot && $fs.existsSync(wwwRoot)) WWW_ROOT = wwwRoot; 
 
 				const watch: string[] = config?.forge?.watch;
-				if (watch && watch.constructor === Array) WATCH.concat(watch);
+				// if (watch && watch.constructor === Array) WATCH.concat(watch);
 
 				console.log(PORT, WWW_ROOT, WATCH);
 

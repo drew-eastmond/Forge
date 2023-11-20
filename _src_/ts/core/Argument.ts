@@ -77,7 +77,10 @@ class AbstractArguments implements IArguments {
      * @returns {unknown} If the `validation` param has a delegate then it will sanitize value.
      */
 
-    protected _validate(key: string, value: unknown, validation: ValidationEntry): unknown {
+    protected _validate(key: string | RegExp, value: unknown, validation: ValidationEntry): unknown {
+
+        // if (key instanceof RegExp && key.test(value as string) === false) return true;
+
 
         // Assign all default values
         if (validation.default !== undefined) value = (value === undefined) ? validation.default : value;
@@ -99,7 +102,7 @@ class AbstractArguments implements IArguments {
 
             if (result === false || result === undefined) {
 
-                console.log();
+                console.log(validation);
 
                 const errorMessage: string = validation.error || `\u001b[31; 1mValidation Failed for \u001b[36; 1m--${key}--\u001b[0m\u001b[31; 1m argument\u001b[0m)`
                 this._errors.push(errorMessage);
@@ -136,6 +139,35 @@ class AbstractArguments implements IArguments {
 
         // no fuss, no muss! Just return the value as is...
         return value;
+
+    }
+
+    /**
+     * Find the requested key in the internal args members. Can evaluate using `String` or `RegExp`
+     * 
+     * @param key {string|RegExp} Optional 
+     * @returns {boolean} 
+     */
+
+    public has(key: string | RegExp): boolean {
+
+        if (key.constructor === RegExp) {
+
+            const regExp: RegExp = key as RegExp;
+
+            for (const [key, value] of Object.entries(this._args)) {
+
+                if (regExp.test(key)) return true;
+
+            }
+
+        } else if (key.constructor === String) {
+
+            return (key in this._args);
+
+        }
+
+        return false;
 
     }
 
@@ -211,7 +243,7 @@ class AbstractArguments implements IArguments {
                 if (query.constructor === String) continue;
                 if ((query as RegExp).test(key) === false) continue;
 
-                console.log(key, query, (query as RegExp).test(key));
+                // console.log(key, query, (query as RegExp).test(key));
 
                 const value: unknown = this._args[key];
                 this._args[key] = this._validate(key, value, validation);

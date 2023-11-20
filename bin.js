@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
@@ -2406,7 +2405,7 @@ var AbstractArguments = class {
     if (validation.validate) {
       const result = validation.validate(value, this._args);
       if (result === false || result === void 0) {
-        console.log();
+        console.log(validation);
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       } else if (result instanceof Error) {
@@ -2425,6 +2424,24 @@ var AbstractArguments = class {
       return result;
     }
     return value;
+  }
+  /**
+   * Find the requested key in the internal args members. Can evaluate using `String` or `RegExp`
+   * 
+   * @param key {string|RegExp} Optional 
+   * @returns {boolean} 
+   */
+  has(key) {
+    if (key.constructor === RegExp) {
+      const regExp = key;
+      for (const [key2, value] of Object.entries(this._args)) {
+        if (regExp.test(key2))
+          return true;
+      }
+    } else if (key.constructor === String) {
+      return key in this._args;
+    }
+    return false;
   }
   get(key) {
     if (key && key.constructor === RegExp) {
@@ -2466,7 +2483,6 @@ var AbstractArguments = class {
           continue;
         if (query.test(key) === false)
           continue;
-        console.log(key, query, query.test(key));
         const value2 = this._args[key];
         this._args[key] = this._validate(key, value2, validation);
       }
@@ -2765,10 +2781,11 @@ console.parse = function(...rest) {
   }));
 };
 
-// forge/_src_/ts/forge/ForgeIO.ts
+// forge/_src_/ts/forge/io/ForgeIO.ts
 var $fs = require("node:fs/promises");
 var fs = require("fs");
 var path = require("path");
+var { spawn, fork, exec, execSync } = require("child_process");
 var { Readable } = require("stream");
 var { finished } = require("stream/promises");
 var fflate = require_node();
@@ -2776,7 +2793,74 @@ var ForgeFile = class {
   async $FileExist(file) {
     return $fs.access(file, fs.constants.F_OK).then(() => true).catch(() => false);
   }
-  async;
+  static async $DirectoryExists(path3) {
+    try {
+      const stats = await $fs.stat(path3);
+      if (stats.isDirectory()) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  }
+  static async $MakeDirectory(path3) {
+    return $fs.mkdir(path3, { recursive: true }).then(function() {
+      console.log("Directory created successfully", path3);
+      return true;
+    }).catch(function() {
+      console.log("failed to create directory", path3);
+      return false;
+    });
+  }
+};
+var ForgeNPM = class {
+  _packageManager;
+  manager(packageManager) {
+    this._packageManager = packageManager;
+  }
+  async $list() {
+    let stdio;
+    switch (this._packageManager) {
+      case "npm":
+        stdio = execSync("npm list").toString();
+        break;
+      case "yarn":
+        stdio = execSync("yarn list").toString();
+        break;
+      case "pnpm":
+        stdio = execSync("pnpm list").toString();
+        break;
+    }
+    const lines = stdio.split(/\n/g);
+    const dependencies = {};
+    for (const line of lines) {
+      let matched = false;
+      const tokens = line.split(/\s+/g);
+      for (const token of tokens) {
+        if (/\d+\.\d+\.\d+/.test(token))
+          matched = true;
+      }
+      if (matched)
+        dependencies[tokens[0]] = tokens[tokens.length - 1];
+    }
+    return dependencies;
+  }
+  async $install(name) {
+    switch (this._packageManager) {
+      case "npm":
+        execSync(`npm install ${name}`, { stdio: "inherit" });
+        break;
+      case "yarn":
+        execSync(`yarn install ${name}`, { stdio: "inherit" });
+        break;
+      case "pnpm":
+        execSync(`pnpm install ${name}`, { stdio: "inherit" });
+        break;
+    }
+    return true;
+  }
 };
 var ForgeIO = class _ForgeIO {
   async $FileExist(file) {
@@ -2803,9 +2887,9 @@ var ForgeIO = class _ForgeIO {
       return false;
     });
   }
-  static async $Download(url, fileName) {
+  static async $Download(url, file) {
     return await new Promise(async function(resolve, reject) {
-      const fileStream = fs.createWriteStream(fileName);
+      const fileStream = fs.createWriteStream(file);
       const { body } = await fetch(url);
       await finished(Readable.fromWeb(body).pipe(fileStream));
       resolve(true);
@@ -2835,10 +2919,98 @@ var ForgeIO = class _ForgeIO {
 
 // forge/_src_/ts/install.ts
 var $fs2 = require("node:fs/promises");
-var { spawn, fork, exec, execSync } = require("child_process");
+var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
 var path2 = require("path");
 var fflate2 = require_node();
 DebugFormatter.Init({ platform: "node" });
+var PackageManagerOptions = /* @__PURE__ */ ((PackageManagerOptions2) => {
+  PackageManagerOptions2["NPM"] = "npm";
+  PackageManagerOptions2["PNPM"] = "pnpm";
+  PackageManagerOptions2["YARN"] = "yarn";
+  return PackageManagerOptions2;
+})(PackageManagerOptions || {});
+var PackageManager = class {
+  _type;
+  constructor(type) {
+    this._type = type;
+  }
+  $list() {
+    const type = this._type;
+    return new Promise(function(resolve, reject) {
+      let stdio;
+      switch (type) {
+        case "npm" /* NPM */:
+          execSync2("npm list").toString();
+          break;
+        case "pnpm" /* PNPM */:
+          execSync2("pnpm list").toString();
+          break;
+        case "yarn" /* YARN */:
+          execSync2("yarn list").toString();
+          break;
+      }
+      const lines = stdio.split(/\n/g);
+      const dependencies = {};
+      for (const line of lines) {
+        let matched = false;
+        const tokens = line.split(/\s+/g);
+        for (const token of tokens) {
+          if (/\d+\.\d+\.\d+/.test(token))
+            matched = true;
+        }
+        if (matched)
+          dependencies[tokens[0]] = tokens[tokens.length - 1];
+      }
+      resolve(dependencies);
+    });
+  }
+  $install(name) {
+    switch (this._type) {
+      case "npm" /* NPM */:
+        execSync2(`npm install ${name}`, { stdio: "inherit" });
+        break;
+      case "pnpm" /* PNPM */:
+        execSync2(`pnpm install ${name}`, { stdio: "inherit" });
+        break;
+      case "yarn" /* YARN */:
+        execSync2(`yarn install ${name}`, { stdio: "inherit" });
+        break;
+    }
+  }
+  $add(name) {
+  }
+  async $load(file) {
+    try {
+      const installedPackages = await $installedPackages();
+      const packageData = JSON.parse(await $fs2.readFile(file, "utf-8"));
+      const alreadyInstalledPackages = [];
+      if ("dependencies" in packageData) {
+        const entries = Object.entries(packageData["dependencies"]);
+        for (const [packageName, version] of entries) {
+          if (packageName in installedPackages) {
+            alreadyInstalledPackages.push(packageName);
+          } else {
+            await this.$install(packageName, version);
+          }
+        }
+      }
+      if ("devDependencies" in packageData) {
+        const entries = Object.entries(packageData["devDependencies"]);
+        for (const [packageName, version] of entries) {
+          if (packageName in installedPackages) {
+            alreadyInstalledPackages.push(packageName);
+          } else {
+            await this.$install(`${packageName} --save-dev`, version);
+          }
+        }
+      }
+      console.parse(`already installed: <yellow>${alreadyInstalledPackages.join(", ")}`);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+};
 var forgeTpl = {
   forge: {
     port: 1234,
@@ -2854,9 +3026,35 @@ var forgeTpl = {
   },
   tasks: []
 };
+async function $InstallModule(target, repo, flatten) {
+  const moduleName = target.split("/").pop();
+  console.parse(`<yellow>Installing: <cyan>${moduleName}`);
+  const now = Date.now();
+  if (await ForgeIO.$DirectoryExists(target) === true) {
+    console.parse(`<red>${target} already exists`);
+    return false;
+  }
+  return true;
+  if (flatten === true) {
+  } else {
+    await ForgeIO.$MakeDirectory("./Forge/typescript/");
+    await fetch("https://github.com/drew-eastmond/forge-typescript/archive/refs/heads/main.zip").then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error, status = ${response.status}`);
+      }
+      return response.arrayBuffer();
+    }).then(async function(arraybuffer) {
+      const fileData = new Uint8Array(arraybuffer);
+      if (await ForgeIO.$UnZip(fileData, "./Forge/typescript/")) {
+        await $LoadPackageFile("./Forge/typescript/package.json");
+      }
+    });
+  }
+  console.parse(`<yellow>Installing: <cyan>typescript <yellow>complete`);
+}
 async function $installedPackages() {
   return new Promise(function(resolve, reject) {
-    const stdio = execSync("pnpm list").toString();
+    const stdio = execSync2("pnpm list").toString();
     const lines = stdio.split(/\n/g);
     const dependencies = {};
     for (const line of lines) {
@@ -2872,43 +3070,9 @@ async function $installedPackages() {
     resolve(dependencies);
   });
 }
-async function $LoadPackageFile(file) {
-  try {
-    const installedPackages = await $installedPackages();
-    const packageData = JSON.parse(await $fs2.readFile(file, "utf-8"));
-    const alreadyInstalledPackages = [];
-    if ("dependencies" in packageData) {
-      const entries = Object.entries(packageData["dependencies"]);
-      for (const [packageName, version] of entries) {
-        if (packageName in installedPackages) {
-          alreadyInstalledPackages.push(packageName);
-        } else {
-          InstallPackage(packageName, version);
-        }
-      }
-    }
-    if ("devDependencies" in packageData) {
-      const entries = Object.entries(packageData["devDependencies"]);
-      for (const [packageName, version] of entries) {
-        if (packageName in installedPackages) {
-          alreadyInstalledPackages.push(packageName);
-        } else {
-          InstallPackage(`${packageName} --save-dev`, version);
-        }
-      }
-    }
-    console.parse(`already installed: <yellow>${alreadyInstalledPackages.join(", ")}`);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-function InstallPackage(command, version) {
-  execSync(`pnpm install ${command}`, { stdio: "inherit" });
-}
 async function $GitClone(url, submodule) {
   if (submodule === void 0) {
-    execSync(`git clone ${url}`, (error, stdout, stderr) => {
+    execSync2(`git clone ${url}`, (error, stdout, stderr) => {
       if (error) {
         console.log(`git clone ${url} failed`);
       } else {
@@ -2916,7 +3080,7 @@ async function $GitClone(url, submodule) {
       }
     });
   } else {
-    execSync(`git submodule add ${url} ${submodule.folder}`, (error, stdout, stderr) => {
+    execSync2(`git submodule add ${url} ${submodule.folder}`, (error, stdout, stderr) => {
       if (error) {
         console.log(`git submodule add ${url} failed`);
       } else {
@@ -2928,13 +3092,13 @@ async function $GitClone(url, submodule) {
 if (require.main === module) {
   (async function() {
     const cliArguments = new CLIArguments();
-    cliArguments.add(/port/i, {
+    cliArguments.add(/^port$/i, {
       // required: true,
       default: 1234,
       sanitize: function(value, args) {
         return parseInt(value);
       }
-    }).add(/init/i, {
+    }).add(/^init$|^i$/i, {
       validate: function(value, args) {
         console.log("init is good", value);
         return true;
@@ -2942,21 +3106,50 @@ if (require.main === module) {
       sanitize: function(value, args) {
         return String(value).toUpperCase();
       }
-    }).add(/i/i, {
-      default: false,
+    }).add(/^flatten$|^git$|^submodule$/i, {
       validate: function(value, args) {
-        return true;
+        return cliArguments.get(/flatten/i) === true || cliArguments.get(/^git$/i) === true || cliArguments.get(/^submodule$/i);
+      }
+    }).add(/^package/i, {
+      validate: function(value, args) {
+        const valueStr = String(value).toLowerCase();
+        return valueStr === "npm" || valueStr === "pnpm" || valueStr === "yarn";
       }
     }).compile();
+    if (cliArguments.has(/^flatten$|^git$|^submodule$|/) === false)
+      throw "Forge must be added as a git repo or flattened. Use --repo";
+    if (cliArguments.has(/^package$/) === false)
+      throw "Forge Modules needs a package manager. Use --package-- npm|pnpm|yarn";
     const currentPath = path2.parse(__filename);
     const currentDirecctory = currentPath.dir;
-    const INIT = cliArguments.get(/init/i) || cliArguments.get("I");
+    const INIT = cliArguments.get(/init/i) || cliArguments.get(/i/i);
+    const FLATTEN = cliArguments.get(/^flatten$|^f$/i) === true || cliArguments.get(/^repo$|^r$/i) === false || true;
+    const PACKAGE_MANAGER = cliArguments.get(/^package$/i);
     if (await ForgeIO.$DirectoryExists("./Forge/") === false) {
-      if (await ForgeIO.$DirectoryExists("./Forge/.git/") === false) {
-        await $GitClone("https://github.com/drew-eastmond/Forge.git");
+      if (FLATTEN) {
+        await ForgeIO.$MakeDirectory("./Forge/");
+        await fetch("https://github.com/drew-eastmond/Forge/archive/refs/heads/main.zip").then(async function(response) {
+          if (!response.ok) {
+            throw new Error(`HTTP error, status = ${response.status}`);
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          const fileData = new Uint8Array(arrayBuffer);
+          if (await ForgeIO.$UnZip(fileData, "./Forge/")) {
+            await $LoadPackageFile("./Forge/package.json");
+          }
+        }).catch(function(error) {
+          throw "Can not find Forge repo '.zip'";
+        });
+      } else {
+        if (await ForgeIO.$DirectoryExists("./Forge/.git/") === false) {
+          await $GitClone("https://github.com/drew-eastmond/Forge.git");
+        } else {
+          console.parse(`<cyan>./Forge <red>is already a git repo`);
+        }
       }
     }
-    await $LoadPackageFile(path2.resolve(currentDirecctory, "package.json")).catch((error) => {
+    const packageManager = new PackageManager(PACKAGE_MANAGER);
+    await packageManager.$load(path2.resolve(currentDirecctory, "package.json")).catch((error) => {
       console.log(error, "read file failed");
     });
     if (INIT) {
@@ -2967,23 +3160,15 @@ if (require.main === module) {
         await $fs2.writeFile(path2.resolve(currentDirecctory, ".forge"), JSON.stringify(forgeTpl));
       });
     }
-    if (cliArguments.get(/typescript/i) || true) {
-      await ForgeIO.$MakeDirectory("./Forge/typescript/");
-      if (await ForgeIO.$Download("https://github.com/drew-eastmond/forge-typescript/archive/refs/heads/main.zip", "./Forge/typescript/test.zip")) {
-        console.log("goood");
-      }
-      const fileData = new Uint8Array(await $fs2.readFile("./Forge/typescript/test.zip"));
-      if (await ForgeIO.$UnZip(fileData, "./Forge/typescript/")) {
-        console.log("unzipped");
-        await $LoadPackageFile("./Forge/typescript/package.json");
-      }
+    if (cliArguments.get(/$typescript/i)) {
+      await $InstallModule("./Forge/typescript", "https://github.com/drew-eastmond/forge-typescript/archive/refs/heads/main.zip", FLATTEN);
     }
     if (cliArguments.get(/sass/i)) {
       await ForgeIO.$MakeDirectory("./Forge/sass/");
     }
     if (cliArguments.get(/tailwindcss/i)) {
       InstallPackage("tailwindcss");
-      execSync("npx tailwindcss init");
+      execSync2("npx tailwindcss init");
       $fs2.writeFile(path2.resolve(currentPath, ".forge"), JSON.stringify(forgeTpl));
     }
     if (cliArguments.get(/twig/i)) {

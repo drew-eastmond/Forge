@@ -54,6 +54,7 @@ type BuildOptions = {
     format: Format,
     metafile: boolean,
     treeShaking: boolean,
+    external: string[]
 }
 
 /*
@@ -201,7 +202,7 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
 
         // plugins: [yourPlugin]
-        // external: []
+        external: ["esbuild", ...options.external]
     });
 
     const fileManifest: string[] = Object.keys(result.metafile.inputs);
@@ -224,7 +225,7 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
     await $fs.writeFile(outFile, code);
 
-    console.parse(`<green>Build Successful : "${outFile}" (${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
+    console.parse(`<green>Build Successful : "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
 \t* ${(options.bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 \t* <cyan>format</cyan> : ${options.format}
 \t* <cyan>platform</cyan> : ${options.platform}
@@ -269,7 +270,9 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     cliArguments
         .add("in", {
             required: true,
-            validate: (args: Record<string, unknown>) => {
+            validate: (value: unknown, args: Record<string, unknown>) => {
+
+                console.log()
 
                 return Object.hasOwn(args, "in");
 
@@ -278,7 +281,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
         })
         .add("out", {
             required: true,
-            validate: (args: Record<string, unknown>) => {
+            validate: (value: unknown, args: Record<string, unknown>) => {
 
                 return Object.hasOwn(args, "out");
 
@@ -295,7 +298,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
             default: "neutral",
             validate: (value: unknown, args: Record<string, unknown>) => {
 
-                switch (args as unknown as string) {
+                switch (value as unknown as string) {
                     case "node":
                     case "neutral":
                     case "browser":
@@ -344,7 +347,10 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
             default: [],
             sanitize: (value: unknown, args: Record<string, unknown>) => {
 
-                return String(value).split(/\s,/g);
+                if (value === undefined) return value;
+                if (value instanceof Array) return value;
+
+                return String(value).split(/,/g);
 
             },
         })
@@ -365,7 +371,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
     const watch: boolean = cliArguments.get("watch") as boolean;
     const externals: string[] = cliArguments.get("external") as string[];
-    const Plugins: IForgePlugin = cliArguments.get(/plugins/i) as IForgePlugin;
+    // const plugins: IForgePlugin = cliArguments.get(/plugins/i) as IForgePlugin;
 
     // parse the folder and filename from the --out-- CLI arguments
     const outFilePath = path.parse(outFile);
@@ -382,7 +388,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
 
     } else {
 
-        $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true });
+        $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals });
 
     }
 

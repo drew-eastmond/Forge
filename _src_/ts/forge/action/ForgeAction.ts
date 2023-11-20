@@ -6,21 +6,22 @@ import { IServiceAdapter } from "../service/AbstractServiceAdapter";
 import { IForgeTrigger, ParseTrigger, TriggerData } from "./ForgeTrigger";
 
 /**
- * 
+ * The raw data from a JSON for action data. Pulled from a `.Forge` or supplied from a developer
  * 
  * @typedef {Object} ActionData
  * 
- * @property {TriggerData[]}  triggers - The default value if none is provided.
- * @property {string}  service - Is this argument required. Provide an error if `undefined`.
+ * @property {TriggerData[]}  triggers - An array of data to instantiate a set of `IForgeTriggers`.
+ * @property {string}  service - Binds this action to a service provided by the `Forge` instance. 
  * @property {(string|undefined)}  name - (optional) the default error message.
  * @property {(boolean|undefined)}  enabled - (optional) A callback to transform the supplied value for an aurgument.
- * @property {(number|undefined)}  race - (optional) Used suring
- * @property {(boolean|undefined)}  route - (optional) Used by `ForgeServer` to determine if an `IAction` should attempt to route a request 
+ * @property {(number|undefined)}  race - (optional) The alloted time to finish an action.
+ * @property {(boolean|undefined)}  route - (optional) Used by `ForgeServer` to determine if an `IAction` should attempt to route a `signal`.
  * 
  */
+
 export type ActionData = {
     
-    triggers: TriggerData[], // dfdsfdsfds
+    triggers: TriggerData[],
     service: string,
 
     name?: string,
@@ -28,6 +29,18 @@ export type ActionData = {
     race?: number,
     route?: boolean
 }
+
+/**
+ * The raw data from a JSON for action data. Pulled from a `.Forge` or supplied from a developer
+ * 
+ * @typedef {Object} ActionConfig
+ * 
+ * @property {(string|undefined)}  name - (optional) the default error message.
+ * @property {(boolean|undefined)}  enabled - (optional) A callback to transform the supplied value for an aurgument.
+ * @property {(number|undefined)}  race - (optional) The alloted time to finish an action.
+ * @property {(boolean|undefined)}  route - (optional) Used by `ForgeServer` to determine if an `IAction` should attempt to route a `signal`. 
+ * 
+ */
 
 export type ActionConfig = {
 
@@ -44,9 +57,6 @@ export interface IAction {
     task: ForgeTask;
     route: boolean;
 
-    /**
-     * Bias: bias_text[rating.bias[0]],
-     */
     $reset(data: Serialize): Promise<Serialize>;
 
     $trigger(forgeStream: ForgeStream): Promise<boolean>;

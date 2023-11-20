@@ -1,6 +1,6 @@
 {
     "name": "onyx-ignition-forge",
-    "version": "0.1.5",
+    "version": "0.1.8",
 
     "bin": "bin.js",
 

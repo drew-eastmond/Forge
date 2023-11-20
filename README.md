@@ -1,6 +1,47 @@
 # Forge
 ---
-## Getting started
+
+## Getting Started ( Blazingly Initialized via NPX )
+
+You probably don't have much time to think! Sale is down your ass to build something later today. I Got You Buddy!!!
+
+```
+npx onyx-ignition-forge --i --packager-- pnpm --typescript
+```
+
+This will install a flattened forge that is pre-configured:
+* install `Node` packages via `pnpm` ( there are also options `npm`, `pnpm`, `yarn`)
+* Typescript Bundler and **File Watching**.
+* Please update `.forge` file with entry and compile targets. Here's an example to configure file watching for `ts`, `js`, `jsx`, `tsx` and compile `src/ts/main.tsx` into `/www/js/compiled.js`
+```json
+[
+    {
+        "service": "typescript_bundler",
+        "triggers": [
+            { "watch": [ "\\.[tj]s(x?)$" ] }
+        ]
+    },
+    {
+        "in": "{src.root}/ts/main.tsx",
+        "out": "{build.root}/www/js/onyx.js",
+        "bundled": true,
+        "platform": "browser",
+        "format": "cjs"
+    }
+]
+```
+* TailwindCSS compiler. *Be mindful of your project structure, as tailwind will install from the* **Current working Directory**
+
+
+| Package | Params | Description |
+| ------ | ------ | ------ | 
+| Typescript | --typescript | 
+
+```
+npx onyx-ignition-forge -i --npm|-- <package_1> <package_2> <...package_n>
+```
+
+## Getting Started ( Slow + Manually )
 
 Having certain software preinstalled is required. More robust installers will be added. For now it recommended to preinstall `Node`, `Python`, and `Enscripten` 
 

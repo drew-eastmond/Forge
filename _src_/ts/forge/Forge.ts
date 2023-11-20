@@ -7,7 +7,7 @@ const url = require("url");
 const path = require("path");
 
 import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } from "../core/Core";
-import { ForgeIO } from "./ForgeIO";
+import { ForgeIO } from "./io/ForgeIO";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask, TaskConfig } from "./ForgeTask";
 import { ForgeServer } from "./server/ForgeServer";
@@ -35,8 +35,6 @@ export class Forge {
         
         
     }
-
-    private _lastUpdate: number = Date.now();
 
     private _forgeServer: ForgeServer;
 
