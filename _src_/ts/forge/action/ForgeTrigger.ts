@@ -82,13 +82,15 @@ export class WatchTrigger implements IForgeTrigger {
 
         if (watch.constructor == String) {
 
-            if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
+            // capture `**/*` or `**\*` glob wildcard for file watching
+            if (/\*\*[\/\\]\*\.\*/.test(watch)) {
 
-                watch = watch.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\\/\\\\].+?)$")
+                watch = watch.replace(/[\/\\]\*\*[\/\\]\*$/, "((.+?)[\\\/\\\\].+?)");
 
+            // capture `/*` or `\*` glob wildcard for file watching
             } else if (/[\/\\]\*/.test(watch)) {
 
-                watch = watch.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\\/\\\\](.+?)")
+                watch = watch.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\\/\\\\](.+?)");
 
             } 
 

@@ -1,5 +1,17 @@
 import { DecodeBase64 } from "../core/Core";
 
+/**
+ * Use to store data about how to parse an argument
+ * 
+ * @typedef {Object} ValidationEntry
+ * 
+ * @property {(unknown|undefined)}  default - The default value if none is provided.
+ * @property {(boolean|undefined)}  required - Is this argument required. Provide an error if `undefined`.
+ * @property {(error|undefined)}  error - Overrides the default error message.
+ * @property {(Function|undefined)}  sanitize - (optional) A callback to transform the supplied value for an aurgument.
+ * @property {(Function|undefined)}  validate - (optional) A callback to evaluate if the value if valid otherwise it will provide a error.
+ * 
+ */
 type ValidationEntry = {
     default?: unknown,
     required?: boolean,
@@ -25,17 +37,33 @@ export interface IArguments {
  * After the subclass populates the arguments store, and add validation for each key.
  * The `compile` member will test each key, and throw an error before resolving all validation queries.
  * 
- * @class
  */
 class AbstractArguments implements IArguments {
 
     protected readonly _args: Record<string, unknown> = {};
-    protected readonly _validationMap: Map<string, ValidationEntry> = new Map();
+    protected readonly _validationMap: Map<string | RegExp, ValidationEntry> = new Map();
     protected readonly _errors: string[] = [];
 
     constructor() {
 
     }
+
+
+    /**
+     * Iterates via Object.entries(...) on the internal _args property
+     * 
+     * @generator
+     * @yields {[string, unknown]}
+     */
+    public *[Symbol.iterator](): Iterator<[string, unknown]> {
+
+        for (const entry of Object.entries(this._args)) {
+
+            yield entry;
+
+        }
+
+    } 
 
     /**
      * This function will 
@@ -49,7 +77,10 @@ class AbstractArguments implements IArguments {
      * @returns {unknown} If the `validation` param has a delegate then it will sanitize value.
      */
 
-    protected _validate(key: string, value: unknown, validation: ValidationEntry): unknown {
+    protected _validate(key: string | RegExp, value: unknown, validation: ValidationEntry): unknown {
+
+        // if (key instanceof RegExp && key.test(value as string) === false) return true;
+
 
         // Assign all default values
         if (validation.default !== undefined) value = (value === undefined) ? validation.default : value;
@@ -68,12 +99,16 @@ class AbstractArguments implements IArguments {
 
             // use the delegate validate and check the results.
             const result: boolean | Error = validation.validate(value, this._args);
+
             if (result === false || result === undefined) {
+
+                console.log(validation);
 
                 const errorMessage: string = validation.error || `\u001b[31; 1mValidation Failed for \u001b[36; 1m--${key}--\u001b[0m\u001b[31; 1m argument\u001b[0m)`
                 this._errors.push(errorMessage);
 
             } else if (result instanceof Error) {
+
 
                 const error: Error = result;
                 const errorMessage: string = error.message;
@@ -108,36 +143,77 @@ class AbstractArguments implements IArguments {
     }
 
     /**
+     * Find the requested key in the internal args members. Can evaluate using `String` or `RegExp`
+     * 
+     * @param key {string|RegExp} Optional 
+     * @returns {boolean} 
+     */
+
+    public has(key: string | RegExp): boolean {
+
+        if (key.constructor === RegExp) {
+
+            const regExp: RegExp = key as RegExp;
+
+            for (const [key, value] of Object.entries(this._args)) {
+
+                if (regExp.test(key)) return true;
+
+            }
+
+        } else if (key.constructor === String) {
+
+            return (key in this._args);
+
+        }
+
+        return false;
+
+    }
+
+    /**
      * Getter that will return the value associated with the key, or the arguments collection {Record<string, unknown>) 
-     *
-     * @param key {string} Optional 
-     * @returns {unknown | unknown[]} DO l really need to explain this
+     * if a RegExp the is passed then this function will returnt he first value that matches.
+     * if a string is pass then the value of the indexed value will be returned.
+     * if no value is passed then the whole arg object is returned.
+     * 
+     * @param key {string|RegExp|undefined} Optional 
+     * @returns {unknown} DO l really need to explain this
      */
 
     public get(): unknown;
-    public get(key: string): unknown;
-    public get(key?: string): unknown {
+    public get(key: string | RegExp): unknown;
+    public get(key?: string | RegExp): unknown {
 
-        return (key === undefined) ? this._args : this._args[key];
+        if (key && key.constructor === RegExp) {
+
+            const regExp: RegExp = key as RegExp;
+
+            for (const [key, value] of Object.entries(this._args)) {
+
+                if (regExp.test(key)) return value;
+
+            }
+
+            return undefined;
+
+        }
+
+        return (key === undefined) ? this._args : this._args[key as string];
 
     }
 
     /**
      * Assigns a validation check to specific arguments via the key provided
      * 
-     * @param key 
+     * @param key {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
      * @param validationEntry {ValidationEntry}
      * @returns {this} return this so you can daisy chain calls
      */
 
-    public add(key: string, validationEntry: ValidationEntry): this {
+    public add(key: string | RegExp, validationEntry: ValidationEntry): this {
 
-        this._validationMap.set(key, {
-            default: validationEntry.default,
-            sanitize: validationEntry.sanitize,
-            required: validationEntry.required || false,
-            error: validationEntry.error
-        });
+        this._validationMap.set(key, { ...validationEntry, required: validationEntry.required || false });
 
         return this;
 
@@ -153,15 +229,33 @@ class AbstractArguments implements IArguments {
         // sanitize each entry
         for (const [key, validation] of this._validationMap) {
 
-            const value: unknown = this._args[key];
-            this._args[key] = this._validate(key, value, validation);
+            if (key.constructor === RegExp) continue;
+
+            const value: unknown = this._args[key as string];
+            this._args[key as string] = this._validate(key as string, value, validation);
+
+        }
+
+        for (const [key, value] of Object.entries(this._args)) {
+
+            for (const [query, validation] of this._validationMap) {
+
+                if (query.constructor === String) continue;
+                if ((query as RegExp).test(key) === false) continue;
+
+                // console.log(key, query, (query as RegExp).test(key));
+
+                const value: unknown = this._args[key];
+                this._args[key] = this._validate(key, value, validation);
+
+            }
 
         }
 
         // if we did get errors then let the developer catch the error. Let that mutha***er sort this mess out!
         if (this._errors.length) {
 
-            console.log(this._errors);
+            // console.log(this._errors);
             throw new Error(this._errors.join("\n"));
 
         }
@@ -211,8 +305,7 @@ export class CLIArguments extends AbstractArguments {
 
                 // give a meanful error and exit
                 throw new Error(`(Executing) node ${args.slice(1).join(" ")}
-
-\u001b[31;1mIncorrect formatting encountered parsing key arguments : "\u001b[34;1m${keyQuery}\u001b[31;1m"\u001b[0m
+<red>Incorrect formatting encountered parsing key arguments : "<blue>${keyQuery}</blue>"
 ${JSON.stringify(this._args, undefined, 2)}`);
 
             }

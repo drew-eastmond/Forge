@@ -62,6 +62,8 @@ export class ExecService extends AbstractServiceAdapter {
 
     public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
 
+        console.log("exec");
+
         // sanitize
         race = race || this._race;
         const name: string = this._name;

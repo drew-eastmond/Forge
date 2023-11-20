@@ -5,7 +5,7 @@ const path = require("path");
 const $fs = require("fs").promises;
 const mimeTypes = require("mime-types");
 
-import { $Promise, $UsePromise, DecodeBase64, TimeoutClear } from "../../core/Core";
+import { $Promise, $UsePromise, DecodeBase64, Serialize, TimeoutClear } from "../../core/Core";
 import { DebugFormatter } from "../../core/Debug";
 import { Debouncer } from "../../core/timing/Debounce";
 import { IAction } from "../action/ForgeAction";
@@ -54,9 +54,8 @@ export async function $ParseRequestBody(request): Promise<{ mime: string, buffer
 
 }
 
-
 /*
-* lass
+* class
 */
 
 
@@ -184,7 +183,7 @@ export class ForgeServer {
             try {
 
                 // const requestBody: string = String(await this._requestBodyParser.$parse(request));
-                const { mime, buffer } = await this._$parseRequestBody(request);
+                const { mime, buffer } = await $ParseRequestBody(request);
                 await this.$save(`${taskName}/${actionName}`, key, mime, buffer);
 
                 response
@@ -278,10 +277,17 @@ export class ForgeServer {
 
             if (iAction === undefined) {
 
-                console.parse(`<red>NO Actions ${actionName}</red>\n\n`);
+                console.parse(`<red>No Action for ${actionName}</red>\n\n`);
 
                 response.sendStatus(404);
-                // next();
+
+                return;
+
+            } else if (iAction.route === false) {
+
+                console.parse(`<red>Action does not have a route ${actionName}</red>\n\n`);
+
+                response.sendStatus(404);
 
                 return;
 
@@ -293,10 +299,13 @@ export class ForgeServer {
 
             // response.send(JSON.stringify(request.params) + "<br />" + JSON.stringify(request.query));
 
-            const { mime, buffer } = await iAction.$serve(route, query);
+            const { mime, buffer } = await iAction.$route(route, query);
+
             response
                 .setHeader("Content-Type", mime)
                 .end(buffer);
+
+            
 
         }.bind(this));
 
@@ -385,7 +394,7 @@ export class ForgeServer {
 
     }
 
-    private async _$parseRequestBody(request) {
+    /* private async _$parseRequestBody(request) {
 
         return new Promise(function (resolve: Function, reject: Function) {
 
@@ -407,7 +416,7 @@ export class ForgeServer {
 
         })
 
-    }
+    } */
 
     public async $keys(partitionName: string): Promise<string[]> {
         

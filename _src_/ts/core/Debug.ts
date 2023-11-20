@@ -5,6 +5,18 @@ declare global {
 
 }
 
+/* 
+
+https://stackoverflow.com/questions/11474391/is-there-go-up-line-character-opposite-of-n
+
+Most terminals understand ANSI escape codes.The relevant codes for this use case:
+
+"\033[F" – move cursor to the beginning of the previous line
+"\033[A" – move cursor up one line
+Example(Python):
+
+print("\033[FMy text overwriting the previous li */
+
 export enum DebugForeground {
 
 	Black = "\u001b[30m",

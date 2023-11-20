@@ -3,6 +3,15 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 
 const __ForgeProtocol: string = "forge://";
 
+enum ActionStdioType {
+
+    Default = "pipe",
+    Pipe = "pipe",
+    Inherit = "inherit",
+    Silent = "silent"
+
+}
+
 export type ServiceConfig = {
     command?: string
     debounce?: number,

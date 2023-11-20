@@ -1,28 +1,29 @@
 {
-	"name": "onyx-ignition-forge",
-	"version": "0.0.1",
+    "name": "onyx-ignition-forge",
+    "version": "0.1.8",
 
-	"bin": "./npx.js",
+    "bin": "bin.js",
 
-	"dependencies": {
-		"chokidar": "^3.5.3",
-		"glob": "^10.3.9",
+    "dependencies": {
+        "chokidar": "^3.5.3",
+        "glob": "^10.3.9",
 
-		"esbuild": "^0.19.4",
+        "esbuild": "^0.19.4",
 
-		"compression": "^1.7.4",
-		"express": "^4.18.2",
-		"mime-types": "^2.1.35"
+        "compression": "^1.7.4",
+        "express": "^4.18.2",
+        "mime-types": "^2.1.35",
+        "fflate": "^0.8.1"
 
-	},
-	"devDependencies": {
-		"@types/node": "^20.7.2",
-		"react": "^18.2.0",
-		"react-dom": "^18.2.0"
-	},
-	"graveyard": {
-		"tailwind-merge": "^1.14.0",
-		"tailwindcss": "^3.3.3",
-		"tailwindcss-animate": "^1.0.7"
-	}
+    },
+    "devDependencies": {
+        "@types/node": "^20.7.2",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    },
+    "graveyard": {
+        "tailwind-merge": "^1.14.0",
+        "tailwindcss": "^3.3.3",
+        "tailwindcss-animate": "^1.0.7"
+    }
 }

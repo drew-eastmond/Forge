@@ -7,7 +7,7 @@ const url = require("url");
 const path = require("path");
 
 import { EncodeBase64, FlattenObject, IntervalClear, Serialize, TimeoutClear } from "../core/Core";
-import { ForgeIO } from "./ForgeIO";
+import { ForgeIO } from "./io/ForgeIO";
 import { ForgeStream } from "./ForgeStream";
 import { ForgeTask, TaskConfig } from "./ForgeTask";
 import { ForgeServer } from "./server/ForgeServer";
@@ -35,8 +35,6 @@ export class Forge {
         
         
     }
-
-    private _lastUpdate: number = Date.now();
 
     private _forgeServer: ForgeServer;
 
@@ -233,10 +231,8 @@ export class Forge {
 
                 const resetNow: number = Date.now();
                 console.group("------------------ watch ------------------");
-                console.parse("<blue>start:", resetNow);
                 const resets: Serialize = await forge.$reset({ file, event });
-                console.parse("<blue>reset complete:", Date.now() - resetNow);
-                // console.log("ForgeStream reset", resets);
+                console.parse("<blue>start:", resetNow, "<blue>reset complete:", Date.now() - resetNow);
 
                 const signalNow: number = Date.now();
                 await forge.$signal("watch", { file, event });

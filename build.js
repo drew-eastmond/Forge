@@ -1,12 +1,6 @@
-var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
 };
 
 // node_modules/.pnpm/mime-db@1.52.0/node_modules/mime-db/db.json
@@ -8632,14 +8626,13 @@ var require_mime_types = __commonJS({
   }
 });
 
-// forge/_src_/ts/build.ts
+// Forge/_src_/ts/build.ts
 var import_esbuild = require("esbuild");
 
-// forge/_src_/ts/DependencyHelper.ts
+// Forge/_src_/ts/util/DependencyHelper.ts
 var DependencyHelper = class {
-  _dependencies;
-  _count = 0;
   constructor(dependencies) {
+    this._count = 0;
     this._dependencies = dependencies;
     for (const nodeData of this) {
       nodeData.id = String(this._count++);
@@ -8737,7 +8730,7 @@ var DependencyHelper = class {
   }
 };
 
-// forge/_src_/ts/core/Core.ts
+// Forge/_src_/ts/core/Core.ts
 var __HashCount = 0;
 function EncodeBase64(json) {
   const jsonStringify = JSON.stringify(json);
@@ -8784,12 +8777,23 @@ function $UseRace(delay, capture) {
   return [promise, resolveCallback, rejectCallback];
 }
 
-// forge/_src_/ts/core/Argument.ts
+// Forge/_src_/ts/core/Argument.ts
 var AbstractArguments = class {
-  _args = {};
-  _validationMap = /* @__PURE__ */ new Map();
-  _errors = [];
   constructor() {
+    this._args = {};
+    this._validationMap = /* @__PURE__ */ new Map();
+    this._errors = [];
+  }
+  /**
+   * Iterates via Object.entries(...) on the internal _args property
+   * 
+   * @generator
+   * @yields {[string, unknown]}
+   */
+  *[Symbol.iterator]() {
+    for (const entry of Object.entries(this._args)) {
+      yield entry;
+    }
   }
   /**
    * This function will 
@@ -8812,6 +8816,7 @@ var AbstractArguments = class {
     if (validation.validate) {
       const result = validation.validate(value, this._args);
       if (result === false || result === void 0) {
+        console.log(validation);
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       } else if (result instanceof Error) {
@@ -8831,23 +8836,44 @@ var AbstractArguments = class {
     }
     return value;
   }
+  /**
+   * Find the requested key in the internal args members. Can evaluate using `String` or `RegExp`
+   * 
+   * @param key {string|RegExp} Optional 
+   * @returns {boolean} 
+   */
+  has(key) {
+    if (key.constructor === RegExp) {
+      const regExp = key;
+      for (const [key2, value] of Object.entries(this._args)) {
+        if (regExp.test(key2))
+          return true;
+      }
+    } else if (key.constructor === String) {
+      return key in this._args;
+    }
+    return false;
+  }
   get(key) {
+    if (key && key.constructor === RegExp) {
+      const regExp = key;
+      for (const [key2, value] of Object.entries(this._args)) {
+        if (regExp.test(key2))
+          return value;
+      }
+      return void 0;
+    }
     return key === void 0 ? this._args : this._args[key];
   }
   /**
    * Assigns a validation check to specific arguments via the key provided
    * 
-   * @param key 
+   * @param key {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
    * @param validationEntry {ValidationEntry}
    * @returns {this} return this so you can daisy chain calls
    */
   add(key, validationEntry) {
-    this._validationMap.set(key, {
-      default: validationEntry.default,
-      sanitize: validationEntry.sanitize,
-      required: validationEntry.required || false,
-      error: validationEntry.error
-    });
+    this._validationMap.set(key, { ...validationEntry, required: validationEntry.required || false });
     return this;
   }
   /**
@@ -8857,11 +8883,22 @@ var AbstractArguments = class {
    */
   compile() {
     for (const [key, validation] of this._validationMap) {
+      if (key.constructor === RegExp)
+        continue;
       const value = this._args[key];
       this._args[key] = this._validate(key, value, validation);
     }
+    for (const [key, value] of Object.entries(this._args)) {
+      for (const [query, validation] of this._validationMap) {
+        if (query.constructor === String)
+          continue;
+        if (query.test(key) === false)
+          continue;
+        const value2 = this._args[key];
+        this._args[key] = this._validate(key, value2, validation);
+      }
+    }
     if (this._errors.length) {
-      console.log(this._errors);
       throw new Error(this._errors.join("\n"));
     }
   }
@@ -8883,8 +8920,7 @@ var CLIArguments = class extends AbstractArguments {
         this._args[results[1]] = true;
       } else {
         throw new Error(`(Executing) node ${args.slice(1).join(" ")}
-
-\x1B[31;1mIncorrect formatting encountered parsing key arguments : "\x1B[34;1m${keyQuery}\x1B[31;1m"\x1B[0m
+<red>Incorrect formatting encountered parsing key arguments : "<blue>${keyQuery}</blue>"
 ${JSON.stringify(this._args, void 0, 2)}`);
       }
     }
@@ -8892,11 +8928,8 @@ ${JSON.stringify(this._args, void 0, 2)}`);
   }
 };
 
-// forge/_src_/ts/core/Debug.ts
+// Forge/_src_/ts/core/Debug.ts
 var ColourFormatting = class {
-  _debugFormatter;
-  stack;
-  _defaultColour;
   constructor(debugFormatter, defaultColour) {
     this._debugFormatter = debugFormatter;
     this._defaultColour = defaultColour || "\x1B[0m";
@@ -8928,17 +8961,13 @@ var ColourFormatting = class {
   }
 };
 var DebugFormatter = class {
-  static Init(options) {
-    __DebugFormatter;
-  }
-  foreground;
-  fg;
-  background;
-  bg;
-  stream = "";
   constructor() {
+    this.stream = "";
     this.foreground = this.fg = new ColourFormatting(this, "\x1B[32m" /* Green */);
     this.background = this.bg = new ColourFormatting(this, "\x1B[40m" /* Grey */);
+  }
+  static Init(options) {
+    __DebugFormatter;
   }
   clear() {
     this.stream = "";
@@ -9053,7 +9082,7 @@ console.parse = function(...rest) {
   }));
 };
 
-// forge/_src_/ts/core/PoolManager.ts
+// Forge/_src_/ts/core/PoolManager.ts
 var _PoolManager = class {
   // @-ts-expect-errors
   static Instantiate(constructor, ...rest) {
@@ -9111,15 +9140,17 @@ var _PoolManager = class {
   }
 };
 var PoolManager = _PoolManager;
-__publicField(PoolManager, "__ClassMap", /* @__PURE__ */ new Map());
+PoolManager.__ClassMap = /* @__PURE__ */ new Map();
 
-// forge/_src_/ts/core/Subscription.ts
+// Forge/_src_/ts/core/Subscription.ts
 var Unsubscribe = new class {
 }();
 var Subscription = class {
-  _subscriberMap = /* @__PURE__ */ new Map();
-  _countMap = /* @__PURE__ */ new Map();
-  _unsubscribeSet = /* @__PURE__ */ new Set();
+  constructor() {
+    this._subscriberMap = /* @__PURE__ */ new Map();
+    this._countMap = /* @__PURE__ */ new Map();
+    this._unsubscribeSet = /* @__PURE__ */ new Set();
+  }
   init() {
     this._subscriberMap.clear();
   }
@@ -9229,17 +9260,13 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
+// Forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
 var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
-  _name;
-  _key;
-  _race;
-  _reboot;
-  _sessions = /* @__PURE__ */ new Map();
-  _bindings = /* @__PURE__ */ new Map();
   constructor(name, config) {
     super();
+    this._sessions = /* @__PURE__ */ new Map();
+    this._bindings = /* @__PURE__ */ new Map();
     this._name = name;
     this._key = config.key || QuickHash();
     this._race = config.race;
@@ -9347,11 +9374,9 @@ var AbstractServiceAdapter = class extends Subscription {
   }
 };
 
-// forge/_src_/ts/forge/service/ForkService.ts
+// Forge/_src_/ts/forge/service/ForkService.ts
 var { spawn, fork, exec, execSync } = require("child_process");
 var ForkService = class extends AbstractServiceAdapter {
-  _source;
-  _commands;
   constructor(name, config, source) {
     super(name, config);
     if (source === void 0) {
@@ -9375,11 +9400,9 @@ var ForkService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/forge/service/SpawnService.ts
+// Forge/_src_/ts/forge/service/SpawnService.ts
 var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
 var SpawnService = class extends AbstractServiceAdapter {
-  _source;
-  _commands;
   constructor(name, config, source) {
     super(name, config);
     this._commands = config.command.split(/\s+/g);
@@ -9396,21 +9419,18 @@ var SpawnService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/forge/ForgeClient.ts
+// Forge/_src_/ts/forge/ForgeClient.ts
 var { Worker, isMainThread } = require("worker_threads");
 var $fs = require("fs").promises;
 var path = require("path");
 var mime = require_mime_types();
 var ForgeClient = class extends Subscription {
-  _race;
-  _executing;
-  _queue = [];
-  _routeRoot = "./build/_route_/typescript";
-  _iServiceAdapter;
-  _filters = /* @__PURE__ */ new Set();
-  _delegates = /* @__PURE__ */ new Set();
   constructor(key) {
     super();
+    this._queue = [];
+    this._routeRoot = "./build/_route_/typescript";
+    this._filters = /* @__PURE__ */ new Set();
+    this._delegates = /* @__PURE__ */ new Set();
     if (process.send === void 0) {
       console.log("started directly (spawn/exec)");
       this._iServiceAdapter = new SpawnService("client interface", { key, race: 1e3 }, process);
@@ -9478,7 +9498,7 @@ var ForgeClient = class extends Subscription {
   }
 };
 
-// forge/_src_/ts/build.ts
+// Forge/_src_/ts/build.ts
 var path2 = require("path");
 var fs = require("fs");
 var $fs2 = require("node:fs/promises");
@@ -9560,11 +9580,11 @@ async function $build(entryFile, outFile, options) {
     metafile: true,
     loader: { ".ts": "tsx", ".js": "jsx" },
     outdir: outFilePath.dir,
-    treeShaking: options.treeShaking
+    treeShaking: options.treeShaking,
     // outfile: outFile,
     // sourcemap: "linked"
     // plugins: [yourPlugin]
-    // external: []
+    external: ["esbuild", ...options.external]
   });
   const fileManifest = Object.keys(result.metafile.inputs);
   let code;
@@ -9577,7 +9597,7 @@ async function $build(entryFile, outFile, options) {
     return /node_modules/.test(value) === false;
   }));
   await $fs2.writeFile(outFile, code);
-  console.parse(`<green>Build Successful : "${outFile}" (${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
+  console.parse(`<green>Build Successful : "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
 	* ${options.bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 	* <cyan>format</cyan> : ${options.format}
 	* <cyan>platform</cyan> : ${options.platform}
@@ -9593,13 +9613,14 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
   const cliArguments = new CLIArguments();
   cliArguments.add("in", {
     required: true,
-    validate: (args) => {
+    validate: (value, args) => {
+      console.log();
       return Object.hasOwn(args, "in");
     },
     error: `\x1B[31;1mMissing or incorrect \x1B[36;1m--in--\x1B[0m\x1B[31;1m argument\x1B[0m`
   }).add("out", {
     required: true,
-    validate: (args) => {
+    validate: (value, args) => {
       return Object.hasOwn(args, "out");
     },
     error: `\x1B[31;1mMissing or incorrect \x1B[36;1m--out--\x1B[0m\x1B[31;1m argument\x1B[0m`
@@ -9610,7 +9631,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
   }).add("platform", {
     default: "neutral",
     validate: (value, args) => {
-      switch (args) {
+      switch (value) {
         case "node":
         case "neutral":
         case "browser":
@@ -9642,7 +9663,11 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
   }).add("external", {
     default: [],
     sanitize: (value, args) => {
-      return String(value).split(/\s,/g);
+      if (value === void 0)
+        return value;
+      if (value instanceof Array)
+        return value;
+      return String(value).split(/,/g);
     }
   }).compile();
   const entryFile = cliArguments.get("in");
@@ -9659,7 +9684,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     $watch();
     return;
   } else {
-    $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true });
+    $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals });
   }
 })();
 /*! Bundled license information:
