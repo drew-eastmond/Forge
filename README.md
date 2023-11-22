@@ -1,18 +1,20 @@
 # Forge
 ---
 
-## Getting Started ( Blazingly Initialized via NPX )
+## Getting Started ( Blazingly Fast via NPX )
 
-You probably don't have much time to think! Sale is down your ass to build something later today. I Got You Buddy!!!
+You probably don't have much time to think! The sales team is down your ass to build something later today. 
+
+I Got You Buddy!!!
 
 ```
-npx onyx-ignition-forge --i --packager-- pnpm --typescript
+npx onyx-ignition-forge --init --flatten --packager-- pnpm --typescript
 ```
 
-This will install a flattened forge that is pre-configured:
-* install `Node` packages via `pnpm` ( there are also options `npm`, `pnpm`, `yarn`)
-* Typescript Bundler and **File Watching**.
-* Please update `.forge` file with entry and compile targets. Here's an example to configure file watching for `ts`, `js`, `jsx`, `tsx` and compile `src/ts/main.tsx` into `/www/js/compiled.js`
+This will install a unzipped clone forge ( from `master` ) that is pre-configured with:
+* Node packages via `pnpm` ( there are also options `npm`, `pnpm`, `yarn`)
+* Typescript Bundler that you can invoke via triggers ( like **File Watching** ).
+* Finally Please update `.forge` file with entry and compile targets. Here's an example to configure file watching for `ts`, `js`, `jsx`, `tsx` and compile `src/ts/main.tsx` into `/www/js/compiled.js`
 ```json
 [
     {
@@ -30,20 +32,25 @@ This will install a flattened forge that is pre-configured:
     }
 ]
 ```
-* TailwindCSS compiler. *Be mindful of your project structure, as tailwind will install from the* **Current working Directory**
 
 
-| Package | Params | Description |
+| Package | Params | Status |
 | ------ | ------ | ------ | 
-| Typescript | --typescript | 
+| Typescript | --typescript | Pending... |
+| TailwindCSS | --tailwindcss | Pending... |
+| SASS | --sass | Pending... |
+| WASM | --wasm | Pending... |
+
+* TailwindCSS compiler. *Be mindful of your project structure, as tailwind will install from the* **Current working Directory**
 
 ```
 npx onyx-ignition-forge -i --npm|-- <package_1> <package_2> <...package_n>
 ```
 
-## Getting Started ( Slow + Manually )
+## Getting Started Manually
+This is the way our ancestors did it. THey didnt have all that fancy smacy technologies. They used vacuum tubes, light bulbs, and hole punched paper. 'Cause they nasty like that and they love it ;)
 
-Having certain software preinstalled is required. More robust installers will be added. For now it recommended to preinstall `Node`, `Python`, and `Enscripten` 
+Start with cloning the main repo then added extenstions as needed. I'll look into more robust installers giving their are other priorities.. For now it recommended to preinstall `Node`, `Python`, and `Enscripten` 
 
 1. Clone the git repo.
 ```
