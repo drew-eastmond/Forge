@@ -2,6 +2,7 @@ import { QuickHash, Serialize } from "../../core/Core";
 import { Subscription } from "../../core/Subscription";
 import { ForgeStream } from "../ForgeStream";
 import { ForgeTask } from "../ForgeTask";
+import { ActionRoute, IForgeRoute, RouteConfig } from "../server/route/Route";
 import { IServiceAdapter } from "../service/AbstractServiceAdapter";
 import { IForgeTrigger, ParseTrigger, TriggerData } from "./ForgeTrigger";
 
@@ -27,7 +28,7 @@ export type ActionData = {
     name?: string,
     enabled?: boolean,
     race?: number,
-    route?: boolean
+    route?: RouteConfig
 }
 
 /**
@@ -38,24 +39,23 @@ export type ActionData = {
  * @property {(string|undefined)}  name - (optional) the default error message.
  * @property {(boolean|undefined)}  enabled - (optional) A callback to transform the supplied value for an aurgument.
  * @property {(number|undefined)}  race - (optional) The alloted time to finish an action.
- * @property {(boolean|undefined)}  route - (optional) Used by `ForgeServer` to determine if an `IAction` should attempt to route a `signal`. 
+ * @property {({service: string}|{local: string}|{remote: string})}  route - (optional) Used by `ForgeServer` to determine if an `IAction` should attempt to route a `signal`. 
  * 
  */
 
 export type ActionConfig = {
 
     name?: string,
-    route: boolean
     enabled: boolean,
     race: number,
-
+    route: RouteConfig; //  { service: string } | { local: string } | { remote: string }
 }
 
 export interface IAction {
 
     name: string;
     task: ForgeTask;
-    route: boolean;
+    route: IForgeRoute;
 
     $reset(data: Serialize): Promise<Serialize>;
 
@@ -65,7 +65,7 @@ export interface IAction {
 
     $stream(stdoutCallback: (message: string | string[]) => void, stderrCallback?: (error: string | string[]) => void): Promise<void>
 
-    $route(url: string, request): Promise<Serialize>;
+    $route(url: string, request): Promise<{ mime: string, buffer: Buffer }>;
 
     write(...rest: Serialize[]): void;
 
@@ -81,7 +81,7 @@ export class ForgeAction extends Subscription implements IAction {
 
     public static Parse(iServiceAdapter: IServiceAdapter, actionData: ActionData, data: Record<string, unknown>): IAction {
 
-        const route: boolean = actionData.route || false;
+        const route: RouteConfig = actionData.route;
         const name: string = actionData.name;
         const enabled: boolean = actionData.enabled || true;
         const race: number = actionData.race;
@@ -117,7 +117,7 @@ export class ForgeAction extends Subscription implements IAction {
     public name: string;
     public enabled: boolean;
     public task: ForgeTask;
-    public route: boolean;
+    public route: IForgeRoute;
 
     constructor(iServiceAdapter: IServiceAdapter, actionConfig: ActionConfig, data: Record<string, unknown>) {
 
@@ -133,6 +133,15 @@ export class ForgeAction extends Subscription implements IAction {
 
         this.enabled = actionConfig.enabled || true;
 
+        if ("service" in actionConfig.route) {
+
+            this.route = new ActionRoute(actionConfig.route, this);
+
+        } else if ("local" in actionConfig.route) {
+
+            this.route
+
+        }
         this.route = actionConfig.route || false;
 
         // this get merged, injected, then sent via `signals`
@@ -279,24 +288,5 @@ export class ForgeAction extends Subscription implements IAction {
             }) as Promise<{ mime: string, buffer: Buffer }>;
 
     }
-
-    /* public async $serve(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
-
-        return this.$signal("serve", { route, params }, this._race)
-            .then(async function (response: Serialize) {
-
-                const { mime, contents } = response as { mime: string, contents: string };
-                return { mime, buffer: Buffer.from(contents, "base64") };
-
-            })
-            .catch(function (error: unknown) {
-
-                console.log(error);
-
-                return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
-
-            }) as Promise<{ mime: string, buffer: Buffer }>;
-
-    } */
 
 }
