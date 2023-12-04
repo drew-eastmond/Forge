@@ -10,7 +10,7 @@ const fflate = require("fflate");
 
 class ForgeFile {
 
-    public async $FileExist(file: string): Promise<boolean> {
+    public static async $FileExist(file: string): Promise<boolean> {
 
         return $fs.access(file, fs.constants.F_OK)
             .then(() => true)
@@ -60,6 +60,45 @@ class ForgeFile {
 
         });
 
+    }
+
+    public static async $Read(path: string): Promise<Buffer> {
+
+        return new Promise<Buffer>(async function (resolve: Function, reject: Function) {
+            
+            try {
+                
+                resolve(await $fs.readFile(path));
+
+            } catch (error: unknown) {
+
+                reject(new Error(`Error reading file: "${path}"`));
+
+            } 
+
+        });
+
+    }
+
+    public static async $Write(path: string, contents): Promise<boolean> {
+
+        return new Promise<boolean>(async function (resolve: Function, reject: Function) {
+
+            try {
+
+                const data = new Uint8Array(Buffer.from('Hello Node.js'));
+                await $fs.writeFile(path, data);
+
+                resolve(true);
+
+            } catch (error: unknown) {
+
+                reject(new Error(`Error write file: "${path}"`));
+
+            }
+
+        });
+        
     }
 
 }
@@ -140,7 +179,32 @@ class ForgeNPM {
 
 }
 
+class ForgeWeb {
+
+    public static $Fetch(url: string, options: Record<string, unknown>): Promise<Response> {
+
+        if (options.race === undefined && options.signal === undefined) throw new Error(`please provide a { race } or { signal } property for $Fetch("{url}", ... )`);
+
+        const race: number = options.race as number;
+
+        return new Promise(function (resolve: Function, reject: Function) {
+
+            fetch(url, {
+                ...options,
+                signal: options.signal as AbortSignal || AbortSignal.timeout(race)
+            });
+
+        });
+
+    }
+
+}
+
 export class ForgeIO {
+
+    public static readonly File = ForgeFile;
+
+    public static readonly Web = ForgeWeb;
 
     public async $FileExist(file: string): Promise<boolean> {
 

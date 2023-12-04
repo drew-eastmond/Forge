@@ -116,7 +116,7 @@ export class ForgeTask {
                 const service: string = actionObj.service;
 
                 if (service === undefined) errors.push(`Action "service" is undefined for ${this.constructor.name} : ${this.name}"`);
-
+                
                 // todo Replace these queries with `Enforce`
                 // retrieve the service. Assert that the Service exists or add en error
                 if (iServices.has(service) === false) errors.push(`No Service has been registered for "${service}" by "${this.name}"`);

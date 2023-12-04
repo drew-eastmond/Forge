@@ -12,7 +12,7 @@ import { IAction } from "../action/ForgeAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
 import { ForgeModel, ForgeStore, IForgeModel } from "../model/ForgeModel";
-import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./Route";
+import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./route/Route";
 
 DebugFormatter.Init({ platform: "node" });
 
@@ -102,6 +102,19 @@ export class RequestBodyParser {
     public $resolve(): Promise<{ mime: string, buffer: Buffer }> {
 
         return this._$buffer[0];
+
+    }
+
+}
+
+export class ForgeRouteRequest {
+
+    private _uri: string;
+    private _urlParsed;
+    private _header;
+    private _body;
+
+    contructor(uri: string, header, body) {
 
     }
 
@@ -394,30 +407,6 @@ export class ForgeServer {
 
     }
 
-    /* private async _$parseRequestBody(request) {
-
-        return new Promise(function (resolve: Function, reject: Function) {
-
-            const buffers: Buffer[] = [];
-            request
-                .on("data", (chunk: Buffer) => {
-
-                    buffers.push(chunk);
-
-                })
-                .on('end', () => {
-
-                    // at this point, `body` has the entire request body.
-                    const mime: string = request.get("Content-Type");
-                    const buffer: Buffer = Buffer.concat(buffers);
-                    resolve({ mime, buffer });
-
-                });
-
-        })
-
-    } */
-
     public async $keys(partitionName: string): Promise<string[]> {
         
         if (this._database.has(partitionName) === false) {
@@ -493,3 +482,27 @@ export class ForgeServer {
     }
 
 }
+
+/* private async _$parseRequestBody(request) {
+
+return new Promise(function (resolve: Function, reject: Function) {
+
+const buffers: Buffer[] = [];
+request
+    .on("data", (chunk: Buffer) => {
+
+        buffers.push(chunk);
+
+    })
+    .on('end', () => {
+
+        // at this point, `body` has the entire request body.
+        const mime: string = request.get("Content-Type");
+        const buffer: Buffer = Buffer.concat(buffers);
+        resolve({ mime, buffer });
+
+    });
+
+})
+
+} */

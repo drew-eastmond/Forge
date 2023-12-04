@@ -169,6 +169,98 @@ export class ResolveTrigger implements IForgeTrigger {
         return false;
 
     }
+    
+}
+
+export class RejectTrigger implements IForgeTrigger {
+
+    private _resolver: ResolverValues;
+    private _resolves: { task?: string | undefined, action: string }[];
+
+    constructor(resolver: ResolverValues, resolves: { task?: string | undefined, action: string }[]) {
+
+        this._resolver = resolver;
+        this._resolves = resolves;
+
+    }
+
+    public async $trigger(forgeStream: ForgeStream): Promise<boolean> {
+
+        const file: string = forgeStream.data.file as string;
+
+        if (this._resolver == ResolverValues.Any) {
+
+            for (let { task, action } of this._resolves) {
+
+                const iAction: IAction = forgeStream.find(task, action);
+
+                if (forgeStream.rejections.has(iAction)) return true;
+
+            }
+
+        } else if (this._resolver == ResolverValues.All) {
+
+            let allSettled: boolean = true;
+            for (let { task, action } of this._resolves) {
+
+                const iAction: IAction = forgeStream.find(task, action);
+
+                if (forgeStream.rejections.has(iAction) === false) allSettled = false;
+
+            }
+
+
+        }
+
+        return false;
+
+    }
+    
+}
+
+export class SettledTrigger implements IForgeTrigger {
+
+    private _resolver: ResolverValues;
+    private _allSettled: { task?: string | undefined, action: string }[];
+
+    constructor(resolver: ResolverValues, resolves: { task?: string | undefined, action: string }[]) {
+
+        this._resolver = resolver;
+        this._allSettled = resolves;
+
+    }
+
+    public async $trigger(forgeStream: ForgeStream): Promise<boolean> {
+
+        const file: string = forgeStream.data.file as string;
+
+        if (this._resolver == ResolverValues.Any) {
+
+            for (let { task, action } of this._allSettled) {
+
+                const iAction: IAction = forgeStream.find(task, action);
+
+                if (forgeStream.executions.has(iAction)) return true;
+
+            }
+
+        } else if (this._resolver == ResolverValues.All) {
+
+            let allSettled: boolean = true;
+            for (let { task, action } of this._allSettled) {
+
+                const iAction: IAction = forgeStream.find(task, action);
+
+                if (forgeStream.executions.has(iAction) === false) allSettled = false;
+
+            }
+
+
+        }
+
+        return false;
+
+    }
 
 
 }

@@ -8,10 +8,13 @@ export class ForgeStream {
     private readonly _iActions: Map<string, IAction> = new Map();
     private readonly _bindings: Map<Function, unknown> = new Map();
 
-    private readonly _executions: Set<IAction> = new Set();
-
     private _signal: string;
     private _data: Serialize;
+
+
+    public readonly executions: Set<IAction> = new Set();
+    public readonly resolves: Set<IAction> = new Set();
+    public readonly rejections: Set<IAction> = new Set();
 
     constructor() {
 
@@ -55,12 +58,6 @@ export class ForgeStream {
 
     }
 
-    get executions(): Set<IAction> {
-
-        return this._executions;
-
-    }
-
     public add(forgeTask: ForgeTask): this {
 
         //
@@ -98,7 +95,9 @@ export class ForgeStream {
         this._signal = undefined;
         this._data = undefined;
 
-        this._executions.clear();
+        this.executions.clear();
+        this.resolves.clear();
+        this.rejections.clear();
 
         const promises: Promise<Serialize>[] = [];
         for (const [name, iAction] of this._iActions) {
@@ -117,8 +116,10 @@ export class ForgeStream {
         this._data = data;
 
         // collectiosn of all responses
-
-        const executions: Set<IAction> = this._executions;
+        const resolves: Set<IAction> = this.resolves;
+        const rejects: Set<IAction> = this.rejections;
+        const executions: Set<IAction> = this.executions;
+        
 
         const signalStatus: Record<string, unknown> = {};
         let reboundSignal: boolean = true;
@@ -158,6 +159,8 @@ export class ForgeStream {
                 $executions.push(iAction.$signal(signal, data)
                     .then(function (data: Serialize) {
 
+                        resolves.add(iAction);
+
                         return {
                             name: iAction.name,
                             resolve: data
@@ -165,6 +168,8 @@ export class ForgeStream {
 
                     })
                     .catch(function (error: unknown) {
+
+                        rejects.add(iAction);
 
                         console.parse(error);
                         throw {
