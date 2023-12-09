@@ -4,6 +4,7 @@ const $fs = require("node:fs/promises");
 import { CompositeArguments } from "./core/Argument";
 import { DebugFormatter } from "./core/Debug";
 import { Forge } from "./forge/Forge";
+import { ForgeIO } from "./forge/io/ForgeIO";
 import { ForgeServer } from "./forge/server/ForgeServer";
 
 /*
@@ -70,7 +71,7 @@ if (require.main === module) {
 				}
 			})
 			.add(/start/i, {
-				default: {}
+
 			})
 
 		await $fs.readFile("./.env", "utf-8")
@@ -96,7 +97,8 @@ if (require.main === module) {
 		let PORT: number = compositeArguments.get(/^port$/i) as number;
 		let WWW_ROOT: string = compositeArguments.get(/^www_root$/i) as string;
 		let WATCH: string[] = compositeArguments.get(/^watch$/i) as string[];
-		let START: Record<string, unknown> = compositeArguments.get(/^start$/i) as Record<string, unknown>;
+		let START: Record<string, unknown> = compositeArguments.get(/^start$/i) as Record<string, unknown> || {};
+
 
 		/*
 		* 3. intiatiate a `Forge` instance
@@ -104,26 +106,23 @@ if (require.main === module) {
 		const forge: Forge = new Forge();
 
 		await $fs.readFile(".forge", "utf-8")
-			.then(function (fileData: string) {
-
-				const config: Record<string, any> = JSON.parse(fileData);
-				console.log(config);
+			.then(async function (fileData: string) {
+				
+				const config: Record<string, any> = forge.parse(fileData);
 
 				// override 
-				console.log(config?.forge?.port, PORT);
-				const port: number = config?.forge?.port;
-				if (isNaN(port)) PORT = port;
+				console.log(config?.forge?.serve?.port, PORT);
+				const port: number = config?.forge?.serve?.port;
+				if (isNaN(port) === false) PORT = port;
 
 
-				const wwwRoot: string = config?.forge?.www;
-				if (wwwRoot && $fs.existsSync(wwwRoot)) WWW_ROOT = wwwRoot; 
+				const wwwRoot: string = config?.forge?.serve?.root;
+				if (wwwRoot && await ForgeIO.File.$DirectoryExists(wwwRoot)) WWW_ROOT = wwwRoot; 
 
 				const watch: string[] = config?.forge?.watch;
 				// if (watch && watch.constructor === Array) WATCH.concat(watch);
 
 				console.log(PORT, WWW_ROOT, WATCH);
-
-				forge.parse(fileData);
 
 			})
 			.catch(function (error: unknown) {
@@ -138,14 +137,14 @@ if (require.main === module) {
 
 		}
 
-		if (WATCH) {
+		if (WATCH || true) {
 
-			forge.watch(WATCH, { ignore: [], debounce: 500 });
+			forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
 
 		}
 
 		// you can pass 
-		await forge.$signal("start", START);
+		await forge.$signal("start", { start: true, ...START });
 
 	}());
 

@@ -8816,7 +8816,6 @@ var AbstractArguments = class {
     if (validation.validate) {
       const result = validation.validate(value, this._args);
       if (result === false || result === void 0) {
-        console.log(validation);
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       } else if (result instanceof Error) {
@@ -8898,9 +8897,6 @@ var AbstractArguments = class {
         this._args[key] = this._validate(key, value2, validation);
       }
     }
-    if (this._errors.length) {
-      throw new Error(this._errors.join("\n"));
-    }
   }
 };
 var CLIArguments = class extends AbstractArguments {
@@ -8919,9 +8915,6 @@ var CLIArguments = class extends AbstractArguments {
         const results = /--(.+?)$/.exec(keyQuery);
         this._args[results[1]] = true;
       } else {
-        throw new Error(`(Executing) node ${args.slice(1).join(" ")}
-<red>Incorrect formatting encountered parsing key arguments : "<blue>${keyQuery}</blue>"
-${JSON.stringify(this._args, void 0, 2)}`);
       }
     }
     super.compile();
@@ -9358,11 +9351,11 @@ var AbstractServiceAdapter = class extends Subscription {
   $signal(signal, data, race) {
     const session = QuickHash();
     const sessions = this._sessions;
-    const $race = $UseRace(race);
+    const $race = $UseRace(race || this._race);
     $race[0].then(function() {
-      console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
+      console.parse(`<green>AbstractServiceAdapter.$signal ( ... ) session resolved <cyan>"${signal}"</cyan></green>`);
     }).catch(function(error) {
-      console.parse("<yellow>$signal exception caught :</yellow>", error);
+      console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", error.message);
     }).finally(function() {
       sessions.delete(session);
     });
@@ -9379,6 +9372,7 @@ var { spawn, fork, exec, execSync } = require("child_process");
 var ForkService = class extends AbstractServiceAdapter {
   constructor(name, config, source) {
     super(name, config);
+    console.log(config);
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
@@ -9394,6 +9388,7 @@ var ForkService = class extends AbstractServiceAdapter {
     this._source.on("message", this._bindings.get(this.read));
   }
   _onExit() {
+    console.parse("<red>fork service ended", this._commands);
   }
   write(header, data) {
     this._source.send(["forge://", header, data]);
@@ -9425,7 +9420,7 @@ var $fs = require("fs").promises;
 var path = require("path");
 var mime = require_mime_types();
 var ForgeClient = class extends Subscription {
-  constructor(key) {
+  constructor(key, data, options) {
     super();
     this._queue = [];
     this._routeRoot = "./build/_route_/typescript";
@@ -9455,6 +9450,7 @@ var ForgeClient = class extends Subscription {
       const { signal, session } = header;
       switch (signal) {
         case "reset":
+          console.log("\n\nreset intercept\n\n");
           await this._$raceDispatch(header, this.$reset(data, race));
           break;
         case "construct":
@@ -9502,9 +9498,10 @@ var ForgeClient = class extends Subscription {
 var path2 = require("path");
 var fs = require("fs");
 var $fs2 = require("node:fs/promises");
+var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
+var vm = require("node:vm");
 var API_BASE = "http://localhost:1234/esbuild/typescript";
 var REQUEST_TIMEOUT = 125;
-var startTime = Date.now();
 function SanitizeFileUrl(...rest) {
   let resolvedUrl = path2.resolve(...rest);
   resolvedUrl = /\.\w+$/.test(resolvedUrl) ? resolvedUrl : resolvedUrl + ".ts";
@@ -9525,7 +9522,9 @@ async function $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta) {
     body: JSON.stringify(fileManifest),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT)
   }).then(async function(response) {
-    console.log("\n!!!meta file savedddd\n", response.code);
+    console.log(`
+meta data for "${entryName}" stored
+`, "" + response);
   }).catch(function(error) {
     if (error instanceof Error)
       console.parse(`<red>${error.message}</red> from <cyan>${fetchURL}<cyan>`);
@@ -9569,6 +9568,7 @@ async function $SortDependencies(code, storeKey, fileManifest) {
   });
 }
 async function $build(entryFile, outFile, options) {
+  const startTime = Date.now();
   const outFilePath = path2.parse(outFile);
   const result = await (0, import_esbuild.build)({
     entryPoints: [entryFile],
@@ -9596,30 +9596,49 @@ async function $build(entryFile, outFile, options) {
   code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
     return /node_modules/.test(value) === false;
   }));
-  await $fs2.writeFile(outFile, code);
-  console.parse(`<green>Build Successful : "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
+  if (outFile !== void 0) {
+    await $fs2.writeFile(outFile, code);
+  }
+  console.parse(`<green>Build Successful : from "<yellow>${entryFile}</yellow>" to "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
 	* ${options.bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 	* <cyan>format</cyan> : ${options.format}
 	* <cyan>platform</cyan> : ${options.platform}
-	* <cyan>tree shaking</cyan> : ${options.treeShaking}
+	* <cyan>tree shaking</cyan> : ${options.treeShaking || false}
+	* <cyan>run</cyan> : ${options.run || false}
 `);
+  return code;
 }
-async function $watch() {
-  const key = "";
-  const forgeClient = new ForgeClient(key);
+async function $watch(key, data) {
+  const forgeClient = new class extends ForgeClient {
+    async $watch(data2, race) {
+      console.parse(">>>>>>>(watch)<<<<<<\n", data2);
+      if ("in" in data2 === false)
+        throw `"in" property missing`;
+      if ("out" in data2 === false)
+        throw `"out" property missing`;
+      if ("format" in data2 === false)
+        throw `"format" property missing`;
+      if ("platform" in data2 === false)
+        throw `"platform" property missing`;
+      const inFile = data2.in;
+      const outFile = data2.out;
+      await $build(inFile, outFile, { ...data2, external: data2.external || [] });
+      return { build: true };
+    }
+  }(key, data);
 }
 DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "" } });
 (async function() {
   const cliArguments = new CLIArguments();
   cliArguments.add("in", {
-    required: true,
+    // required: true,
     validate: (value, args) => {
       console.log();
       return Object.hasOwn(args, "in");
     },
     error: `\x1B[31;1mMissing or incorrect \x1B[36;1m--in--\x1B[0m\x1B[31;1m argument\x1B[0m`
   }).add("out", {
-    required: true,
+    // required: true,
     validate: (value, args) => {
       return Object.hasOwn(args, "out");
     },
@@ -9669,7 +9688,11 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
         return value;
       return String(value).split(/,/g);
     }
-  }).compile();
+  });
+  try {
+    cliArguments.compile();
+  } catch (error) {
+  }
   const entryFile = cliArguments.get("in");
   const outFile = cliArguments.get("out");
   const override = cliArguments.get("override");
@@ -9677,14 +9700,42 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
   const bundled = cliArguments.get("bundled");
   const platform = cliArguments.get("platform");
   const writeMeta = cliArguments.get("write_meta");
-  const watch = cliArguments.get("watch");
   const externals = cliArguments.get("external");
-  const outFilePath = path2.parse(outFile);
+  const watch = cliArguments.get("watch");
+  const fork4 = cliArguments.get("fork");
+  const run = cliArguments.get("run");
   if (watch) {
-    $watch();
-    return;
+    $watch(cliArguments.get("key"), cliArguments.get(/data/i));
+    return 0;
   } else {
-    $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals });
+    const code = await $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals, run });
+    if (run) {
+      const tempFile = `./forge-temp-run.${Date.now()}.${QuickHash()}.js`;
+      await $fs2.writeFile(tempFile, code);
+      process.on("exit", function() {
+        console.parse(`
+<yellow>unlinking <cyan>${tempFile}`);
+        fs.unlinkSync(tempFile);
+      });
+      process.on("SIGINT", function() {
+        console.log("Caught interrupt signal");
+        process.exit();
+      });
+      try {
+        execSync3(`node ${tempFile}`, {
+          stdio: "inherit",
+          cwd: process.cwd()
+        });
+      } catch (error) {
+      }
+      return;
+      const cloneGlobal = () => Object.defineProperties(
+        { ...global },
+        Object.getOwnPropertyDescriptors(global)
+      );
+      const context = vm.createContext(cloneGlobal());
+      const vmResult = vm.runInNewContext(code, context);
+    }
   }
 })();
 /*! Bundled license information:

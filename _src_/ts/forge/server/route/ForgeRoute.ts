@@ -16,75 +16,9 @@ export interface IForgeRoute {
 
     $install(express): Promise<void>;
 
+    authorize(uri: string): boolean;
+
     $resolve(request, response, next: Function): Promise<{ mime: string, buffer: Buffer }>;
-
-}
-
-class RouteRequest {
-
-    private _value: string | RegExp;
-    private _cache: { url, groups: Record<string, string> } | false;
-
-    constructor(value: string | RegExp) {
-
-        if (value === undefined) throw new Error(`undefined passed to ForgeRoute`);
-
-        if (value instanceof RegExp) {
-
-            this._value = value as RegExp;
-
-        } else if (value.constructor === String) {
-
-            const matches: RegExpMatchArray = value.match(/^([/~@;%#'])(.*?)\1([gimsuy]*)$/);
-            this._value = (matches) ? new RegExp(matches[2], matches[3]) : new RegExp(value);
-
-        } else {
-
-            throw new Error(`undefined passed to ForgeRoute`);
-
-        }
-        
-    }
-
-    public authorize(uri: string): boolean {
-
-        this._cache = undefined;
-
-        switch (this._value.constructor) {
-
-            case String:
-                if (this._value == uri) {
-
-                    const urlParsed = url.parse();
-                    this._cache = { url, groups: {} };
-                    return true;
-
-                }
-
-                return false;
-                
-            case RegExp:
-                const results: RegExpExecArray = (this._value as RegExp).exec(url);
-                return (results) ? { url, groups: results.groups || {} } : false;
-
-        }
-
-    }
-
-    public resolve(url: string): { url: string, groups: Record<string, unknown> } {
-
-        switch (this._value.constructor) {
-
-            case String:
-                return (this._value == url) ? { url, groups: {} } : false;
-
-            case RegExp:
-                const results: RegExpExecArray = (this._value as RegExp).exec(url);
-                return (results) ? { url, groups: results.groups || {} } : false;
-                
-        }
-
-    }
 
 }
 
@@ -128,12 +62,72 @@ export class RouteConfig {
         const race: number = configData.race as number;
         if (isNaN(race)) errors.push(new Error(`no "race" property provided in RouteConfig`));
         this.race = configData.race as number;
+        
+    }
+    
+}
 
+class RouteResolver {
 
+    private _value: string | RegExp;
+    private _cache: { url, groups: Record<string, string> } | false;
+
+    constructor(value: string | RegExp) {
+
+        if (value === undefined) throw new Error(`undefined passed to ForgeRoute`);
+
+        if (value instanceof RegExp) {
+
+            this._value = value as RegExp;
+
+        } else if (value.constructor === String) {
+
+            const matches: RegExpMatchArray = value.match(/^([/~@;%#'])(.*?)\1([gimsuy]*)$/);
+            this._value = (matches) ? new RegExp(matches[2], matches[3]) : new RegExp(value);
+
+        } else {
+
+            throw new Error(`undefined passed to ForgeRoute`);
+
+        }
 
     }
 
-    
+    public resolve(uri: string): boolean {
+
+        this._cache = undefined;
+
+        const urlParsed = url.parse(uri);
+
+        switch (this._value.constructor) {
+
+            case String:
+                if (this._value == uri) {
+
+                    
+                    this._cache = { url, groups: {} };
+
+                    return true;
+
+                }
+                break;
+
+            case RegExp:
+                const results: RegExpExecArray = (this._value as RegExp).exec(url);
+                if (results) {
+
+                    this._cache = { url, groups: results.groups || {} } 
+
+                    return true;
+
+                }
+                break;
+                
+        }
+
+        return false;
+
+    }
 
 }
 
@@ -163,7 +157,7 @@ export class GenericRoute implements IForgeRoute {
 
     }
 
-    protected _request: RouteRequest;
+    protected _resolver: RouteResolver;
     protected _method: RequestMethod = RequestMethod.All;
     protected _$delegate: RequestDelegate;
     protected _race: number;
@@ -172,7 +166,7 @@ export class GenericRoute implements IForgeRoute {
 
         // validate the routeConfig
 
-        this._request = new RouteRequest(config.request);
+        this._resolver = new RouteResolver(config.resolver);
         this._race = config.race;
         this._method = config.method;
 
@@ -233,9 +227,9 @@ export class GenericRoute implements IForgeRoute {
 
     }
 
-    public authorize(url: string): boolean {
+    public authorize(uri: string): boolean {
 
-        return this._request.authorize(url);
+        return this._resolver.resolve(uri);
         
     }
 
@@ -308,7 +302,7 @@ export class RemoteRoute extends GenericRoute {
 
         const urlParsed = url.parse(request.url);
         const queryString: string = urlParsed.query;
-        const filePath: string = this._base + this._route; // + queryString;
+        const filePath: string = this._base + urlParsed.path; // + queryString;
 
         const fetchResponse: Response = await ForgeIO.Web.$Fetch(filePath, {
             method: request.method,
@@ -351,7 +345,7 @@ export class LocalRoute extends GenericRoute {
 
 
 
-export class ForgeRouter {
+class ForgeRouter {
 
     protected _routes: Set<IForgeRoute> = new Set();
 
@@ -361,11 +355,15 @@ export class ForgeRouter {
 
     }
 
-    public async $resolve(url): Promise<{ mime: string, buffer: Buffer }> {
+    public async $resolve(request, response, next): Promise<{ mime: string, buffer: Buffer }> {
 
-        for (const route of this._routes) {
+        for (const iForgeRoute of this._routes) {
 
+            if (iForgeRoute.authorize(request.uri)) {
 
+                return iForgeRoute.$resolve(request, response, next);
+
+            }
 
         }
 

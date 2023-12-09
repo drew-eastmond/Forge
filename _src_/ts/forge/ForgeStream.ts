@@ -112,6 +112,9 @@ export class ForgeStream {
 
     public async $signal(signal: string, data?: Serialize): Promise<Serialize> {
 
+        const race: number = 500;
+        console.error(`${this.constructor.name}.#signal hard coded to race`);
+
         this._signal = signal;
         this._data = data;
 
@@ -156,7 +159,7 @@ export class ForgeStream {
 
                 executions.add(iAction);
 
-                $executions.push(iAction.$signal(signal, data)
+                $executions.push(iAction.$signal(signal, data, race)
                     .then(function (data: Serialize) {
 
                         resolves.add(iAction);
@@ -171,7 +174,7 @@ export class ForgeStream {
 
                         rejects.add(iAction);
 
-                        console.parse(error);
+                        // console.parse(error.message);
                         throw {
                             name: iAction.name,
                             reject: error
@@ -213,7 +216,7 @@ export class ForgeStream {
 
         console.group(signal);
         console.log(data);
-        console.log(signalStatus);
+        console.log(JSON.stringify(signalStatus));
         console.groupEnd();
 
         return signalStatus;

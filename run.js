@@ -7,7 +7,7 @@ var __commonJS = (cb, mod) => function __require() {
 var require_constants = __commonJS({
   "node_modules/.pnpm/picomatch@2.3.1/node_modules/picomatch/lib/constants.js"(exports2, module2) {
     "use strict";
-    var path4 = require("path");
+    var path5 = require("path");
     var WIN_SLASH = "\\\\/";
     var WIN_NO_SLASH = `[^${WIN_SLASH}]`;
     var DOT_LITERAL = "\\.";
@@ -177,7 +177,7 @@ var require_constants = __commonJS({
       /* | */
       CHAR_ZERO_WIDTH_NOBREAK_SPACE: 65279,
       /* \uFEFF */
-      SEP: path4.sep,
+      SEP: path5.sep,
       /**
        * Create EXTGLOB_CHARS
        */
@@ -204,7 +204,7 @@ var require_constants = __commonJS({
 var require_utils = __commonJS({
   "node_modules/.pnpm/picomatch@2.3.1/node_modules/picomatch/lib/utils.js"(exports2) {
     "use strict";
-    var path4 = require("path");
+    var path5 = require("path");
     var win32 = process.platform === "win32";
     var {
       REGEX_BACKSLASH,
@@ -233,7 +233,7 @@ var require_utils = __commonJS({
       if (options && typeof options.windows === "boolean") {
         return options.windows;
       }
-      return win32 === true || path4.sep === "\\";
+      return win32 === true || path5.sep === "\\";
     };
     exports2.escapeLast = (input, char, lastIdx) => {
       const idx = input.lastIndexOf(char, lastIdx);
@@ -1381,7 +1381,7 @@ var require_parse = __commonJS({
 var require_picomatch = __commonJS({
   "node_modules/.pnpm/picomatch@2.3.1/node_modules/picomatch/lib/picomatch.js"(exports2, module2) {
     "use strict";
-    var path4 = require("path");
+    var path5 = require("path");
     var scan = require_scan();
     var parse = require_parse();
     var utils = require_utils();
@@ -1467,7 +1467,7 @@ var require_picomatch = __commonJS({
     };
     picomatch.matchBase = (input, glob2, options, posix = utils.isWindows(options)) => {
       const regex = glob2 instanceof RegExp ? glob2 : picomatch.makeRe(glob2, options);
-      return regex.test(path4.basename(input));
+      return regex.test(path5.basename(input));
     };
     picomatch.isMatch = (str, patterns, options) => picomatch(patterns, options)(str);
     picomatch.parse = (pattern, options) => {
@@ -1587,8 +1587,8 @@ var require_readdirp = __commonJS({
         return {
           root: ".",
           /* eslint-disable no-unused-vars */
-          fileFilter: (path4) => true,
-          directoryFilter: (path4) => true,
+          fileFilter: (path5) => true,
+          directoryFilter: (path5) => true,
           /* eslint-enable no-unused-vars */
           type: FILE_TYPE,
           lstat: false,
@@ -1608,7 +1608,7 @@ var require_readdirp = __commonJS({
         this._directoryFilter = normalizeFilter(opts.directoryFilter);
         const statMethod = opts.lstat ? lstat : stat;
         if (wantBigintFsStats) {
-          this._stat = (path4) => statMethod(path4, { bigint: true });
+          this._stat = (path5) => statMethod(path5, { bigint: true });
         } else {
           this._stat = statMethod;
         }
@@ -1630,9 +1630,9 @@ var require_readdirp = __commonJS({
         this.reading = true;
         try {
           while (!this.destroyed && batch > 0) {
-            const { path: path4, depth, files = [] } = this.parent || {};
+            const { path: path5, depth, files = [] } = this.parent || {};
             if (files.length > 0) {
-              const slice = files.splice(0, batch).map((dirent) => this._formatEntry(dirent, path4));
+              const slice = files.splice(0, batch).map((dirent) => this._formatEntry(dirent, path5));
               for (const entry of await Promise.all(slice)) {
                 if (this.destroyed)
                   return;
@@ -1669,20 +1669,20 @@ var require_readdirp = __commonJS({
           this.reading = false;
         }
       }
-      async _exploreDir(path4, depth) {
+      async _exploreDir(path5, depth) {
         let files;
         try {
-          files = await readdir(path4, this._rdOptions);
+          files = await readdir(path5, this._rdOptions);
         } catch (error) {
           this._onError(error);
         }
-        return { files, depth, path: path4 };
+        return { files, depth, path: path5 };
       }
-      async _formatEntry(dirent, path4) {
+      async _formatEntry(dirent, path5) {
         let entry;
         try {
           const basename = this._isDirent ? dirent.name : dirent;
-          const fullPath = sysPath.resolve(sysPath.join(path4, basename));
+          const fullPath = sysPath.resolve(sysPath.join(path5, basename));
           entry = { path: sysPath.relative(this._root, fullPath), fullPath, basename };
           entry[this._statsProp] = this._isDirent ? dirent : await this._stat(fullPath);
         } catch (err) {
@@ -1769,24 +1769,24 @@ var require_readdirp = __commonJS({
 // node_modules/.pnpm/normalize-path@3.0.0/node_modules/normalize-path/index.js
 var require_normalize_path = __commonJS({
   "node_modules/.pnpm/normalize-path@3.0.0/node_modules/normalize-path/index.js"(exports2, module2) {
-    module2.exports = function(path4, stripTrailing) {
-      if (typeof path4 !== "string") {
+    module2.exports = function(path5, stripTrailing) {
+      if (typeof path5 !== "string") {
         throw new TypeError("expected path to be a string");
       }
-      if (path4 === "\\" || path4 === "/")
+      if (path5 === "\\" || path5 === "/")
         return "/";
-      var len = path4.length;
+      var len = path5.length;
       if (len <= 1)
-        return path4;
+        return path5;
       var prefix = "";
-      if (len > 4 && path4[3] === "\\") {
-        var ch = path4[2];
-        if ((ch === "?" || ch === ".") && path4.slice(0, 2) === "\\\\") {
-          path4 = path4.slice(2);
+      if (len > 4 && path5[3] === "\\") {
+        var ch = path5[2];
+        if ((ch === "?" || ch === ".") && path5.slice(0, 2) === "\\\\") {
+          path5 = path5.slice(2);
           prefix = "//";
         }
       }
-      var segs = path4.split(/[/\\]+/);
+      var segs = path5.split(/[/\\]+/);
       if (stripTrailing !== false && segs[segs.length - 1] === "") {
         segs.pop();
       }
@@ -1824,17 +1824,17 @@ var require_anymatch = __commonJS({
       if (!isList && typeof _path !== "string") {
         throw new TypeError("anymatch: second argument must be a string: got " + Object.prototype.toString.call(_path));
       }
-      const path4 = normalizePath(_path, false);
+      const path5 = normalizePath(_path, false);
       for (let index = 0; index < negPatterns.length; index++) {
         const nglob = negPatterns[index];
-        if (nglob(path4)) {
+        if (nglob(path5)) {
           return returnIndex ? -1 : false;
         }
       }
-      const applied = isList && [path4].concat(args.slice(1));
+      const applied = isList && [path5].concat(args.slice(1));
       for (let index = 0; index < patterns.length; index++) {
         const pattern = patterns[index];
-        if (isList ? pattern(...applied) : pattern(path4)) {
+        if (isList ? pattern(...applied) : pattern(path5)) {
           return returnIndex ? index : true;
         }
       }
@@ -3422,10 +3422,10 @@ var require_binary_extensions2 = __commonJS({
 var require_is_binary_path = __commonJS({
   "node_modules/.pnpm/is-binary-path@2.1.0/node_modules/is-binary-path/index.js"(exports2, module2) {
     "use strict";
-    var path4 = require("path");
+    var path5 = require("path");
     var binaryExtensions = require_binary_extensions2();
     var extensions = new Set(binaryExtensions);
-    module2.exports = (filePath) => extensions.has(path4.extname(filePath).slice(1).toLowerCase());
+    module2.exports = (filePath) => extensions.has(path5.extname(filePath).slice(1).toLowerCase());
   }
 });
 
@@ -3557,20 +3557,20 @@ var require_nodefs_handler = __commonJS({
     };
     var isEmptySet = (val) => val instanceof Set ? val.size === 0 : !val;
     var FsWatchInstances = /* @__PURE__ */ new Map();
-    function createFsWatchInstance(path4, options, listener, errHandler, emitRaw) {
+    function createFsWatchInstance(path5, options, listener, errHandler, emitRaw) {
       const handleEvent = (rawEvent, evPath) => {
-        listener(path4);
-        emitRaw(rawEvent, evPath, { watchedPath: path4 });
-        if (evPath && path4 !== evPath) {
+        listener(path5);
+        emitRaw(rawEvent, evPath, { watchedPath: path5 });
+        if (evPath && path5 !== evPath) {
           fsWatchBroadcast(
-            sysPath.resolve(path4, evPath),
+            sysPath.resolve(path5, evPath),
             KEY_LISTENERS,
-            sysPath.join(path4, evPath)
+            sysPath.join(path5, evPath)
           );
         }
       };
       try {
-        return fs3.watch(path4, options, handleEvent);
+        return fs3.watch(path5, options, handleEvent);
       } catch (error) {
         errHandler(error);
       }
@@ -3583,13 +3583,13 @@ var require_nodefs_handler = __commonJS({
         listener(val1, val2, val3);
       });
     };
-    var setFsWatchListener = (path4, fullPath, options, handlers) => {
+    var setFsWatchListener = (path5, fullPath, options, handlers) => {
       const { listener, errHandler, rawEmitter } = handlers;
       let cont = FsWatchInstances.get(fullPath);
       let watcher;
       if (!options.persistent) {
         watcher = createFsWatchInstance(
-          path4,
+          path5,
           options,
           listener,
           errHandler,
@@ -3603,7 +3603,7 @@ var require_nodefs_handler = __commonJS({
         addAndConvert(cont, KEY_RAW, rawEmitter);
       } else {
         watcher = createFsWatchInstance(
-          path4,
+          path5,
           options,
           fsWatchBroadcast.bind(null, fullPath, KEY_LISTENERS),
           errHandler,
@@ -3617,7 +3617,7 @@ var require_nodefs_handler = __commonJS({
           cont.watcherUnusable = true;
           if (isWindows && error.code === "EPERM") {
             try {
-              const fd = await open(path4, "r");
+              const fd = await open(path5, "r");
               await close(fd);
               broadcastErr(error);
             } catch (err) {
@@ -3648,7 +3648,7 @@ var require_nodefs_handler = __commonJS({
       };
     };
     var FsWatchFileInstances = /* @__PURE__ */ new Map();
-    var setFsWatchFileListener = (path4, fullPath, options, handlers) => {
+    var setFsWatchFileListener = (path5, fullPath, options, handlers) => {
       const { listener, rawEmitter } = handlers;
       let cont = FsWatchFileInstances.get(fullPath);
       let listeners = /* @__PURE__ */ new Set();
@@ -3674,7 +3674,7 @@ var require_nodefs_handler = __commonJS({
             });
             const currmtime = curr.mtimeMs;
             if (curr.size !== prev.size || currmtime > prev.mtimeMs || currmtime === 0) {
-              foreach(cont.listeners, (listener2) => listener2(path4, curr));
+              foreach(cont.listeners, (listener2) => listener2(path5, curr));
             }
           })
         };
@@ -3705,25 +3705,25 @@ var require_nodefs_handler = __commonJS({
        * @param {Function} listener on fs change
        * @returns {Function} closer for the watcher instance
        */
-      _watchWithNodeFs(path4, listener) {
+      _watchWithNodeFs(path5, listener) {
         const opts = this.fsw.options;
-        const directory = sysPath.dirname(path4);
-        const basename = sysPath.basename(path4);
+        const directory = sysPath.dirname(path5);
+        const basename = sysPath.basename(path5);
         const parent = this.fsw._getWatchedDir(directory);
         parent.add(basename);
-        const absolutePath = sysPath.resolve(path4);
+        const absolutePath = sysPath.resolve(path5);
         const options = { persistent: opts.persistent };
         if (!listener)
           listener = EMPTY_FN;
         let closer;
         if (opts.usePolling) {
           options.interval = opts.enableBinaryInterval && isBinaryPath(basename) ? opts.binaryInterval : opts.interval;
-          closer = setFsWatchFileListener(path4, absolutePath, options, {
+          closer = setFsWatchFileListener(path5, absolutePath, options, {
             listener,
             rawEmitter: this.fsw._emitRaw
           });
         } else {
-          closer = setFsWatchListener(path4, absolutePath, options, {
+          closer = setFsWatchListener(path5, absolutePath, options, {
             listener,
             errHandler: this._boundHandleError,
             rawEmitter: this.fsw._emitRaw
@@ -3748,7 +3748,7 @@ var require_nodefs_handler = __commonJS({
         let prevStats = stats;
         if (parent.has(basename))
           return;
-        const listener = async (path4, newStats) => {
+        const listener = async (path5, newStats) => {
           if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5))
             return;
           if (!newStats || newStats.mtimeMs === 0) {
@@ -3762,9 +3762,9 @@ var require_nodefs_handler = __commonJS({
                 this.fsw._emit(EV_CHANGE, file, newStats2);
               }
               if (isLinux && prevStats.ino !== newStats2.ino) {
-                this.fsw._closeFile(path4);
+                this.fsw._closeFile(path5);
                 prevStats = newStats2;
-                this.fsw._addPathCloser(path4, this._watchWithNodeFs(file, listener));
+                this.fsw._addPathCloser(path5, this._watchWithNodeFs(file, listener));
               } else {
                 prevStats = newStats2;
               }
@@ -3796,7 +3796,7 @@ var require_nodefs_handler = __commonJS({
        * @param {String} item basename of this item
        * @returns {Promise<Boolean>} true if no more processing is needed for this entry.
        */
-      async _handleSymlink(entry, directory, path4, item) {
+      async _handleSymlink(entry, directory, path5, item) {
         if (this.fsw.closed) {
           return;
         }
@@ -3806,7 +3806,7 @@ var require_nodefs_handler = __commonJS({
           this.fsw._incrReadyCount();
           let linkPath;
           try {
-            linkPath = await fsrealpath(path4);
+            linkPath = await fsrealpath(path5);
           } catch (e) {
             this.fsw._emitReady();
             return true;
@@ -3816,12 +3816,12 @@ var require_nodefs_handler = __commonJS({
           if (dir.has(item)) {
             if (this.fsw._symlinkPaths.get(full) !== linkPath) {
               this.fsw._symlinkPaths.set(full, linkPath);
-              this.fsw._emit(EV_CHANGE, path4, entry.stats);
+              this.fsw._emit(EV_CHANGE, path5, entry.stats);
             }
           } else {
             dir.add(item);
             this.fsw._symlinkPaths.set(full, linkPath);
-            this.fsw._emit(EV_ADD, path4, entry.stats);
+            this.fsw._emit(EV_ADD, path5, entry.stats);
           }
           this.fsw._emitReady();
           return true;
@@ -3850,9 +3850,9 @@ var require_nodefs_handler = __commonJS({
             return;
           }
           const item = entry.path;
-          let path4 = sysPath.join(directory, item);
+          let path5 = sysPath.join(directory, item);
           current.add(item);
-          if (entry.stats.isSymbolicLink() && await this._handleSymlink(entry, directory, path4, item)) {
+          if (entry.stats.isSymbolicLink() && await this._handleSymlink(entry, directory, path5, item)) {
             return;
           }
           if (this.fsw.closed) {
@@ -3861,8 +3861,8 @@ var require_nodefs_handler = __commonJS({
           }
           if (item === target || !target && !previous.has(item)) {
             this.fsw._incrReadyCount();
-            path4 = sysPath.join(dir, sysPath.relative(dir, path4));
-            this._addToNodeFs(path4, initialAdd, wh, depth + 1);
+            path5 = sysPath.join(dir, sysPath.relative(dir, path5));
+            this._addToNodeFs(path5, initialAdd, wh, depth + 1);
           }
         }).on(EV_ERROR, this._boundHandleError);
         return new Promise(
@@ -3936,13 +3936,13 @@ var require_nodefs_handler = __commonJS({
        * @param {String=} target Child path actually targeted for watch
        * @returns {Promise}
        */
-      async _addToNodeFs(path4, initialAdd, priorWh, depth, target) {
+      async _addToNodeFs(path5, initialAdd, priorWh, depth, target) {
         const ready = this.fsw._emitReady;
-        if (this.fsw._isIgnored(path4) || this.fsw.closed) {
+        if (this.fsw._isIgnored(path5) || this.fsw.closed) {
           ready();
           return false;
         }
-        const wh = this.fsw._getWatchHelpers(path4, depth);
+        const wh = this.fsw._getWatchHelpers(path5, depth);
         if (!wh.hasGlob && priorWh) {
           wh.hasGlob = priorWh.hasGlob;
           wh.globFilter = priorWh.globFilter;
@@ -3957,11 +3957,11 @@ var require_nodefs_handler = __commonJS({
             ready();
             return false;
           }
-          const follow = this.fsw.options.followSymlinks && !path4.includes(STAR) && !path4.includes(BRACE_START);
+          const follow = this.fsw.options.followSymlinks && !path5.includes(STAR) && !path5.includes(BRACE_START);
           let closer;
           if (stats.isDirectory()) {
-            const absPath = sysPath.resolve(path4);
-            const targetPath = follow ? await fsrealpath(path4) : path4;
+            const absPath = sysPath.resolve(path5);
+            const targetPath = follow ? await fsrealpath(path5) : path5;
             if (this.fsw.closed)
               return;
             closer = await this._handleDir(wh.watchPath, stats, initialAdd, depth, target, wh, targetPath);
@@ -3971,28 +3971,28 @@ var require_nodefs_handler = __commonJS({
               this.fsw._symlinkPaths.set(absPath, targetPath);
             }
           } else if (stats.isSymbolicLink()) {
-            const targetPath = follow ? await fsrealpath(path4) : path4;
+            const targetPath = follow ? await fsrealpath(path5) : path5;
             if (this.fsw.closed)
               return;
             const parent = sysPath.dirname(wh.watchPath);
             this.fsw._getWatchedDir(parent).add(wh.watchPath);
             this.fsw._emit(EV_ADD, wh.watchPath, stats);
-            closer = await this._handleDir(parent, stats, initialAdd, depth, path4, wh, targetPath);
+            closer = await this._handleDir(parent, stats, initialAdd, depth, path5, wh, targetPath);
             if (this.fsw.closed)
               return;
             if (targetPath !== void 0) {
-              this.fsw._symlinkPaths.set(sysPath.resolve(path4), targetPath);
+              this.fsw._symlinkPaths.set(sysPath.resolve(path5), targetPath);
             }
           } else {
             closer = this._handleFile(wh.watchPath, stats, initialAdd);
           }
           ready();
-          this.fsw._addPathCloser(path4, closer);
+          this.fsw._addPathCloser(path5, closer);
           return false;
         } catch (error) {
           if (this.fsw._handleError(error)) {
             ready();
-            return path4;
+            return path5;
           }
         }
       }
@@ -4066,18 +4066,18 @@ var require_fsevents_handler = __commonJS({
       131840,
       262912
     ]);
-    var createFSEventsInstance = (path4, callback) => {
-      const stop = fsevents.watch(path4, callback);
+    var createFSEventsInstance = (path5, callback) => {
+      const stop = fsevents.watch(path5, callback);
       return { stop };
     };
-    function setFSEventsListener(path4, realPath, listener, rawEmitter) {
+    function setFSEventsListener(path5, realPath, listener, rawEmitter) {
       let watchPath = sysPath.extname(realPath) ? sysPath.dirname(realPath) : realPath;
       const parentPath = sysPath.dirname(watchPath);
       let cont = FSEventsWatchers.get(watchPath);
       if (couldConsolidate(parentPath)) {
         watchPath = parentPath;
       }
-      const resolvedPath = sysPath.resolve(path4);
+      const resolvedPath = sysPath.resolve(path5);
       const hasSymlink = resolvedPath !== realPath;
       const filteredListener = (fullPath, flags, info) => {
         if (hasSymlink)
@@ -4125,10 +4125,10 @@ var require_fsevents_handler = __commonJS({
         }
       };
     }
-    var couldConsolidate = (path4) => {
+    var couldConsolidate = (path5) => {
       let count = 0;
       for (const watchPath of FSEventsWatchers.keys()) {
-        if (watchPath.indexOf(path4) === 0) {
+        if (watchPath.indexOf(path5) === 0) {
           count++;
           if (count >= consolidateThreshhold) {
             return true;
@@ -4138,9 +4138,9 @@ var require_fsevents_handler = __commonJS({
       return false;
     };
     var canUse = () => fsevents && FSEventsWatchers.size < 128;
-    var calcDepth = (path4, root) => {
+    var calcDepth = (path5, root) => {
       let i = 0;
-      while (!path4.indexOf(root) && (path4 = sysPath.dirname(path4)) !== root)
+      while (!path5.indexOf(root) && (path5 = sysPath.dirname(path5)) !== root)
         i++;
       return i;
     };
@@ -4152,42 +4152,42 @@ var require_fsevents_handler = __commonJS({
       constructor(fsw) {
         this.fsw = fsw;
       }
-      checkIgnored(path4, stats) {
+      checkIgnored(path5, stats) {
         const ipaths = this.fsw._ignoredPaths;
-        if (this.fsw._isIgnored(path4, stats)) {
-          ipaths.add(path4);
+        if (this.fsw._isIgnored(path5, stats)) {
+          ipaths.add(path5);
           if (stats && stats.isDirectory()) {
-            ipaths.add(path4 + ROOT_GLOBSTAR);
+            ipaths.add(path5 + ROOT_GLOBSTAR);
           }
           return true;
         }
-        ipaths.delete(path4);
-        ipaths.delete(path4 + ROOT_GLOBSTAR);
+        ipaths.delete(path5);
+        ipaths.delete(path5 + ROOT_GLOBSTAR);
       }
-      addOrChange(path4, fullPath, realPath, parent, watchedDir, item, info, opts) {
+      addOrChange(path5, fullPath, realPath, parent, watchedDir, item, info, opts) {
         const event = watchedDir.has(item) ? EV_CHANGE : EV_ADD;
-        this.handleEvent(event, path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+        this.handleEvent(event, path5, fullPath, realPath, parent, watchedDir, item, info, opts);
       }
-      async checkExists(path4, fullPath, realPath, parent, watchedDir, item, info, opts) {
+      async checkExists(path5, fullPath, realPath, parent, watchedDir, item, info, opts) {
         try {
-          const stats = await stat(path4);
+          const stats = await stat(path5);
           if (this.fsw.closed)
             return;
           if (sameTypes(info, stats)) {
-            this.addOrChange(path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+            this.addOrChange(path5, fullPath, realPath, parent, watchedDir, item, info, opts);
           } else {
-            this.handleEvent(EV_UNLINK, path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+            this.handleEvent(EV_UNLINK, path5, fullPath, realPath, parent, watchedDir, item, info, opts);
           }
         } catch (error) {
           if (error.code === "EACCES") {
-            this.addOrChange(path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+            this.addOrChange(path5, fullPath, realPath, parent, watchedDir, item, info, opts);
           } else {
-            this.handleEvent(EV_UNLINK, path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+            this.handleEvent(EV_UNLINK, path5, fullPath, realPath, parent, watchedDir, item, info, opts);
           }
         }
       }
-      handleEvent(event, path4, fullPath, realPath, parent, watchedDir, item, info, opts) {
-        if (this.fsw.closed || this.checkIgnored(path4))
+      handleEvent(event, path5, fullPath, realPath, parent, watchedDir, item, info, opts) {
+        if (this.fsw.closed || this.checkIgnored(path5))
           return;
         if (event === EV_UNLINK) {
           const isDirectory = info.type === FSEVENT_TYPE_DIRECTORY;
@@ -4197,17 +4197,17 @@ var require_fsevents_handler = __commonJS({
         } else {
           if (event === EV_ADD) {
             if (info.type === FSEVENT_TYPE_DIRECTORY)
-              this.fsw._getWatchedDir(path4);
+              this.fsw._getWatchedDir(path5);
             if (info.type === FSEVENT_TYPE_SYMLINK && opts.followSymlinks) {
               const curDepth = opts.depth === void 0 ? void 0 : calcDepth(fullPath, realPath) + 1;
-              return this._addToFsEvents(path4, false, true, curDepth);
+              return this._addToFsEvents(path5, false, true, curDepth);
             }
             this.fsw._getWatchedDir(parent).add(item);
           }
           const eventName = info.type === FSEVENT_TYPE_DIRECTORY ? event + DIR_SUFFIX : event;
-          this.fsw._emit(eventName, path4);
+          this.fsw._emit(eventName, path5);
           if (eventName === EV_ADD_DIR)
-            this._addToFsEvents(path4, false, true);
+            this._addToFsEvents(path5, false, true);
         }
       }
       /**
@@ -4227,44 +4227,44 @@ var require_fsevents_handler = __commonJS({
             return;
           if (opts.depth !== void 0 && calcDepth(fullPath, realPath) > opts.depth)
             return;
-          const path4 = transform(sysPath.join(
+          const path5 = transform(sysPath.join(
             watchPath,
             sysPath.relative(watchPath, fullPath)
           ));
-          if (globFilter && !globFilter(path4))
+          if (globFilter && !globFilter(path5))
             return;
-          const parent = sysPath.dirname(path4);
-          const item = sysPath.basename(path4);
+          const parent = sysPath.dirname(path5);
+          const item = sysPath.basename(path5);
           const watchedDir = this.fsw._getWatchedDir(
-            info.type === FSEVENT_TYPE_DIRECTORY ? path4 : parent
+            info.type === FSEVENT_TYPE_DIRECTORY ? path5 : parent
           );
           if (wrongEventFlags.has(flags) || info.event === FSEVENT_UNKNOWN) {
             if (typeof opts.ignored === FUNCTION_TYPE) {
               let stats;
               try {
-                stats = await stat(path4);
+                stats = await stat(path5);
               } catch (error) {
               }
               if (this.fsw.closed)
                 return;
-              if (this.checkIgnored(path4, stats))
+              if (this.checkIgnored(path5, stats))
                 return;
               if (sameTypes(info, stats)) {
-                this.addOrChange(path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+                this.addOrChange(path5, fullPath, realPath, parent, watchedDir, item, info, opts);
               } else {
-                this.handleEvent(EV_UNLINK, path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+                this.handleEvent(EV_UNLINK, path5, fullPath, realPath, parent, watchedDir, item, info, opts);
               }
             } else {
-              this.checkExists(path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+              this.checkExists(path5, fullPath, realPath, parent, watchedDir, item, info, opts);
             }
           } else {
             switch (info.event) {
               case FSEVENT_CREATED:
               case FSEVENT_MODIFIED:
-                return this.addOrChange(path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+                return this.addOrChange(path5, fullPath, realPath, parent, watchedDir, item, info, opts);
               case FSEVENT_DELETED:
               case FSEVENT_MOVED:
-                return this.checkExists(path4, fullPath, realPath, parent, watchedDir, item, info, opts);
+                return this.checkExists(path5, fullPath, realPath, parent, watchedDir, item, info, opts);
             }
           }
         };
@@ -4298,12 +4298,12 @@ var require_fsevents_handler = __commonJS({
             return this.fsw._emitReady();
           }
           this.fsw._incrReadyCount();
-          this._addToFsEvents(linkTarget || linkPath, (path4) => {
+          this._addToFsEvents(linkTarget || linkPath, (path5) => {
             let aliasedPath = linkPath;
             if (linkTarget && linkTarget !== DOT_SLASH) {
-              aliasedPath = path4.replace(linkTarget, linkPath);
-            } else if (path4 !== DOT_SLASH) {
-              aliasedPath = sysPath.join(linkPath, path4);
+              aliasedPath = path5.replace(linkTarget, linkPath);
+            } else if (path5 !== DOT_SLASH) {
+              aliasedPath = sysPath.join(linkPath, path5);
             }
             return transform(aliasedPath);
           }, false, curDepth);
@@ -4332,7 +4332,7 @@ var require_fsevents_handler = __commonJS({
           this.fsw._emit(isDir ? EV_ADD_DIR : EV_ADD, pp, stats);
         }
       }
-      initWatch(realPath, path4, wh, processPath) {
+      initWatch(realPath, path5, wh, processPath) {
         if (this.fsw.closed)
           return;
         const closer = this._watchWithFsEvents(
@@ -4341,7 +4341,7 @@ var require_fsevents_handler = __commonJS({
           processPath,
           wh.globFilter
         );
-        this.fsw._addPathCloser(path4, closer);
+        this.fsw._addPathCloser(path5, closer);
       }
       /**
        * Handle added path with fsevents
@@ -4351,13 +4351,13 @@ var require_fsevents_handler = __commonJS({
        * @param {Number=} priorDepth Level of subdirectories already traversed.
        * @returns {Promise<void>}
        */
-      async _addToFsEvents(path4, transform, forceAdd, priorDepth) {
+      async _addToFsEvents(path5, transform, forceAdd, priorDepth) {
         if (this.fsw.closed) {
           return;
         }
         const opts = this.fsw.options;
         const processPath = typeof transform === FUNCTION_TYPE ? transform : IDENTITY_FN;
-        const wh = this.fsw._getWatchHelpers(path4);
+        const wh = this.fsw._getWatchHelpers(path5);
         try {
           const stats = await statMethods[wh.statMethod](wh.watchPath);
           if (this.fsw.closed)
@@ -4367,7 +4367,7 @@ var require_fsevents_handler = __commonJS({
           }
           if (stats.isDirectory()) {
             if (!wh.globFilter)
-              this.emitAdd(processPath(path4), stats, processPath, opts, forceAdd);
+              this.emitAdd(processPath(path5), stats, processPath, opts, forceAdd);
             if (priorDepth && priorDepth > opts.depth)
               return;
             this.fsw._readdirp(wh.watchPath, {
@@ -4403,14 +4403,14 @@ var require_fsevents_handler = __commonJS({
         }
         if (opts.persistent && forceAdd !== true) {
           if (typeof transform === FUNCTION_TYPE) {
-            this.initWatch(void 0, path4, wh, processPath);
+            this.initWatch(void 0, path5, wh, processPath);
           } else {
             let realPath;
             try {
               realPath = await realpath(wh.watchPath);
             } catch (e) {
             }
-            this.initWatch(realPath, path4, wh, processPath);
+            this.initWatch(realPath, path5, wh, processPath);
           }
         }
       }
@@ -4504,20 +4504,20 @@ var require_chokidar = __commonJS({
       }
       return str;
     };
-    var normalizePathToUnix = (path4) => toUnix(sysPath.normalize(toUnix(path4)));
-    var normalizeIgnored = (cwd = EMPTY_STR) => (path4) => {
-      if (typeof path4 !== STRING_TYPE)
-        return path4;
-      return normalizePathToUnix(sysPath.isAbsolute(path4) ? path4 : sysPath.join(cwd, path4));
+    var normalizePathToUnix = (path5) => toUnix(sysPath.normalize(toUnix(path5)));
+    var normalizeIgnored = (cwd = EMPTY_STR) => (path5) => {
+      if (typeof path5 !== STRING_TYPE)
+        return path5;
+      return normalizePathToUnix(sysPath.isAbsolute(path5) ? path5 : sysPath.join(cwd, path5));
     };
-    var getAbsolutePath = (path4, cwd) => {
-      if (sysPath.isAbsolute(path4)) {
-        return path4;
+    var getAbsolutePath = (path5, cwd) => {
+      if (sysPath.isAbsolute(path5)) {
+        return path5;
       }
-      if (path4.startsWith(BANG)) {
-        return BANG + sysPath.join(cwd, path4.slice(1));
+      if (path5.startsWith(BANG)) {
+        return BANG + sysPath.join(cwd, path5.slice(1));
       }
-      return sysPath.join(cwd, path4);
+      return sysPath.join(cwd, path5);
     };
     var undef = (opts, key) => opts[key] === void 0;
     var DirEntry = class {
@@ -4579,17 +4579,17 @@ var require_chokidar = __commonJS({
     var STAT_METHOD_F = "stat";
     var STAT_METHOD_L = "lstat";
     var WatchHelper = class {
-      constructor(path4, watchPath, follow, fsw) {
+      constructor(path5, watchPath, follow, fsw) {
         this.fsw = fsw;
-        this.path = path4 = path4.replace(REPLACER_RE, EMPTY_STR);
+        this.path = path5 = path5.replace(REPLACER_RE, EMPTY_STR);
         this.watchPath = watchPath;
         this.fullWatchPath = sysPath.resolve(watchPath);
-        this.hasGlob = watchPath !== path4;
-        if (path4 === EMPTY_STR)
+        this.hasGlob = watchPath !== path5;
+        if (path5 === EMPTY_STR)
           this.hasGlob = false;
         this.globSymlink = this.hasGlob && follow ? void 0 : false;
-        this.globFilter = this.hasGlob ? anymatch(path4, void 0, ANYMATCH_OPTS) : false;
-        this.dirParts = this.getDirParts(path4);
+        this.globFilter = this.hasGlob ? anymatch(path5, void 0, ANYMATCH_OPTS) : false;
+        this.dirParts = this.getDirParts(path5);
         this.dirParts.forEach((parts) => {
           if (parts.length > 1)
             parts.pop();
@@ -4620,13 +4620,13 @@ var require_chokidar = __commonJS({
         const matchesGlob = this.hasGlob && typeof this.globFilter === FUNCTION_TYPE ? this.globFilter(resolvedPath) : true;
         return matchesGlob && this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats);
       }
-      getDirParts(path4) {
+      getDirParts(path5) {
         if (!this.hasGlob)
           return [];
         const parts = [];
-        const expandedPath = path4.includes(BRACE_START) ? braces.expand(path4) : [path4];
-        expandedPath.forEach((path5) => {
-          parts.push(sysPath.relative(this.watchPath, path5).split(SLASH_OR_BACK_SLASH_RE));
+        const expandedPath = path5.includes(BRACE_START) ? braces.expand(path5) : [path5];
+        expandedPath.forEach((path6) => {
+          parts.push(sysPath.relative(this.watchPath, path6).split(SLASH_OR_BACK_SLASH_RE));
         });
         return parts;
       }
@@ -4750,21 +4750,21 @@ var require_chokidar = __commonJS({
         this.closed = false;
         let paths = unifyPaths(paths_);
         if (cwd) {
-          paths = paths.map((path4) => {
-            const absPath = getAbsolutePath(path4, cwd);
-            if (disableGlobbing || !isGlob(path4)) {
+          paths = paths.map((path5) => {
+            const absPath = getAbsolutePath(path5, cwd);
+            if (disableGlobbing || !isGlob(path5)) {
               return absPath;
             }
             return normalizePath(absPath);
           });
         }
-        paths = paths.filter((path4) => {
-          if (path4.startsWith(BANG)) {
-            this._ignoredPaths.add(path4.slice(1));
+        paths = paths.filter((path5) => {
+          if (path5.startsWith(BANG)) {
+            this._ignoredPaths.add(path5.slice(1));
             return false;
           }
-          this._ignoredPaths.delete(path4);
-          this._ignoredPaths.delete(path4 + SLASH_GLOBSTAR);
+          this._ignoredPaths.delete(path5);
+          this._ignoredPaths.delete(path5 + SLASH_GLOBSTAR);
           this._userIgnored = void 0;
           return true;
         });
@@ -4773,14 +4773,14 @@ var require_chokidar = __commonJS({
             this._readyCount = paths.length;
           if (this.options.persistent)
             this._readyCount *= 2;
-          paths.forEach((path4) => this._fsEventsHandler._addToFsEvents(path4));
+          paths.forEach((path5) => this._fsEventsHandler._addToFsEvents(path5));
         } else {
           if (!this._readyCount)
             this._readyCount = 0;
           this._readyCount += paths.length;
           Promise.all(
-            paths.map(async (path4) => {
-              const res = await this._nodeFsHandler._addToNodeFs(path4, !_internal, 0, 0, _origAdd);
+            paths.map(async (path5) => {
+              const res = await this._nodeFsHandler._addToNodeFs(path5, !_internal, 0, 0, _origAdd);
               if (res)
                 this._emitReady();
               return res;
@@ -4805,16 +4805,16 @@ var require_chokidar = __commonJS({
           return this;
         const paths = unifyPaths(paths_);
         const { cwd } = this.options;
-        paths.forEach((path4) => {
-          if (!sysPath.isAbsolute(path4) && !this._closers.has(path4)) {
+        paths.forEach((path5) => {
+          if (!sysPath.isAbsolute(path5) && !this._closers.has(path5)) {
             if (cwd)
-              path4 = sysPath.join(cwd, path4);
-            path4 = sysPath.resolve(path4);
+              path5 = sysPath.join(cwd, path5);
+            path5 = sysPath.resolve(path5);
           }
-          this._closePath(path4);
-          this._ignoredPaths.add(path4);
-          if (this._watched.has(path4)) {
-            this._ignoredPaths.add(path4 + SLASH_GLOBSTAR);
+          this._closePath(path5);
+          this._ignoredPaths.add(path5);
+          if (this._watched.has(path5)) {
+            this._ignoredPaths.add(path5 + SLASH_GLOBSTAR);
           }
           this._userIgnored = void 0;
         });
@@ -4875,15 +4875,15 @@ var require_chokidar = __commonJS({
        * @param {*=} val3
        * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
        */
-      async _emit(event, path4, val1, val2, val3) {
+      async _emit(event, path5, val1, val2, val3) {
         if (this.closed)
           return;
         const opts = this.options;
         if (isWindows)
-          path4 = sysPath.normalize(path4);
+          path5 = sysPath.normalize(path5);
         if (opts.cwd)
-          path4 = sysPath.relative(opts.cwd, path4);
-        const args = [event, path4];
+          path5 = sysPath.relative(opts.cwd, path5);
+        const args = [event, path5];
         if (val3 !== void 0)
           args.push(val1, val2, val3);
         else if (val2 !== void 0)
@@ -4892,25 +4892,25 @@ var require_chokidar = __commonJS({
           args.push(val1);
         const awf = opts.awaitWriteFinish;
         let pw;
-        if (awf && (pw = this._pendingWrites.get(path4))) {
+        if (awf && (pw = this._pendingWrites.get(path5))) {
           pw.lastChange = /* @__PURE__ */ new Date();
           return this;
         }
         if (opts.atomic) {
           if (event === EV_UNLINK) {
-            this._pendingUnlinks.set(path4, args);
+            this._pendingUnlinks.set(path5, args);
             setTimeout(() => {
-              this._pendingUnlinks.forEach((entry, path5) => {
+              this._pendingUnlinks.forEach((entry, path6) => {
                 this.emit(...entry);
                 this.emit(EV_ALL, ...entry);
-                this._pendingUnlinks.delete(path5);
+                this._pendingUnlinks.delete(path6);
               });
             }, typeof opts.atomic === "number" ? opts.atomic : 100);
             return this;
           }
-          if (event === EV_ADD && this._pendingUnlinks.has(path4)) {
+          if (event === EV_ADD && this._pendingUnlinks.has(path5)) {
             event = args[0] = EV_CHANGE;
-            this._pendingUnlinks.delete(path4);
+            this._pendingUnlinks.delete(path5);
           }
         }
         if (awf && (event === EV_ADD || event === EV_CHANGE) && this._readyEmitted) {
@@ -4928,16 +4928,16 @@ var require_chokidar = __commonJS({
               this.emitWithAll(event, args);
             }
           };
-          this._awaitWriteFinish(path4, awf.stabilityThreshold, event, awfEmit);
+          this._awaitWriteFinish(path5, awf.stabilityThreshold, event, awfEmit);
           return this;
         }
         if (event === EV_CHANGE) {
-          const isThrottled = !this._throttle(EV_CHANGE, path4, 50);
+          const isThrottled = !this._throttle(EV_CHANGE, path5, 50);
           if (isThrottled)
             return this;
         }
         if (opts.alwaysStat && val1 === void 0 && (event === EV_ADD || event === EV_ADD_DIR || event === EV_CHANGE)) {
-          const fullPath = opts.cwd ? sysPath.join(opts.cwd, path4) : path4;
+          const fullPath = opts.cwd ? sysPath.join(opts.cwd, path5) : path5;
           let stats;
           try {
             stats = await stat(fullPath);
@@ -4969,21 +4969,21 @@ var require_chokidar = __commonJS({
        * @param {Number} timeout duration of time to suppress duplicate actions
        * @returns {Object|false} tracking object or false if action should be suppressed
        */
-      _throttle(actionType, path4, timeout) {
+      _throttle(actionType, path5, timeout) {
         if (!this._throttled.has(actionType)) {
           this._throttled.set(actionType, /* @__PURE__ */ new Map());
         }
         const action = this._throttled.get(actionType);
-        const actionPath = action.get(path4);
+        const actionPath = action.get(path5);
         if (actionPath) {
           actionPath.count++;
           return false;
         }
         let timeoutObject;
         const clear = () => {
-          const item = action.get(path4);
+          const item = action.get(path5);
           const count = item ? item.count : 0;
-          action.delete(path4);
+          action.delete(path5);
           clearTimeout(timeoutObject);
           if (item)
             clearTimeout(item.timeoutObject);
@@ -4991,7 +4991,7 @@ var require_chokidar = __commonJS({
         };
         timeoutObject = setTimeout(clear, timeout);
         const thr = { timeoutObject, clear, count: 0 };
-        action.set(path4, thr);
+        action.set(path5, thr);
         return thr;
       }
       _incrReadyCount() {
@@ -5005,28 +5005,28 @@ var require_chokidar = __commonJS({
        * @param {EventName} event
        * @param {Function} awfEmit Callback to be called when ready for event to be emitted.
        */
-      _awaitWriteFinish(path4, threshold, event, awfEmit) {
+      _awaitWriteFinish(path5, threshold, event, awfEmit) {
         let timeoutHandler;
-        let fullPath = path4;
-        if (this.options.cwd && !sysPath.isAbsolute(path4)) {
-          fullPath = sysPath.join(this.options.cwd, path4);
+        let fullPath = path5;
+        if (this.options.cwd && !sysPath.isAbsolute(path5)) {
+          fullPath = sysPath.join(this.options.cwd, path5);
         }
         const now = /* @__PURE__ */ new Date();
         const awaitWriteFinish = (prevStat) => {
           fs3.stat(fullPath, (err, curStat) => {
-            if (err || !this._pendingWrites.has(path4)) {
+            if (err || !this._pendingWrites.has(path5)) {
               if (err && err.code !== "ENOENT")
                 awfEmit(err);
               return;
             }
             const now2 = Number(/* @__PURE__ */ new Date());
             if (prevStat && curStat.size !== prevStat.size) {
-              this._pendingWrites.get(path4).lastChange = now2;
+              this._pendingWrites.get(path5).lastChange = now2;
             }
-            const pw = this._pendingWrites.get(path4);
+            const pw = this._pendingWrites.get(path5);
             const df = now2 - pw.lastChange;
             if (df >= threshold) {
-              this._pendingWrites.delete(path4);
+              this._pendingWrites.delete(path5);
               awfEmit(void 0, curStat);
             } else {
               timeoutHandler = setTimeout(
@@ -5037,11 +5037,11 @@ var require_chokidar = __commonJS({
             }
           });
         };
-        if (!this._pendingWrites.has(path4)) {
-          this._pendingWrites.set(path4, {
+        if (!this._pendingWrites.has(path5)) {
+          this._pendingWrites.set(path5, {
             lastChange: now,
             cancelWait: () => {
-              this._pendingWrites.delete(path4);
+              this._pendingWrites.delete(path5);
               clearTimeout(timeoutHandler);
               return event;
             }
@@ -5061,21 +5061,21 @@ var require_chokidar = __commonJS({
        * @param {fs.Stats=} stats result of fs.stat
        * @returns {Boolean}
        */
-      _isIgnored(path4, stats) {
-        if (this.options.atomic && DOT_RE.test(path4))
+      _isIgnored(path5, stats) {
+        if (this.options.atomic && DOT_RE.test(path5))
           return true;
         if (!this._userIgnored) {
           const { cwd } = this.options;
           const ign = this.options.ignored;
           const ignored = ign && ign.map(normalizeIgnored(cwd));
-          const paths = arrify(ignored).filter((path5) => typeof path5 === STRING_TYPE && !isGlob(path5)).map((path5) => path5 + SLASH_GLOBSTAR);
+          const paths = arrify(ignored).filter((path6) => typeof path6 === STRING_TYPE && !isGlob(path6)).map((path6) => path6 + SLASH_GLOBSTAR);
           const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
           this._userIgnored = anymatch(list, void 0, ANYMATCH_OPTS);
         }
-        return this._userIgnored([path4, stats]);
+        return this._userIgnored([path5, stats]);
       }
-      _isntIgnored(path4, stat2) {
-        return !this._isIgnored(path4, stat2);
+      _isntIgnored(path5, stat2) {
+        return !this._isIgnored(path5, stat2);
       }
       /**
        * Provides a set of common helpers and properties relating to symlink and glob handling.
@@ -5083,10 +5083,10 @@ var require_chokidar = __commonJS({
        * @param {Number=} depth at any depth > 0, this isn't a glob
        * @returns {WatchHelper} object containing helpers for this path
        */
-      _getWatchHelpers(path4, depth) {
-        const watchPath = depth || this.options.disableGlobbing || !isGlob(path4) ? path4 : globParent(path4);
+      _getWatchHelpers(path5, depth) {
+        const watchPath = depth || this.options.disableGlobbing || !isGlob(path5) ? path5 : globParent(path5);
         const follow = this.options.followSymlinks;
-        return new WatchHelper(path4, watchPath, follow, this);
+        return new WatchHelper(path5, watchPath, follow, this);
       }
       // Directory helpers
       // -----------------
@@ -5128,72 +5128,72 @@ var require_chokidar = __commonJS({
        * @returns {void}
       */
       _remove(directory, item, isDirectory) {
-        const path4 = sysPath.join(directory, item);
-        const fullPath = sysPath.resolve(path4);
-        isDirectory = isDirectory != null ? isDirectory : this._watched.has(path4) || this._watched.has(fullPath);
-        if (!this._throttle("remove", path4, 100))
+        const path5 = sysPath.join(directory, item);
+        const fullPath = sysPath.resolve(path5);
+        isDirectory = isDirectory != null ? isDirectory : this._watched.has(path5) || this._watched.has(fullPath);
+        if (!this._throttle("remove", path5, 100))
           return;
         if (!isDirectory && !this.options.useFsEvents && this._watched.size === 1) {
           this.add(directory, item, true);
         }
-        const wp = this._getWatchedDir(path4);
+        const wp = this._getWatchedDir(path5);
         const nestedDirectoryChildren = wp.getChildren();
-        nestedDirectoryChildren.forEach((nested) => this._remove(path4, nested));
+        nestedDirectoryChildren.forEach((nested) => this._remove(path5, nested));
         const parent = this._getWatchedDir(directory);
         const wasTracked = parent.has(item);
         parent.remove(item);
         if (this._symlinkPaths.has(fullPath)) {
           this._symlinkPaths.delete(fullPath);
         }
-        let relPath = path4;
+        let relPath = path5;
         if (this.options.cwd)
-          relPath = sysPath.relative(this.options.cwd, path4);
+          relPath = sysPath.relative(this.options.cwd, path5);
         if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
           const event = this._pendingWrites.get(relPath).cancelWait();
           if (event === EV_ADD)
             return;
         }
-        this._watched.delete(path4);
+        this._watched.delete(path5);
         this._watched.delete(fullPath);
         const eventName = isDirectory ? EV_UNLINK_DIR : EV_UNLINK;
-        if (wasTracked && !this._isIgnored(path4))
-          this._emit(eventName, path4);
+        if (wasTracked && !this._isIgnored(path5))
+          this._emit(eventName, path5);
         if (!this.options.useFsEvents) {
-          this._closePath(path4);
+          this._closePath(path5);
         }
       }
       /**
        * Closes all watchers for a path
        * @param {Path} path
        */
-      _closePath(path4) {
-        this._closeFile(path4);
-        const dir = sysPath.dirname(path4);
-        this._getWatchedDir(dir).remove(sysPath.basename(path4));
+      _closePath(path5) {
+        this._closeFile(path5);
+        const dir = sysPath.dirname(path5);
+        this._getWatchedDir(dir).remove(sysPath.basename(path5));
       }
       /**
        * Closes only file-specific watchers
        * @param {Path} path
        */
-      _closeFile(path4) {
-        const closers = this._closers.get(path4);
+      _closeFile(path5) {
+        const closers = this._closers.get(path5);
         if (!closers)
           return;
         closers.forEach((closer) => closer());
-        this._closers.delete(path4);
+        this._closers.delete(path5);
       }
       /**
        *
        * @param {Path} path
        * @param {Function} closer
        */
-      _addPathCloser(path4, closer) {
+      _addPathCloser(path5, closer) {
         if (!closer)
           return;
-        let list = this._closers.get(path4);
+        let list = this._closers.get(path5);
         if (!list) {
           list = [];
-          this._closers.set(path4, list);
+          this._closers.set(path5, list);
         }
         list.push(closer);
       }
@@ -6158,11 +6158,11 @@ var require_cjs = __commonJS({
       return (f) => f.length === len && f !== "." && f !== "..";
     };
     var defaultPlatform = typeof process === "object" && process ? typeof process.env === "object" && process.env && process.env.__MINIMATCH_TESTING_PLATFORM__ || process.platform : "posix";
-    var path4 = {
+    var path5 = {
       win32: { sep: "\\" },
       posix: { sep: "/" }
     };
-    exports2.sep = defaultPlatform === "win32" ? path4.win32.sep : path4.posix.sep;
+    exports2.sep = defaultPlatform === "win32" ? path5.win32.sep : path5.posix.sep;
     exports2.minimatch.sep = exports2.sep;
     exports2.GLOBSTAR = Symbol("globstar **");
     exports2.minimatch.GLOBSTAR = exports2.GLOBSTAR;
@@ -9266,12 +9266,12 @@ var require_cjs3 = __commonJS({
       /**
        * Get the Path object referenced by the string path, resolved from this Path
        */
-      resolve(path4) {
-        if (!path4) {
+      resolve(path5) {
+        if (!path5) {
           return this;
         }
-        const rootPath = this.getRootString(path4);
-        const dir = path4.substring(rootPath.length);
+        const rootPath = this.getRootString(path5);
+        const dir = path5.substring(rootPath.length);
         const dirParts = dir.split(this.splitSep);
         const result = rootPath ? this.getRoot(rootPath).#resolveParts(dirParts) : this.#resolveParts(dirParts);
         return result;
@@ -10016,8 +10016,8 @@ var require_cjs3 = __commonJS({
       /**
        * @internal
        */
-      getRootString(path4) {
-        return path_1.win32.parse(path4).root;
+      getRootString(path5) {
+        return path_1.win32.parse(path5).root;
       }
       /**
        * @internal
@@ -10064,8 +10064,8 @@ var require_cjs3 = __commonJS({
       /**
        * @internal
        */
-      getRootString(path4) {
-        return path4.startsWith("/") ? "/" : "";
+      getRootString(path5) {
+        return path5.startsWith("/") ? "/" : "";
       }
       /**
        * @internal
@@ -10155,11 +10155,11 @@ var require_cjs3 = __commonJS({
       /**
        * Get the depth of a provided path, string, or the cwd
        */
-      depth(path4 = this.cwd) {
-        if (typeof path4 === "string") {
-          path4 = this.cwd.resolve(path4);
+      depth(path5 = this.cwd) {
+        if (typeof path5 === "string") {
+          path5 = this.cwd.resolve(path5);
         }
-        return path4.depth();
+        return path5.depth();
       }
       /**
        * Return the cache of child entries.  Exposed so subclasses can create
@@ -10646,9 +10646,9 @@ var require_cjs3 = __commonJS({
         process2();
         return results;
       }
-      chdir(path4 = this.cwd) {
+      chdir(path5 = this.cwd) {
         const oldCwd = this.cwd;
-        this.cwd = typeof path4 === "string" ? this.cwd.resolve(path4) : path4;
+        this.cwd = typeof path5 === "string" ? this.cwd.resolve(path5) : path5;
         this.cwd[setAsCwd](oldCwd);
       }
     };
@@ -11027,8 +11027,8 @@ var require_processor = __commonJS({
       }
       // match, absolute, ifdir
       entries() {
-        return [...this.store.entries()].map(([path4, n]) => [
-          path4,
+        return [...this.store.entries()].map(([path5, n]) => [
+          path5,
           !!(n & 2),
           !!(n & 1)
         ]);
@@ -11245,9 +11245,9 @@ var require_walker = __commonJS({
       #sep;
       signal;
       maxDepth;
-      constructor(patterns, path4, opts) {
+      constructor(patterns, path5, opts) {
         this.patterns = patterns;
-        this.path = path4;
+        this.path = path5;
         this.opts = opts;
         this.#sep = !opts.posix && opts.platform === "win32" ? "\\" : "/";
         if (opts.ignore) {
@@ -11261,11 +11261,11 @@ var require_walker = __commonJS({
           });
         }
       }
-      #ignored(path4) {
-        return this.seen.has(path4) || !!this.#ignore?.ignored?.(path4);
+      #ignored(path5) {
+        return this.seen.has(path5) || !!this.#ignore?.ignored?.(path5);
       }
-      #childrenIgnored(path4) {
-        return !!this.#ignore?.childrenIgnored?.(path4);
+      #childrenIgnored(path5) {
+        return !!this.#ignore?.childrenIgnored?.(path5);
       }
       // backpressure mechanism
       pause() {
@@ -11463,8 +11463,8 @@ var require_walker = __commonJS({
     exports2.GlobUtil = GlobUtil;
     var GlobWalker = class extends GlobUtil {
       matches;
-      constructor(patterns, path4, opts) {
-        super(patterns, path4, opts);
+      constructor(patterns, path5, opts) {
+        super(patterns, path5, opts);
         this.matches = /* @__PURE__ */ new Set();
       }
       matchEmit(e) {
@@ -11503,8 +11503,8 @@ var require_walker = __commonJS({
     exports2.GlobWalker = GlobWalker;
     var GlobStream = class extends GlobUtil {
       results;
-      constructor(patterns, path4, opts) {
-        super(patterns, path4, opts);
+      constructor(patterns, path5, opts) {
+        super(patterns, path5, opts);
         this.results = new minipass_1.Minipass({
           signal: this.signal,
           objectMode: true
@@ -25927,11 +25927,11 @@ var require_mime_types = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path4) {
-      if (!path4 || typeof path4 !== "string") {
+    function lookup(path5) {
+      if (!path5 || typeof path5 !== "string") {
         return false;
       }
-      var extension2 = extname("x." + path4).toLowerCase().substr(1);
+      var extension2 = extname("x." + path5).toLowerCase().substr(1);
       if (!extension2) {
         return false;
       }
@@ -28798,7 +28798,7 @@ var require_path_to_regexp = __commonJS({
   "node_modules/.pnpm/path-to-regexp@0.1.7/node_modules/path-to-regexp/index.js"(exports2, module2) {
     module2.exports = pathtoRegexp;
     var MATCHING_GROUP_REGEXP = /\((?!\?)/g;
-    function pathtoRegexp(path4, keys, options) {
+    function pathtoRegexp(path5, keys, options) {
       options = options || {};
       keys = keys || [];
       var strict = options.strict;
@@ -28809,23 +28809,23 @@ var require_path_to_regexp = __commonJS({
       var i = 0;
       var name = 0;
       var m;
-      if (path4 instanceof RegExp) {
-        while (m = MATCHING_GROUP_REGEXP.exec(path4.source)) {
+      if (path5 instanceof RegExp) {
+        while (m = MATCHING_GROUP_REGEXP.exec(path5.source)) {
           keys.push({
             name: name++,
             optional: false,
             offset: m.index
           });
         }
-        return path4;
+        return path5;
       }
-      if (Array.isArray(path4)) {
-        path4 = path4.map(function(value) {
+      if (Array.isArray(path5)) {
+        path5 = path5.map(function(value) {
           return pathtoRegexp(value, keys, options).source;
         });
-        return new RegExp("(?:" + path4.join("|") + ")", flags);
+        return new RegExp("(?:" + path5.join("|") + ")", flags);
       }
-      path4 = ("^" + path4 + (strict ? "" : path4[path4.length - 1] === "/" ? "?" : "/?")).replace(/\/\(/g, "/(?:").replace(/([\/\.])/g, "\\$1").replace(/(\\\/)?(\\\.)?:(\w+)(\(.*?\))?(\*)?(\?)?/g, function(match, slash, format, key, capture, star, optional, offset) {
+      path5 = ("^" + path5 + (strict ? "" : path5[path5.length - 1] === "/" ? "?" : "/?")).replace(/\/\(/g, "/(?:").replace(/([\/\.])/g, "\\$1").replace(/(\\\/)?(\\\.)?:(\w+)(\(.*?\))?(\*)?(\?)?/g, function(match, slash, format, key, capture, star, optional, offset) {
         slash = slash || "";
         format = format || "";
         capture = capture || "([^\\/" + format + "]+?)";
@@ -28845,10 +28845,10 @@ var require_path_to_regexp = __commonJS({
         }
         return "(.*)";
       });
-      while (m = MATCHING_GROUP_REGEXP.exec(path4)) {
+      while (m = MATCHING_GROUP_REGEXP.exec(path5)) {
         var escapeCount = 0;
         var index = m.index;
-        while (path4.charAt(--index) === "\\") {
+        while (path5.charAt(--index) === "\\") {
           escapeCount++;
         }
         if (escapeCount % 2 === 1) {
@@ -28864,8 +28864,8 @@ var require_path_to_regexp = __commonJS({
         }
         i++;
       }
-      path4 += end ? "$" : path4[path4.length - 1] === "/" ? "" : "(?=\\/|$)";
-      return new RegExp(path4, flags);
+      path5 += end ? "$" : path5[path5.length - 1] === "/" ? "" : "(?=\\/|$)";
+      return new RegExp(path5, flags);
     }
     ;
   }
@@ -28879,19 +28879,19 @@ var require_layer = __commonJS({
     var debug = require_src()("express:router:layer");
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     module2.exports = Layer;
-    function Layer(path4, options, fn) {
+    function Layer(path5, options, fn) {
       if (!(this instanceof Layer)) {
-        return new Layer(path4, options, fn);
+        return new Layer(path5, options, fn);
       }
-      debug("new %o", path4);
+      debug("new %o", path5);
       var opts = options || {};
       this.handle = fn;
       this.name = fn.name || "<anonymous>";
       this.params = void 0;
       this.path = void 0;
-      this.regexp = pathRegexp(path4, this.keys = [], opts);
-      this.regexp.fast_star = path4 === "*";
-      this.regexp.fast_slash = path4 === "/" && opts.end === false;
+      this.regexp = pathRegexp(path5, this.keys = [], opts);
+      this.regexp.fast_star = path5 === "*";
+      this.regexp.fast_slash = path5 === "/" && opts.end === false;
     }
     Layer.prototype.handle_error = function handle_error(error, req, res, next) {
       var fn = this.handle;
@@ -28915,20 +28915,20 @@ var require_layer = __commonJS({
         next(err);
       }
     };
-    Layer.prototype.match = function match(path4) {
+    Layer.prototype.match = function match(path5) {
       var match2;
-      if (path4 != null) {
+      if (path5 != null) {
         if (this.regexp.fast_slash) {
           this.params = {};
           this.path = "";
           return true;
         }
         if (this.regexp.fast_star) {
-          this.params = { "0": decode_param(path4) };
-          this.path = path4;
+          this.params = { "0": decode_param(path5) };
+          this.path = path5;
           return true;
         }
-        match2 = this.regexp.exec(path4);
+        match2 = this.regexp.exec(path5);
       }
       if (!match2) {
         this.params = void 0;
@@ -29021,10 +29021,10 @@ var require_route = __commonJS({
     var slice = Array.prototype.slice;
     var toString = Object.prototype.toString;
     module2.exports = Route;
-    function Route(path4) {
-      this.path = path4;
+    function Route(path5) {
+      this.path = path5;
       this.stack = [];
-      debug("new %o", path4);
+      debug("new %o", path5);
       this.methods = {};
     }
     Route.prototype._handles_method = function _handles_method(method) {
@@ -29237,8 +29237,8 @@ var require_router = __commonJS({
         if (++sync > 100) {
           return setImmediate(next, err);
         }
-        var path4 = getPathname(req);
-        if (path4 == null) {
+        var path5 = getPathname(req);
+        if (path5 == null) {
           return done(layerError);
         }
         var layer;
@@ -29246,7 +29246,7 @@ var require_router = __commonJS({
         var route;
         while (match !== true && idx < stack.length) {
           layer = stack[idx++];
-          match = matchLayer(layer, path4);
+          match = matchLayer(layer, path5);
           route = layer.route;
           if (typeof match !== "boolean") {
             layerError = layerError || match;
@@ -29284,18 +29284,18 @@ var require_router = __commonJS({
           } else if (route) {
             layer.handle_request(req, res, next);
           } else {
-            trim_prefix(layer, layerError, layerPath, path4);
+            trim_prefix(layer, layerError, layerPath, path5);
           }
           sync = 0;
         });
       }
-      function trim_prefix(layer, layerError, layerPath, path4) {
+      function trim_prefix(layer, layerError, layerPath, path5) {
         if (layerPath.length !== 0) {
-          if (layerPath !== path4.slice(0, layerPath.length)) {
+          if (layerPath !== path5.slice(0, layerPath.length)) {
             next(layerError);
             return;
           }
-          var c = path4[layerPath.length];
+          var c = path5[layerPath.length];
           if (c && c !== "/" && c !== ".")
             return next(layerError);
           debug("trim prefix (%s) from url %s", layerPath, req.url);
@@ -29375,7 +29375,7 @@ var require_router = __commonJS({
     };
     proto.use = function use(fn) {
       var offset = 0;
-      var path4 = "/";
+      var path5 = "/";
       if (typeof fn !== "function") {
         var arg = fn;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -29383,7 +29383,7 @@ var require_router = __commonJS({
         }
         if (typeof arg !== "function") {
           offset = 1;
-          path4 = fn;
+          path5 = fn;
         }
       }
       var callbacks = flatten(slice.call(arguments, offset));
@@ -29395,8 +29395,8 @@ var require_router = __commonJS({
         if (typeof fn !== "function") {
           throw new TypeError("Router.use() requires a middleware function but got a " + gettype(fn));
         }
-        debug("use %o %s", path4, fn.name || "<anonymous>");
-        var layer = new Layer(path4, {
+        debug("use %o %s", path5, fn.name || "<anonymous>");
+        var layer = new Layer(path5, {
           sensitive: this.caseSensitive,
           strict: false,
           end: false
@@ -29406,9 +29406,9 @@ var require_router = __commonJS({
       }
       return this;
     };
-    proto.route = function route(path4) {
-      var route2 = new Route(path4);
-      var layer = new Layer(path4, {
+    proto.route = function route(path5) {
+      var route2 = new Route(path5);
+      var layer = new Layer(path5, {
         sensitive: this.caseSensitive,
         strict: this.strict,
         end: true
@@ -29418,8 +29418,8 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      proto[method] = function(path4) {
-        var route = this.route(path4);
+      proto[method] = function(path5) {
+        var route = this.route(path5);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
@@ -29455,9 +29455,9 @@ var require_router = __commonJS({
       }
       return toString.call(obj).replace(objectRegExp, "$1");
     }
-    function matchLayer(layer, path4) {
+    function matchLayer(layer, path5) {
       try {
-        return layer.match(path4);
+        return layer.match(path5);
       } catch (err) {
         return err;
       }
@@ -29576,13 +29576,13 @@ var require_view = __commonJS({
   "node_modules/.pnpm/express@4.18.2/node_modules/express/lib/view.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("express:view");
-    var path4 = require("path");
+    var path5 = require("path");
     var fs3 = require("fs");
-    var dirname = path4.dirname;
-    var basename = path4.basename;
-    var extname = path4.extname;
-    var join = path4.join;
-    var resolve = path4.resolve;
+    var dirname = path5.dirname;
+    var basename = path5.basename;
+    var extname = path5.extname;
+    var join = path5.join;
+    var resolve = path5.resolve;
     module2.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -29611,17 +29611,17 @@ var require_view = __commonJS({
       this.path = this.lookup(fileName);
     }
     View.prototype.lookup = function lookup(name) {
-      var path5;
+      var path6;
       var roots = [].concat(this.root);
       debug('lookup "%s"', name);
-      for (var i = 0; i < roots.length && !path5; i++) {
+      for (var i = 0; i < roots.length && !path6; i++) {
         var root = roots[i];
         var loc = resolve(root, name);
         var dir = dirname(loc);
         var file = basename(loc);
-        path5 = this.resolve(dir, file);
+        path6 = this.resolve(dir, file);
       }
-      return path5;
+      return path6;
     };
     View.prototype.render = function render(options, callback) {
       debug('render "%s"', this.path);
@@ -29629,21 +29629,21 @@ var require_view = __commonJS({
     };
     View.prototype.resolve = function resolve2(dir, file) {
       var ext = this.ext;
-      var path5 = join(dir, file);
-      var stat = tryStat(path5);
+      var path6 = join(dir, file);
+      var stat = tryStat(path6);
       if (stat && stat.isFile()) {
-        return path5;
+        return path6;
       }
-      path5 = join(dir, basename(file, ext), "index" + ext);
-      stat = tryStat(path5);
+      path6 = join(dir, basename(file, ext), "index" + ext);
+      stat = tryStat(path6);
       if (stat && stat.isFile()) {
-        return path5;
+        return path6;
       }
     };
-    function tryStat(path5) {
-      debug('stat "%s"', path5);
+    function tryStat(path6) {
+      debug('stat "%s"', path6);
       try {
-        return fs3.statSync(path5);
+        return fs3.statSync(path6);
       } catch (e) {
         return void 0;
       }
@@ -29997,7 +29997,7 @@ var require_types = __commonJS({
 // node_modules/.pnpm/mime@1.6.0/node_modules/mime/mime.js
 var require_mime = __commonJS({
   "node_modules/.pnpm/mime@1.6.0/node_modules/mime/mime.js"(exports2, module2) {
-    var path4 = require("path");
+    var path5 = require("path");
     var fs3 = require("fs");
     function Mime() {
       this.types = /* @__PURE__ */ Object.create(null);
@@ -30027,8 +30027,8 @@ var require_mime = __commonJS({
       this.define(map);
       this._loading = null;
     };
-    Mime.prototype.lookup = function(path5, fallback) {
-      var ext = path5.replace(/^.*[\.\/\\]/, "").toLowerCase();
+    Mime.prototype.lookup = function(path6, fallback) {
+      var ext = path6.replace(/^.*[\.\/\\]/, "").toLowerCase();
       return this.types[ext] || fallback || this.default_type;
     };
     Mime.prototype.extension = function(mimeType) {
@@ -30262,28 +30262,28 @@ var require_send = __commonJS({
     var ms = require_ms2();
     var onFinished = require_on_finished();
     var parseRange = require_range_parser();
-    var path4 = require("path");
+    var path5 = require("path");
     var statuses = require_statuses();
     var Stream = require("stream");
     var util = require("util");
-    var extname = path4.extname;
-    var join = path4.join;
-    var normalize = path4.normalize;
-    var resolve = path4.resolve;
-    var sep = path4.sep;
+    var extname = path5.extname;
+    var join = path5.join;
+    var normalize = path5.normalize;
+    var resolve = path5.resolve;
+    var sep = path5.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
     var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
     module2.exports = send;
     module2.exports.mime = mime;
-    function send(req, path5, options) {
-      return new SendStream(req, path5, options);
+    function send(req, path6, options) {
+      return new SendStream(req, path6, options);
     }
-    function SendStream(req, path5, options) {
+    function SendStream(req, path6, options) {
       Stream.call(this);
       var opts = options || {};
       this.options = opts;
-      this.path = path5;
+      this.path = path6;
       this.req = req;
       this._acceptRanges = opts.acceptRanges !== void 0 ? Boolean(opts.acceptRanges) : true;
       this._cacheControl = opts.cacheControl !== void 0 ? Boolean(opts.cacheControl) : true;
@@ -30329,8 +30329,8 @@ var require_send = __commonJS({
       this._index = index2;
       return this;
     }, "send.index: pass index as option");
-    SendStream.prototype.root = function root(path5) {
-      this._root = resolve(String(path5));
+    SendStream.prototype.root = function root(path6) {
+      this._root = resolve(String(path6));
       debug("root %s", this._root);
       return this;
     };
@@ -30443,10 +30443,10 @@ var require_send = __commonJS({
       var lastModified = this.res.getHeader("Last-Modified");
       return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
     };
-    SendStream.prototype.redirect = function redirect(path5) {
+    SendStream.prototype.redirect = function redirect(path6) {
       var res = this.res;
       if (hasListeners(this, "directory")) {
-        this.emit("directory", res, path5);
+        this.emit("directory", res, path6);
         return;
       }
       if (this.hasTrailingSlash()) {
@@ -30466,42 +30466,42 @@ var require_send = __commonJS({
     SendStream.prototype.pipe = function pipe(res) {
       var root = this._root;
       this.res = res;
-      var path5 = decode(this.path);
-      if (path5 === -1) {
+      var path6 = decode(this.path);
+      if (path6 === -1) {
         this.error(400);
         return res;
       }
-      if (~path5.indexOf("\0")) {
+      if (~path6.indexOf("\0")) {
         this.error(400);
         return res;
       }
       var parts;
       if (root !== null) {
-        if (path5) {
-          path5 = normalize("." + sep + path5);
+        if (path6) {
+          path6 = normalize("." + sep + path6);
         }
-        if (UP_PATH_REGEXP.test(path5)) {
-          debug('malicious path "%s"', path5);
+        if (UP_PATH_REGEXP.test(path6)) {
+          debug('malicious path "%s"', path6);
           this.error(403);
           return res;
         }
-        parts = path5.split(sep);
-        path5 = normalize(join(root, path5));
+        parts = path6.split(sep);
+        path6 = normalize(join(root, path6));
       } else {
-        if (UP_PATH_REGEXP.test(path5)) {
-          debug('malicious path "%s"', path5);
+        if (UP_PATH_REGEXP.test(path6)) {
+          debug('malicious path "%s"', path6);
           this.error(403);
           return res;
         }
-        parts = normalize(path5).split(sep);
-        path5 = resolve(path5);
+        parts = normalize(path6).split(sep);
+        path6 = resolve(path6);
       }
       if (containsDotFile(parts)) {
         var access = this._dotfiles;
         if (access === void 0) {
           access = parts[parts.length - 1][0] === "." ? this._hidden ? "allow" : "ignore" : "allow";
         }
-        debug('%s dotfile "%s"', access, path5);
+        debug('%s dotfile "%s"', access, path6);
         switch (access) {
           case "allow":
             break;
@@ -30515,13 +30515,13 @@ var require_send = __commonJS({
         }
       }
       if (this._index.length && this.hasTrailingSlash()) {
-        this.sendIndex(path5);
+        this.sendIndex(path6);
         return res;
       }
-      this.sendFile(path5);
+      this.sendFile(path6);
       return res;
     };
-    SendStream.prototype.send = function send2(path5, stat) {
+    SendStream.prototype.send = function send2(path6, stat) {
       var len = stat.size;
       var options = this.options;
       var opts = {};
@@ -30533,9 +30533,9 @@ var require_send = __commonJS({
         this.headersAlreadySent();
         return;
       }
-      debug('pipe "%s"', path5);
-      this.setHeader(path5, stat);
-      this.type(path5);
+      debug('pipe "%s"', path6);
+      this.setHeader(path6, stat);
+      this.type(path6);
       if (this.isConditionalGET()) {
         if (this.isPreconditionFailure()) {
           this.error(412);
@@ -30585,28 +30585,28 @@ var require_send = __commonJS({
         res.end();
         return;
       }
-      this.stream(path5, opts);
+      this.stream(path6, opts);
     };
-    SendStream.prototype.sendFile = function sendFile(path5) {
+    SendStream.prototype.sendFile = function sendFile(path6) {
       var i = 0;
       var self = this;
-      debug('stat "%s"', path5);
-      fs3.stat(path5, function onstat(err, stat) {
-        if (err && err.code === "ENOENT" && !extname(path5) && path5[path5.length - 1] !== sep) {
+      debug('stat "%s"', path6);
+      fs3.stat(path6, function onstat(err, stat) {
+        if (err && err.code === "ENOENT" && !extname(path6) && path6[path6.length - 1] !== sep) {
           return next(err);
         }
         if (err)
           return self.onStatError(err);
         if (stat.isDirectory())
-          return self.redirect(path5);
-        self.emit("file", path5, stat);
-        self.send(path5, stat);
+          return self.redirect(path6);
+        self.emit("file", path6, stat);
+        self.send(path6, stat);
       });
       function next(err) {
         if (self._extensions.length <= i) {
           return err ? self.onStatError(err) : self.error(404);
         }
-        var p = path5 + "." + self._extensions[i++];
+        var p = path6 + "." + self._extensions[i++];
         debug('stat "%s"', p);
         fs3.stat(p, function(err2, stat) {
           if (err2)
@@ -30618,7 +30618,7 @@ var require_send = __commonJS({
         });
       }
     };
-    SendStream.prototype.sendIndex = function sendIndex(path5) {
+    SendStream.prototype.sendIndex = function sendIndex(path6) {
       var i = -1;
       var self = this;
       function next(err) {
@@ -30627,7 +30627,7 @@ var require_send = __commonJS({
             return self.onStatError(err);
           return self.error(404);
         }
-        var p = join(path5, self._index[i]);
+        var p = join(path6, self._index[i]);
         debug('stat "%s"', p);
         fs3.stat(p, function(err2, stat) {
           if (err2)
@@ -30640,10 +30640,10 @@ var require_send = __commonJS({
       }
       next();
     };
-    SendStream.prototype.stream = function stream(path5, options) {
+    SendStream.prototype.stream = function stream(path6, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs3.createReadStream(path5, options);
+      var stream2 = fs3.createReadStream(path6, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -30658,11 +30658,11 @@ var require_send = __commonJS({
         self.emit("end");
       });
     };
-    SendStream.prototype.type = function type(path5) {
+    SendStream.prototype.type = function type(path6) {
       var res = this.res;
       if (res.getHeader("Content-Type"))
         return;
-      var type2 = mime.lookup(path5);
+      var type2 = mime.lookup(path6);
       if (!type2) {
         debug("no content-type");
         return;
@@ -30671,9 +30671,9 @@ var require_send = __commonJS({
       debug("content-type %s", type2);
       res.setHeader("Content-Type", type2 + (charset ? "; charset=" + charset : ""));
     };
-    SendStream.prototype.setHeader = function setHeader(path5, stat) {
+    SendStream.prototype.setHeader = function setHeader(path6, stat) {
       var res = this.res;
-      this.emit("headers", res, path5, stat);
+      this.emit("headers", res, path6, stat);
       if (this._acceptRanges && !res.getHeader("Accept-Ranges")) {
         debug("accept ranges");
         res.setHeader("Accept-Ranges", "bytes");
@@ -30732,9 +30732,9 @@ var require_send = __commonJS({
       }
       return err instanceof Error ? createError(status, err, { expose: false }) : createError(status, err);
     }
-    function decode(path5) {
+    function decode(path6) {
       try {
-        return decodeURIComponent(path5);
+        return decodeURIComponent(path6);
       } catch (err) {
         return -1;
       }
@@ -31646,12 +31646,12 @@ var require_utils4 = __commonJS({
     var querystring = require("querystring");
     exports2.etag = createETagGenerator({ weak: false });
     exports2.wetag = createETagGenerator({ weak: true });
-    exports2.isAbsolute = function(path4) {
-      if ("/" === path4[0])
+    exports2.isAbsolute = function(path5) {
+      if ("/" === path5[0])
         return true;
-      if (":" === path4[1] && ("\\" === path4[2] || "/" === path4[2]))
+      if (":" === path5[1] && ("\\" === path5[2] || "/" === path5[2]))
         return true;
-      if ("\\\\" === path4.substring(0, 2))
+      if ("\\\\" === path5.substring(0, 2))
         return true;
     };
     exports2.flatten = deprecate.function(
@@ -31864,7 +31864,7 @@ var require_application = __commonJS({
     };
     app.use = function use(fn) {
       var offset = 0;
-      var path4 = "/";
+      var path5 = "/";
       if (typeof fn !== "function") {
         var arg = fn;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -31872,7 +31872,7 @@ var require_application = __commonJS({
         }
         if (typeof arg !== "function") {
           offset = 1;
-          path4 = fn;
+          path5 = fn;
         }
       }
       var fns = flatten(slice.call(arguments, offset));
@@ -31883,12 +31883,12 @@ var require_application = __commonJS({
       var router = this._router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router.use(path4, fn2);
+          return router.use(path5, fn2);
         }
-        debug(".use app under %s", path4);
-        fn2.mountpath = path4;
+        debug(".use app under %s", path5);
+        fn2.mountpath = path5;
         fn2.parent = this;
-        router.use(path4, function mounted_app(req, res, next) {
+        router.use(path5, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             setPrototypeOf(req, orig.request);
@@ -31900,9 +31900,9 @@ var require_application = __commonJS({
       }, this);
       return this;
     };
-    app.route = function route(path4) {
+    app.route = function route(path5) {
       this.lazyrouter();
-      return this._router.route(path4);
+      return this._router.route(path5);
     };
     app.engine = function engine(ext, fn) {
       if (typeof fn !== "function") {
@@ -31953,7 +31953,7 @@ var require_application = __commonJS({
       }
       return this;
     };
-    app.path = function path4() {
+    app.path = function path5() {
       return this.parent ? this.parent.path() + this.mountpath : "";
     };
     app.enabled = function enabled(setting) {
@@ -31969,19 +31969,19 @@ var require_application = __commonJS({
       return this.set(setting, false);
     };
     methods.forEach(function(method) {
-      app[method] = function(path4) {
+      app[method] = function(path5) {
         if (method === "get" && arguments.length === 1) {
-          return this.set(path4);
+          return this.set(path5);
         }
         this.lazyrouter();
-        var route = this._router.route(path4);
+        var route = this._router.route(path5);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
     });
-    app.all = function all(path4) {
+    app.all = function all(path5) {
       this.lazyrouter();
-      var route = this._router.route(path4);
+      var route = this._router.route(path5);
       var args = slice.call(arguments, 1);
       for (var i = 0; i < methods.length; i++) {
         route[methods[i]].apply(route, args);
@@ -32755,7 +32755,7 @@ var require_request = __commonJS({
       var subdomains2 = !isIP(hostname) ? hostname.split(".").reverse() : [hostname];
       return subdomains2.slice(offset);
     });
-    defineGetter(req, "path", function path4() {
+    defineGetter(req, "path", function path5() {
       return parse(this).pathname;
     });
     defineGetter(req, "hostname", function hostname() {
@@ -33059,7 +33059,7 @@ var require_response = __commonJS({
     var http = require("http");
     var isAbsolute = require_utils4().isAbsolute;
     var onFinished = require_on_finished();
-    var path4 = require("path");
+    var path5 = require("path");
     var statuses = require_statuses();
     var merge = require_utils_merge();
     var sign = require_cookie_signature().sign;
@@ -33068,9 +33068,9 @@ var require_response = __commonJS({
     var setCharset = require_utils4().setCharset;
     var cookie = require_cookie();
     var send = require_send();
-    var extname = path4.extname;
+    var extname = path5.extname;
     var mime = send.mime;
-    var resolve = path4.resolve;
+    var resolve = path5.resolve;
     var vary = require_vary();
     var res = Object.create(http.ServerResponse.prototype);
     module2.exports = res;
@@ -33248,26 +33248,26 @@ var require_response = __commonJS({
       this.type("txt");
       return this.send(body);
     };
-    res.sendFile = function sendFile(path5, options, callback) {
+    res.sendFile = function sendFile(path6, options, callback) {
       var done = callback;
       var req = this.req;
       var res2 = this;
       var next = req.next;
       var opts = options || {};
-      if (!path5) {
+      if (!path6) {
         throw new TypeError("path argument is required to res.sendFile");
       }
-      if (typeof path5 !== "string") {
+      if (typeof path6 !== "string") {
         throw new TypeError("path must be a string to res.sendFile");
       }
       if (typeof options === "function") {
         done = options;
         opts = {};
       }
-      if (!opts.root && !isAbsolute(path5)) {
+      if (!opts.root && !isAbsolute(path6)) {
         throw new TypeError("path must be absolute or specify root to res.sendFile");
       }
-      var pathname = encodeURI(path5);
+      var pathname = encodeURI(path6);
       var file = send(req, pathname, opts);
       sendfile(res2, file, opts, function(err) {
         if (done)
@@ -33279,7 +33279,7 @@ var require_response = __commonJS({
         }
       });
     };
-    res.sendfile = function(path5, options, callback) {
+    res.sendfile = function(path6, options, callback) {
       var done = callback;
       var req = this.req;
       var res2 = this;
@@ -33289,7 +33289,7 @@ var require_response = __commonJS({
         done = options;
         opts = {};
       }
-      var file = send(req, path5, opts);
+      var file = send(req, path6, opts);
       sendfile(res2, file, opts, function(err) {
         if (done)
           return done(err);
@@ -33304,7 +33304,7 @@ var require_response = __commonJS({
       res.sendfile,
       "res.sendfile: Use res.sendFile instead"
     );
-    res.download = function download(path5, filename, options, callback) {
+    res.download = function download(path6, filename, options, callback) {
       var done = callback;
       var name = filename;
       var opts = options || null;
@@ -33321,7 +33321,7 @@ var require_response = __commonJS({
         opts = filename;
       }
       var headers = {
-        "Content-Disposition": contentDisposition(name || path5)
+        "Content-Disposition": contentDisposition(name || path6)
       };
       if (opts && opts.headers) {
         var keys = Object.keys(opts.headers);
@@ -33334,7 +33334,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve(path5) : path5;
+      var fullPath = !opts.root ? resolve(path6) : path6;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -33633,11 +33633,11 @@ var require_serve_static = __commonJS({
         }
         var forwardError = !fallthrough;
         var originalUrl = parseUrl.original(req);
-        var path4 = parseUrl(req).pathname;
-        if (path4 === "/" && originalUrl.pathname.substr(-1) !== "/") {
-          path4 = "";
+        var path5 = parseUrl(req).pathname;
+        if (path5 === "/" && originalUrl.pathname.substr(-1) !== "/") {
+          path5 = "";
         }
-        var stream = send(req, path4, opts);
+        var stream = send(req, path5, opts);
         stream.on("directory", onDirectory);
         if (setHeaders) {
           stream.on("headers", setHeaders);
@@ -36552,7 +36552,6 @@ var AbstractArguments = class {
     if (validation.validate) {
       const result = validation.validate(value, this._args);
       if (result === false || result === void 0) {
-        console.log(validation);
         const errorMessage = validation.error || `\x1B[31; 1mValidation Failed for \x1B[36; 1m--${key}--\x1B[0m\x1B[31; 1m argument\x1B[0m)`;
         this._errors.push(errorMessage);
       } else if (result instanceof Error) {
@@ -36634,9 +36633,6 @@ var AbstractArguments = class {
         this._args[key] = this._validate(key, value2, validation);
       }
     }
-    if (this._errors.length) {
-      throw new Error(this._errors.join("\n"));
-    }
   }
 };
 var CLIArguments = class extends AbstractArguments {
@@ -36655,9 +36651,6 @@ var CLIArguments = class extends AbstractArguments {
         const results = /--(.+?)$/.exec(keyQuery);
         this._args[results[1]] = true;
       } else {
-        throw new Error(`(Executing) node ${args.slice(1).join(" ")}
-<red>Incorrect formatting encountered parsing key arguments : "<blue>${keyQuery}</blue>"
-${JSON.stringify(this._args, void 0, 2)}`);
       }
     }
     super.compile();
@@ -36937,12 +36930,12 @@ var { Readable } = require("stream");
 var { finished } = require("stream/promises");
 var fflate = require_node2();
 var ForgeFile = class {
-  async $FileExist(file) {
+  static async $FileExist(file) {
     return $fs.access(file, fs.constants.F_OK).then(() => true).catch(() => false);
   }
-  static async $DirectoryExists(path4) {
+  static async $DirectoryExists(path5) {
     try {
-      const stats = await $fs.stat(path4);
+      const stats = await $fs.stat(path5);
       if (stats.isDirectory()) {
         return true;
       } else {
@@ -36952,13 +36945,33 @@ var ForgeFile = class {
       return false;
     }
   }
-  static async $MakeDirectory(path4) {
-    return $fs.mkdir(path4, { recursive: true }).then(function() {
-      console.log("Directory created successfully", path4);
+  static async $MakeDirectory(path5) {
+    return $fs.mkdir(path5, { recursive: true }).then(function() {
+      console.log("Directory created successfully", path5);
       return true;
     }).catch(function() {
-      console.log("failed to create directory", path4);
+      console.log("failed to create directory", path5);
       return false;
+    });
+  }
+  static async $Read(path5) {
+    return new Promise(async function(resolve, reject) {
+      try {
+        resolve(await $fs.readFile(path5));
+      } catch (error) {
+        reject(new Error(`Error reading file: "${path5}"`));
+      }
+    });
+  }
+  static async $Write(path5, contents) {
+    return new Promise(async function(resolve, reject) {
+      try {
+        const data = new Uint8Array(Buffer.from("Hello Node.js"));
+        await $fs.writeFile(path5, data);
+        resolve(true);
+      } catch (error) {
+        reject(new Error(`Error write file: "${path5}"`));
+      }
     });
   }
 };
@@ -37009,13 +37022,28 @@ var ForgeNPM = class {
     return true;
   }
 };
+var ForgeWeb = class {
+  static $Fetch(url4, options) {
+    if (options.race === void 0 && options.signal === void 0)
+      throw new Error(`please provide a { race } or { signal } property for $Fetch("{url}", ... )`);
+    const race = options.race;
+    return new Promise(function(resolve, reject) {
+      fetch(url4, {
+        ...options,
+        signal: options.signal || AbortSignal.timeout(race)
+      });
+    });
+  }
+};
 var ForgeIO = class _ForgeIO {
+  static File = ForgeFile;
+  static Web = ForgeWeb;
   async $FileExist(file) {
     return $fs.access(file, fs.constants.F_OK).then(() => true).catch(() => false);
   }
-  static async $DirectoryExists(path4) {
+  static async $DirectoryExists(path5) {
     try {
-      const stats = await $fs.stat(path4);
+      const stats = await $fs.stat(path5);
       if (stats.isDirectory()) {
         return true;
       } else {
@@ -37025,12 +37053,12 @@ var ForgeIO = class _ForgeIO {
       return false;
     }
   }
-  static async $MakeDirectory(path4) {
-    return $fs.mkdir(path4, { recursive: true }).then(function() {
-      console.log("Directory created successfully", path4);
+  static async $MakeDirectory(path5) {
+    return $fs.mkdir(path5, { recursive: true }).then(function() {
+      console.log("Directory created successfully", path5);
       return true;
     }).catch(function() {
-      console.log("failed to create directory", path4);
+      console.log("failed to create directory", path5);
       return false;
     });
   }
@@ -37069,9 +37097,11 @@ var ForgeStream = class {
   _tasks = /* @__PURE__ */ new Map();
   _iActions = /* @__PURE__ */ new Map();
   _bindings = /* @__PURE__ */ new Map();
-  _executions = /* @__PURE__ */ new Set();
   _signal;
   _data;
+  executions = /* @__PURE__ */ new Set();
+  resolves = /* @__PURE__ */ new Set();
+  rejections = /* @__PURE__ */ new Set();
   constructor() {
     this._bindings.set(this._thenRaced$Execute, this._thenRaced$Execute.bind(this));
     this._bindings.set(this._$catchRaced$Execute, this._$catchRaced$Execute.bind(this));
@@ -37095,9 +37125,6 @@ var ForgeStream = class {
   get data() {
     return this._data;
   }
-  get executions() {
-    return this._executions;
-  }
   add(forgeTask) {
     this._tasks.set(forgeTask.name, forgeTask);
     for (const [actionName, iAction] of forgeTask.actions()) {
@@ -37117,7 +37144,9 @@ var ForgeStream = class {
   async $reset() {
     this._signal = void 0;
     this._data = void 0;
-    this._executions.clear();
+    this.executions.clear();
+    this.resolves.clear();
+    this.rejections.clear();
     const promises = [];
     for (const [name, iAction] of this._iActions) {
       promises.push(iAction.$reset({}));
@@ -37125,9 +37154,13 @@ var ForgeStream = class {
     return { reset: await Promise.allSettled(promises) };
   }
   async $signal(signal, data) {
+    const race = 500;
+    console.error(`${this.constructor.name}.#signal hard coded to race`);
     this._signal = signal;
     this._data = data;
-    const executions = this._executions;
+    const resolves = this.resolves;
+    const rejects = this.rejections;
+    const executions = this.executions;
     const signalStatus = {};
     let reboundSignal = true;
     let reboundCount = 0;
@@ -37142,13 +37175,14 @@ var ForgeStream = class {
       }
       for (const iAction of triggeredActions) {
         executions.add(iAction);
-        $executions.push(iAction.$signal(signal, data).then(function(data2) {
+        $executions.push(iAction.$signal(signal, data, race).then(function(data2) {
+          resolves.add(iAction);
           return {
             name: iAction.name,
             resolve: data2
           };
         }).catch(function(error) {
-          console.parse(error);
+          rejects.add(iAction);
           throw {
             name: iAction.name,
             reject: error
@@ -37172,7 +37206,7 @@ var ForgeStream = class {
     }
     console.group(signal);
     console.log(data);
-    console.log(signalStatus);
+    console.log(JSON.stringify(signalStatus));
     console.groupEnd();
     return signalStatus;
   }
@@ -37353,6 +37387,213 @@ var Subscription = class {
   }
 };
 
+// forge/_src_/ts/forge/server/route/ForgeRoute.ts
+var path2 = require("path");
+var url = require("url");
+var mimeTypes = require_mime_types();
+var RequestMethod = /* @__PURE__ */ ((RequestMethod2) => {
+  RequestMethod2[RequestMethod2["Post"] = 0] = "Post";
+  RequestMethod2[RequestMethod2["Get"] = 1] = "Get";
+  RequestMethod2[RequestMethod2["All"] = 2] = "All";
+  return RequestMethod2;
+})(RequestMethod || {});
+var RouteConfig = class {
+  request;
+  method;
+  race;
+  action;
+  remote;
+  local;
+  $delegate;
+  constructor(configData) {
+    const errors = [];
+    this.request = configData.reqeust;
+    const method = configData.method;
+    switch (method.toLowerCase()) {
+      case "post":
+        this.method = 0 /* Post */;
+        break;
+      case "get":
+        this.method = 1 /* Get */;
+        break;
+      case "all":
+        this.method = 2 /* All */;
+        break;
+      default:
+        errors.push(Error(`invalid "method" property provided in RouteConfig`));
+    }
+    const race = configData.race;
+    if (isNaN(race))
+      errors.push(new Error(`no "race" property provided in RouteConfig`));
+    this.race = configData.race;
+  }
+};
+var RouteResolver = class {
+  _value;
+  _cache;
+  constructor(value) {
+    if (value === void 0)
+      throw new Error(`undefined passed to ForgeRoute`);
+    if (value instanceof RegExp) {
+      this._value = value;
+    } else if (value.constructor === String) {
+      const matches = value.match(/^([/~@;%#'])(.*?)\1([gimsuy]*)$/);
+      this._value = matches ? new RegExp(matches[2], matches[3]) : new RegExp(value);
+    } else {
+      throw new Error(`undefined passed to ForgeRoute`);
+    }
+  }
+  resolve(uri) {
+    this._cache = void 0;
+    const urlParsed = url.parse(uri);
+    switch (this._value.constructor) {
+      case String:
+        if (this._value == uri) {
+          this._cache = { url, groups: {} };
+          return true;
+        }
+        break;
+      case RegExp:
+        const results = this._value.exec(url);
+        if (results) {
+          this._cache = { url, groups: results.groups || {} };
+          return true;
+        }
+        break;
+    }
+    return false;
+  }
+};
+var GenericRoute = class {
+  static Parse(configData) {
+    const routeConfig = new RouteConfig(configData);
+    if ("action" in configData) {
+      return new ActionRoute(routeConfig);
+    } else if ("local" in configData) {
+      return new LocalRoute(routeConfig);
+    } else if ("remote" in configData) {
+      return new RemoteRoute(routeConfig);
+    } else {
+      throw new Error(`Cannot parse RouteConfig: ${JSON.stringify(configData)}`);
+    }
+  }
+  _resolver;
+  _method = 2 /* All */;
+  _$delegate;
+  _race;
+  constructor(config, ...rest) {
+    this._resolver = new RouteResolver(config.resolver);
+    this._race = config.race;
+    this._method = config.method;
+    if (config.$delegate instanceof Function)
+      this._$delegate = config.$delegate;
+  }
+  set $delegate($delegate) {
+    this._$delegate = $delegate;
+  }
+  async _$parseRequest(request) {
+    return new Promise(function(resolve, reject) {
+      const buffers = [];
+      request.on("data", (chunk) => {
+        buffers.push(chunk);
+      }).on("end", () => {
+        const result = Buffer.concat(buffers).toString();
+        const post = JSON.parse(result);
+        const get = request.query;
+        resolve({ get, post, request: { post, ...get } });
+      });
+    });
+  }
+  async $install(express3) {
+    switch (this._method) {
+      case 1 /* Get */:
+        express3.get(this._route, this._$delegate);
+        break;
+      case 0 /* Post */:
+        express3.post(this._route, this._$delegate);
+        break;
+      case 2 /* All */:
+        express3.all(this._route, this._$delegate);
+        break;
+    }
+  }
+  authorize(uri) {
+    return this._resolver.resolve(uri);
+  }
+  async $resolve(request, response, next) {
+    return this._$delegate(request, response);
+  }
+};
+var ActionRoute = class extends GenericRoute {
+  _iAction;
+  action(iAction) {
+    this._iAction = iAction;
+    return this;
+  }
+  async $resolve(request, response, next) {
+    return this._iAction.$route(request.url, this._$parseRequest(request));
+  }
+};
+var DelegateRoute = class extends GenericRoute {
+  constructor(config, $delegate, simplifyParams) {
+    super(config);
+    if (simplifyParams === true) {
+      this._$delegate = function(request, response, next) {
+        return $delegate(this._$parseRequest(request));
+      };
+    } else {
+      this._$delegate = $delegate;
+    }
+  }
+};
+var RemoteRoute = class extends GenericRoute {
+  _base;
+  base(base) {
+    this._base = base;
+    return this;
+  }
+  async $resolve(request, response, next) {
+    const urlParsed = url.parse(request.url);
+    const queryString = urlParsed.query;
+    const filePath = this._base + urlParsed.path;
+    const fetchResponse = await ForgeIO.Web.$Fetch(filePath, {
+      method: request.method,
+      headers: {
+        "Content-Type": request.get("Content-Type"),
+        body: request.body
+      }
+    });
+    return { mime: fetchResponse.headers.get("Content-Type"), buffer: Buffer.from(fetchResponse.arrayBuffer()) };
+  }
+};
+var LocalRoute = class extends GenericRoute {
+  _base;
+  base(route, base) {
+    this._base = base;
+    return this;
+  }
+  async $resolve(request, response, next) {
+    const urlParsed = url.parse(request.url);
+    const pathResolved = path2.resolve(this._base, urlParsed);
+    const buffer = await ForgeIO.File.$Read(pathResolved);
+    const mime = mimeTypes.lookup(pathResolved);
+    return { mime, buffer };
+  }
+};
+var ForgeRouter = class {
+  _routes = /* @__PURE__ */ new Set();
+  add(route) {
+    this._routes.add(route);
+  }
+  async $resolve(request, response, next) {
+    for (const iForgeRoute of this._routes) {
+      if (iForgeRoute.authorize(request.uri)) {
+        return iForgeRoute.$resolve(request, response, next);
+      }
+    }
+  }
+};
+
 // forge/_src_/ts/forge/action/ForgeTrigger.ts
 var ResolverValues = /* @__PURE__ */ ((ResolverValues2) => {
   ResolverValues2["Any"] = "any";
@@ -37387,8 +37628,8 @@ var SignalTrigger = class {
 var WatchTrigger = class {
   static ParseWatch(watch) {
     if (watch.constructor == String) {
-      if (/\*\*[\/\\]\*\.\*$/.test(watch)) {
-        watch = watch.replace(/[\/\\]\*\*[\/\\]\*/, "((.+?)[\\/\\\\].+?)$");
+      if (/\*\*[\/\\]\*\.\*/.test(watch)) {
+        watch = watch.replace(/[\/\\]\*\*[\/\\]\*$/, "((.+?)[\\/\\\\].+?)");
       } else if (/[\/\\]\*/.test(watch)) {
         watch = watch.replace(/[\/\\]\*\*[\/\\]\*/g, "[\\/\\\\](.+?)");
       }
@@ -37435,11 +37676,63 @@ var ResolveTrigger = class {
     return false;
   }
 };
+var RejectTrigger = class {
+  _resolver;
+  _resolves;
+  constructor(resolver, resolves) {
+    this._resolver = resolver;
+    this._resolves = resolves;
+  }
+  async $trigger(forgeStream) {
+    const file = forgeStream.data.file;
+    if (this._resolver == "any" /* Any */) {
+      for (let { task, action } of this._resolves) {
+        const iAction = forgeStream.find(task, action);
+        if (forgeStream.rejections.has(iAction))
+          return true;
+      }
+    } else if (this._resolver == "all" /* All */) {
+      let allSettled = true;
+      for (let { task, action } of this._resolves) {
+        const iAction = forgeStream.find(task, action);
+        if (forgeStream.rejections.has(iAction) === false)
+          allSettled = false;
+      }
+    }
+    return false;
+  }
+};
+var SettledTrigger = class {
+  _resolver;
+  _allSettled;
+  constructor(resolver, resolves) {
+    this._resolver = resolver;
+    this._allSettled = resolves;
+  }
+  async $trigger(forgeStream) {
+    const file = forgeStream.data.file;
+    if (this._resolver == "any" /* Any */) {
+      for (let { task, action } of this._allSettled) {
+        const iAction = forgeStream.find(task, action);
+        if (forgeStream.executions.has(iAction))
+          return true;
+      }
+    } else if (this._resolver == "all" /* All */) {
+      let allSettled = true;
+      for (let { task, action } of this._allSettled) {
+        const iAction = forgeStream.find(task, action);
+        if (forgeStream.executions.has(iAction) === false)
+          allSettled = false;
+      }
+    }
+    return false;
+  }
+};
 
 // forge/_src_/ts/forge/action/ForgeAction.ts
 var ForgeAction = class _ForgeAction extends Subscription {
   static Parse(iServiceAdapter, actionData, data) {
-    const route = actionData.route || false;
+    const route = actionData.route;
     const name = actionData.name;
     const enabled = actionData.enabled || true;
     const race = actionData.race;
@@ -37472,7 +37765,17 @@ var ForgeAction = class _ForgeAction extends Subscription {
     this.name = actionConfig.name || QuickHash();
     this._race = actionConfig.race || this._iServiceAdapter.race;
     this.enabled = actionConfig.enabled || true;
-    this.route = actionConfig.route || false;
+    if (actionConfig.route !== void 0) {
+      if ("action" in actionConfig.route) {
+        this.route = new ActionRoute(actionConfig.route, this);
+      } else if ("local" in actionConfig.route) {
+        this.route = new RemoteRoute(actionConfig.route);
+      } else if ("remote" in actionConfig.route) {
+      } else {
+      }
+    } else {
+      this.route = false;
+    }
     this._data = data;
     this.stdout = [];
     this.stderr = [];
@@ -37505,7 +37808,7 @@ var ForgeAction = class _ForgeAction extends Subscription {
     this._startTime = Date.now();
     this.stdout = [];
     this.stderr = [];
-    return this._iServiceAdapter.$reset(data);
+    return { action: this.name, reset: true };
   }
   async $stream(stdoutCallback, stderrCallback) {
     stderrCallback = stderrCallback || stdoutCallback;
@@ -37548,24 +37851,6 @@ var ForgeAction = class _ForgeAction extends Subscription {
       return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
     });
   }
-  /* public async $serve(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
-  
-          return this.$signal("serve", { route, params }, this._race)
-              .then(async function (response: Serialize) {
-  
-                  const { mime, contents } = response as { mime: string, contents: string };
-                  return { mime, buffer: Buffer.from(contents, "base64") };
-  
-              })
-              .catch(function (error: unknown) {
-  
-                  console.log(error);
-  
-                  return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
-  
-              }) as Promise<{ mime: string, buffer: Buffer }>;
-  
-      } */
 };
 
 // forge/_src_/ts/forge/ForgeTask.ts
@@ -37882,110 +38167,13 @@ var ForgeModel = class {
   }
 };
 
-// forge/_src_/ts/forge/server/Route.ts
-var url = require("url");
-var RequestMethod = /* @__PURE__ */ ((RequestMethod2) => {
-  RequestMethod2[RequestMethod2["Post"] = 0] = "Post";
-  RequestMethod2[RequestMethod2["Get"] = 1] = "Get";
-  RequestMethod2[RequestMethod2["All"] = 2] = "All";
-  return RequestMethod2;
-})(RequestMethod || {});
-var AbstractRoute = class {
-  _route;
-  _method = 2 /* All */;
-  _$delegate;
-  constructor(route, ...rest) {
-    this._route = route;
-  }
-  method(method) {
-    this._method = method;
-    return this;
-  }
-  async _$parseRequest(request) {
-    return new Promise(function(resolve, reject) {
-      const buffers = [];
-      request.on("data", (chunk) => {
-        buffers.push(chunk);
-      }).on("end", () => {
-        const result = Buffer.concat(buffers).toString();
-        const post = JSON.parse(result);
-        const get = request.query;
-        resolve({ get, post, request: { post, ...get } });
-      });
-    });
-  }
-  async $install(express3) {
-    switch (this._method) {
-      case 1 /* Get */:
-        express3.get(this._route, this._$delegate);
-        break;
-      case 0 /* Post */:
-        express3.post(this._route, this._$delegate);
-        break;
-      case 2 /* All */:
-        express3.all(this._route, this._$delegate);
-        break;
-    }
-  }
-  async $resolve(request, response, next) {
-    return;
-  }
-};
-var ActionRoute = class extends AbstractRoute {
-  _iAction;
-  constructor(route, iAction) {
-    super(route);
-    this._iAction = iAction;
-    this._$delegate = this.$resolve.bind(this);
-  }
-  async $resolve(request, response, next) {
-    return await this._iAction.$route(this._route, this._$parseRequest(request));
-  }
-};
-var DelegateRoute = class extends AbstractRoute {
-  constructor(route, $delegate, simplifyParams) {
-    super(route);
-    if (simplifyParams === true) {
-      this._$delegate = function(request, response, next) {
-        return $delegate(this._$parseRequest(request));
-      };
-    } else {
-      this._$delegate = $delegate;
-    }
-  }
-};
-var RedirectRoute = class extends AbstractRoute {
-  _base;
-  _timeout;
-  constructor(route, base, timeout) {
-    super(route);
-    this._base = base;
-    this._timeout = timeout;
-  }
-  async $resolve(request, response, next) {
-    const queryString = url.parse(request.url).query;
-    const redirectURL = this._base + this._route + queryString;
-    return fetch(redirectURL, {
-      method: request.method,
-      headers: {
-        "Content-Type": request.get("Content-Type"),
-        body: request.body
-      }
-    }).then(function(response2) {
-      return { mime: "text/html", buffer: Buffer.from([]) };
-    }).catch(function() {
-      return { mime: "text/html", buffer: Buffer.from([]) };
-    });
-  }
-};
-
 // forge/_src_/ts/forge/server/ForgeServer.ts
 var express = require_express2();
 var compression = require_compression();
 var url2 = require("url");
-var path2 = require("path");
+var path3 = require("path");
 var $fs2 = require("fs").promises;
-var mimeTypes = require_mime_types();
+var mimeTypes2 = require_mime_types();
 DebugFormatter.Init({ platform: "node" });
 async function $ParseRequestBody(request) {
   return new Promise(function(resolve, reject) {
@@ -38024,6 +38212,14 @@ var RequestBodyParser = class {
     return this._$buffer[0];
   }
 };
+var ForgeRouteRequest = class {
+  _uri;
+  _urlParsed;
+  _header;
+  _body;
+  contructor(uri, header, body) {
+  }
+};
 var ForgeServer2 = class {
   _forge;
   _app;
@@ -38037,7 +38233,7 @@ var ForgeServer2 = class {
     this._forge = forge;
     if (isNaN(port))
       throw new Error("No port assigned");
-    this._base = path2.resolve(base);
+    this._base = path3.resolve(base);
     this._$setupServer(port);
   }
   _saveBackup = function(...rest) {
@@ -38108,7 +38304,7 @@ var ForgeServer2 = class {
       const taskName = request.params.task;
       const actionName = request.params.action;
       const file = request.params[0] || "index.html";
-      const fileName = path2.resolve(taskName, file);
+      const fileName = path3.resolve(taskName, file);
       const query = request.query;
       const tasks = this._forge.tasks();
       const forgeTask = tasks.get(taskName);
@@ -38140,10 +38336,10 @@ var ForgeServer2 = class {
     }.bind(this));
     this._app.all("*", async function(request, response, next) {
       const file = request.params[0] == "/" ? "index.html" : "." + request.params[0];
-      const route = path2.resolve(this._base, file);
+      const route = path3.resolve(this._base, file);
       console.log("ForgeServer *", request.params, route);
       $fs2.readFile(route).then(function(buffer) {
-        response.setHeader("Content-Type", mimeTypes.lookup(route)).end(buffer);
+        response.setHeader("Content-Type", mimeTypes2.lookup(route)).end(buffer);
       }).catch(function(error) {
         return "404";
       });
@@ -38165,34 +38361,12 @@ var ForgeServer2 = class {
       console.parse(`<magenta>BACK UP FILE LOADED database { ${Array.from(database.keys())} }
 </magenta>`);
     }.bind(this)).catch(function(error) {
-      console.error(error);
+      console.parse(`<cyan>back up file failed
+<yellow>${error.message}`);
     }).finally(function() {
       console.parse(`<green>Server start at ${port}</green>`);
     }.bind(this));
   }
-  /* private async _$parseRequestBody(request) {
-  
-          return new Promise(function (resolve: Function, reject: Function) {
-  
-              const buffers: Buffer[] = [];
-              request
-                  .on("data", (chunk: Buffer) => {
-  
-                      buffers.push(chunk);
-  
-                  })
-                  .on('end', () => {
-  
-                      // at this point, `body` has the entire request body.
-                      const mime: string = request.get("Content-Type");
-                      const buffer: Buffer = Buffer.concat(buffers);
-                      resolve({ mime, buffer });
-  
-                  });
-  
-          })
-  
-      } */
   async $keys(partitionName) {
     if (this._database.has(partitionName) === false) {
       this._database.set(partitionName, /* @__PURE__ */ new Map());
@@ -38218,7 +38392,7 @@ var ForgeServer2 = class {
     return partition.get(key);
   }
   add(overload) {
-    if (overload instanceof AbstractRoute) {
+    if (overload instanceof GenericRoute) {
       const iForgeServerRoute = overload;
       this._routeSet.add(iForgeServerRoute);
     } else if (overload instanceof ForgeModel) {
@@ -38344,11 +38518,11 @@ var AbstractServiceAdapter = class extends Subscription {
   $signal(signal, data, race) {
     const session = QuickHash();
     const sessions = this._sessions;
-    const $race = $UseRace(race);
+    const $race = $UseRace(race || this._race);
     $race[0].then(function() {
-      console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
+      console.parse(`<green>AbstractServiceAdapter.$signal ( ... ) session resolved <cyan>"${signal}"</cyan></green>`);
     }).catch(function(error) {
-      console.parse("<yellow>$signal exception caught :</yellow>", error);
+      console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", error.message);
     }).finally(function() {
       sessions.delete(session);
     });
@@ -38424,6 +38598,7 @@ var ForkService = class extends AbstractServiceAdapter {
   _commands;
   constructor(name, config, source) {
     super(name, config);
+    console.log(config);
     if (source === void 0) {
       const controller = new AbortController();
       const { signal } = controller;
@@ -38439,6 +38614,7 @@ var ForkService = class extends AbstractServiceAdapter {
     this._source.on("message", this._bindings.get(this.read));
   }
   _onExit() {
+    console.parse("<red>fork service ended", this._commands);
   }
   write(header, data) {
     this._source.send(["forge://", header, data]);
@@ -38466,6 +38642,116 @@ var SpawnService = class extends AbstractServiceAdapter {
   }
 };
 
+// forge/_src_/ts/core/Accessor.ts
+var Accessor = class {
+  _source;
+  _seperator;
+  _entries;
+  constructor(source, seperator) {
+    this._source = source;
+    this._seperator = seperator;
+    this._entries = FlattenObject(this._source);
+  }
+  /**
+   * Iterates via Object.entries(...) on the internal _args property
+   * 
+   * @generator
+   * @yields {[string, unknown]}
+   */
+  *[Symbol.iterator]() {
+    for (const entry of this._entries) {
+      yield entry;
+    }
+  }
+  has(accessor) {
+    let value = this._source;
+    try {
+      for (const access of accessor) {
+        if (access in value === false)
+          return false;
+        value = value[access];
+      }
+      return value instanceof Object ? false : true;
+    } catch (error) {
+      return false;
+    }
+  }
+  extract(accessor) {
+    let value = this._source;
+    try {
+      for (const access of accessor) {
+        value = value[access];
+      }
+    } catch (error) {
+      return new Error(`property does not exist for ${accessor}`);
+    }
+    return value;
+  }
+  parse(query) {
+    const accessor = query.split(this._seperator);
+    let value = this._source;
+    try {
+      for (const access of accessor) {
+        value = value[access];
+      }
+    } catch (error) {
+      return new Error("value ");
+    }
+    return value;
+  }
+  inject(input, regExp, delegate) {
+    let results;
+    while (results = regExp.exec(input)) {
+      const match = results[0];
+      const access = results[1];
+      const accessSequence = access.split(".");
+      if (this.has(accessSequence)) {
+        input = input.replace(`{${access}}`, this.extract(accessSequence));
+      } else {
+        if (delegate instanceof Function) {
+          const value = delegate(match, access);
+          input = input.replace(`{${access}}`, value);
+        }
+      }
+    }
+    return input;
+  }
+};
+
+// forge/_src_/ts/forge/service/PluginService.ts
+var PluginService = class extends AbstractServiceAdapter {
+  _source;
+  _commands;
+  constructor(name, config, source) {
+    super(name, config);
+    this._source = require(config.command);
+    if (this._source.construct) {
+      this._source.construct(config);
+    }
+  }
+  write(header, data) {
+    this._source.$signal(header, data);
+  }
+  async $reset(data, race) {
+    const $race = $UseRace(race || this._race);
+    if (this._source.$reset instanceof Function) {
+      this._source.$reset(data, race).then($race[1]).catch($race[2]);
+    } else {
+      $race[1]({ service: this._name, reset: true });
+    }
+    return $race[0];
+  }
+  async $signal(signal, data, race) {
+    const $race = $UseRace(race || this._race);
+    if (this._source.$signal instanceof Function) {
+      this._source.$signal(signal, data, race).then($race[1]).catch($race[2]);
+    } else {
+      $race[1]({ signal, service: this._name });
+    }
+    return $race[0];
+  }
+};
+
 // forge/_src_/ts/forge/Forge.ts
 var { spawn: spawn5, fork: fork5, exec: exec5, execSync: execSync5 } = require("child_process");
 var chokidar = require_chokidar();
@@ -38473,11 +38759,10 @@ var $fs3 = require("fs").promises;
 var glob = require_commonjs2();
 var express2 = require_express2();
 var url3 = require("url");
-var path3 = require("path");
+var path4 = require("path");
 var Forge3 = class {
   static Search(glob2) {
   }
-  _lastUpdate = Date.now();
   _forgeServer;
   _taskMap = /* @__PURE__ */ new Map();
   _ignoreArr = [/(^|[\/\\])\../];
@@ -38518,19 +38803,54 @@ var Forge3 = class {
         const service = this.exec(key, serviceConfig);
       }
     }
-  }
-  parse(input) {
-    const variables = JSON.parse(input).variables;
-    const entries = FlattenObject(variables);
-    for (const { access, value } of entries) {
-      input = input.replace(new RegExp(`{${access}}`, "g"), String(value));
+    const pluginObj = services.plugin;
+    if (pluginObj) {
+      for (const [key, serviceConfig] of Object.entries(pluginObj)) {
+        if (serviceConfig.command === void 0)
+          errors.push(`Invalid \`command\` parameter provided for PLUGIN service "${key}"`);
+        if (isNaN(serviceConfig.race))
+          errors.push(`Invalid \`race\` parameter provided for PLUGIN service "${key}"`);
+        const service = this.plugin(key, serviceConfig);
+      }
     }
+  }
+  parse(input, options) {
+    const result = /"variables":\s*\{/i.exec(input);
+    const start = result.index + result[0].length;
+    let closureTracking = 1;
+    let i;
+    for (i = start; i < input.length; i++) {
+      switch (input[i]) {
+        case "{":
+          closureTracking++;
+          break;
+        case "}":
+          closureTracking--;
+          break;
+      }
+      if (closureTracking == 0) {
+        console.log(JSON.parse("{" + input.substring(start, i) + "}"));
+        break;
+      }
+    }
+    const variables = JSON.parse("{" + input.substring(start, i) + "}");
+    const accessor = new Accessor(variables);
+    input = accessor.inject(input, /[^\{]\{\s*([\w_\.]+?)\s*\}[^\}]/g, (match, access) => {
+      switch (access) {
+        case "forge":
+          return "./forge";
+        case "build.root":
+          return "./www";
+      }
+      throw new Error(`unhandled injection property {${access}}`);
+    });
     const configObj = JSON.parse(input);
     this._buildService(configObj.services, []);
     for (const taskObj of configObj.tasks) {
       const forgeTask = new ForgeTask3(this, taskObj);
       this.add(forgeTask);
     }
+    return configObj;
   }
   tasks() {
     return this._taskMap;
@@ -38569,6 +38889,13 @@ var Forge3 = class {
     this.services.set(name, execService);
     return execService;
   }
+  plugin(name, config) {
+    if (this.services.has(name) && config === void 0)
+      throw new Error(`IServiceAdapter (plugin) already exists "${name}"`);
+    const pluginService = new PluginService(name, config);
+    this.services.set(name, pluginService);
+    return pluginService;
+  }
   watch(glob2, options) {
     const watcher = chokidar.watch(glob2, { "ignored": this._ignoreArr });
     const forge = this;
@@ -38600,6 +38927,8 @@ var Forge3 = class {
     return { reset: await Promise.allSettled($promises) };
   }
   async $signal(signal, data) {
+    if (data === void 0)
+      throw new Error(`Forge.$signal("${signal}", data ) \`data\` parameter is undefined`);
     const results = await this._forgeStream.$signal(signal, data);
     return results;
   }
@@ -38656,9 +38985,7 @@ if (require.main === module) {
           return value.split(",");
         return value;
       }
-    }).add(/start/i, {
-      default: {}
-    });
+    }).add(/start/i, {});
     await $fs4.readFile("./.env", "utf-8").then((fileData) => {
       compositeArguments.parse(fileData);
     }).catch(function(error) {
@@ -38668,31 +38995,29 @@ if (require.main === module) {
     let PORT = compositeArguments.get(/^port$/i);
     let WWW_ROOT = compositeArguments.get(/^www_root$/i);
     let WATCH = compositeArguments.get(/^watch$/i);
-    let START = compositeArguments.get(/^start$/i);
+    let START = compositeArguments.get(/^start$/i) || {};
     const forge = new Forge3();
-    await $fs4.readFile(".forge", "utf-8").then(function(fileData) {
-      const config = JSON.parse(fileData);
-      console.log(config);
-      console.log(config?.forge?.port, PORT);
-      const port = config?.forge?.port;
-      if (isNaN(port))
+    await $fs4.readFile(".forge", "utf-8").then(async function(fileData) {
+      const config = forge.parse(fileData);
+      console.log(config?.forge?.serve?.port, PORT);
+      const port = config?.forge?.serve?.port;
+      if (isNaN(port) === false)
         PORT = port;
-      const wwwRoot = config?.forge?.www;
-      if (wwwRoot && $fs4.existsSync(wwwRoot))
+      const wwwRoot = config?.forge?.serve?.root;
+      if (wwwRoot && await ForgeIO.File.$DirectoryExists(wwwRoot))
         WWW_ROOT = wwwRoot;
       const watch = config?.forge?.watch;
       console.log(PORT, WWW_ROOT, WATCH);
-      forge.parse(fileData);
     }).catch(function(error) {
       console.parse(`<red>${error.message}`);
     });
     if (WWW_ROOT) {
       const forgeServer = await forge.$serve(PORT, WWW_ROOT);
     }
-    if (WATCH) {
-      forge.watch(WATCH, { ignore: [], debounce: 500 });
+    if (WATCH || true) {
+      forge.watch(["./src/**/*"], { ignore: [], debounce: 500 });
     }
-    await forge.$signal("start", START);
+    await forge.$signal("start", { start: true, ...START });
   })();
 } else {
   console.log("required as a module");

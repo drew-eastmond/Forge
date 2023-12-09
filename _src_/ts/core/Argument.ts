@@ -102,7 +102,7 @@ class AbstractArguments implements IArguments {
 
             if (result === false || result === undefined) {
 
-                console.log(validation);
+                // console.log(validation);
 
                 const errorMessage: string = validation.error || `\u001b[31; 1mValidation Failed for \u001b[36; 1m--${key}--\u001b[0m\u001b[31; 1m argument\u001b[0m)`
                 this._errors.push(errorMessage);
@@ -253,12 +253,12 @@ class AbstractArguments implements IArguments {
         }
 
         // if we did get errors then let the developer catch the error. Let that mutha***er sort this mess out!
-        if (this._errors.length) {
+        /* if (this._errors.length) {
 
             // console.log(this._errors);
             throw new Error(this._errors.join("\n"));
 
-        }
+        } */
 
     }
 
@@ -304,9 +304,9 @@ export class CLIArguments extends AbstractArguments {
             } else { // no formatting found, abort!!! This is a simple script
 
                 // give a meanful error and exit
-                throw new Error(`(Executing) node ${args.slice(1).join(" ")}
+                /* throw new Error(`(Executing) node ${args.slice(1).join(" ")}
 <red>Incorrect formatting encountered parsing key arguments : "<blue>${keyQuery}</blue>"
-${JSON.stringify(this._args, undefined, 2)}`);
+${JSON.stringify(this._args, undefined, 2)}`); */
 
             }
 

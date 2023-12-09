@@ -221,16 +221,16 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const sessions: Map<string, $Promise> = this._sessions;
 
-        const $race: $Promise<Serialize> = $UseRace(race);
+        const $race: $Promise<Serialize> = $UseRace(race || this._race);
         $race[0]
             .then(function () {
 
-                console.parse(`<green>$signal session resolved <cyan>"${signal}"</cyan></green>`);
+                // console.parse(`<green>AbstractServiceAdapter.$signal ( ... ) session resolved <cyan>"${signal}"</cyan></green>`);
                 // console.log(data);
             })
             .catch(function (error: unknown) {
 
-                console.parse("<yellow>$signal exception caught :</yellow>", error);
+                console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", error.message);
 
             })
             .finally(function () {
