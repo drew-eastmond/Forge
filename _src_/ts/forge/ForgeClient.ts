@@ -50,7 +50,7 @@ export class ForgeClient extends Subscription {
 
     protected _delegates: Set<{}> = new Set();
 
-    constructor(key: string) {
+    constructor(key: string, data: Record<string, unknown>, options?: { race?: number }) {
 
         super();
 
@@ -89,6 +89,8 @@ export class ForgeClient extends Subscription {
 
     private async _$subscribeMessage(notify: string, header: Record<string, unknown>, data: Serialize) {// message: [ header: Record<string, unknown>, data: Serialize]): void {
 
+        // console.log("_$subscribeMessage", notify, header, data);
+
         let race: number = 250;
         let result: unknown;
 
@@ -99,6 +101,7 @@ export class ForgeClient extends Subscription {
             switch (signal) {
 
                 case "reset":
+                    console.log("\n\nreset intercept\n\n");
                     await this._$raceDispatch(header, this.$reset(data, race));
                     break;
                 case "construct":

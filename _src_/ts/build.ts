@@ -6,6 +6,8 @@
 const path = require("path");
 const fs = require("fs");
 const $fs = require("node:fs/promises");
+const { spawn, fork, exec, execSync } = require("child_process");
+const vm = require('node:vm');
 
 import { Format, Platform, build as esBuild } from "esbuild";
 
@@ -18,6 +20,7 @@ import { DependencyHelper } from "./util/DependencyHelper";
 import { CLIArguments } from "./core/Argument";
 import { DebugFormatter } from "./core/Debug";
 import { ForgeClient } from "./forge/ForgeClient";
+import { QuickHash, Serialize } from "./core/Core";
 
 /*
 *
@@ -33,7 +36,7 @@ const REQUEST_TIMEOUT: number = 125;
 *  application const
 *
 */
-const startTime: number = Date.now();
+
 
 /*
 *
@@ -54,7 +57,8 @@ type BuildOptions = {
     format: Format,
     metafile: boolean,
     treeShaking: boolean,
-    external: string[]
+    external: string[],
+    run: boolean
 }
 
 /*
@@ -91,7 +95,7 @@ async function $SaveMetaFile(entryFile: string, outFile: string, fileManifest: s
     })
         .then(async function (response: Response) {
 
-            console.log("\n!!!meta file savedddd\n", response.code);
+            console.log(`\nmeta data for "${entryName}" stored\n`, "" + response);
 
         })
         .catch(function (error: unknown) {
@@ -182,7 +186,9 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
 }
 
-async function $build(entryFile: string, outFile: string, options: BuildOptions) {
+async function $build(entryFile: string, outFile: string, options: BuildOptions): Promise<string> {
+
+    const startTime: number = Date.now();
 
     const outFilePath = path.parse(outFile);
 
@@ -223,22 +229,47 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
     }));
 
-    await $fs.writeFile(outFile, code);
+    if (outFile !== undefined) {
 
-    console.parse(`<green>Build Successful : "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
+        await $fs.writeFile(outFile, code);
+
+    }
+
+    console.parse(`<green>Build Successful : from "<yellow>${entryFile}</yellow>" to "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
 \t* ${(options.bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 \t* <cyan>format</cyan> : ${options.format}
 \t* <cyan>platform</cyan> : ${options.platform}
-\t* <cyan>tree shaking</cyan> : ${options.treeShaking}
+\t* <cyan>tree shaking</cyan> : ${options.treeShaking || false}
+\t* <cyan>run</cyan> : ${options.run || false}
 `);
+
+    return code;
 
 }
 
-async function $watch() {
+async function $watch(key: string, data: Record<string, unknown>): Promise<void> {
 
-    const key: string = "";
+    const forgeClient = new class extends ForgeClient {
 
-    const forgeClient: ForgeClient = new ForgeClient(key);
+        public async $watch(data: Serialize, race?: number): Promise<Serialize> {
+
+            console.parse(">>>>>>>(watch)<<<<<<\n", data);
+
+            if (("in" in data) === false) throw `"in" property missing`;
+            if (("out" in data) === false) throw `"out" property missing`;
+            if (("format" in data) === false) throw `"format" property missing`;
+            if (("platform" in data) === false) throw `"platform" property missing`;
+
+            const inFile: string = data.in as string;
+            const outFile: string = data.out as string;
+
+            await $build(inFile, outFile, { ...data, external : data.external || [] } as BuildOptions); // { bundled: data.bundled, format: data.format, data.platform, metafile: writeMeta, treeShaking: false, write: true, external: externals });
+
+            return { build: true };
+
+        }
+
+    } (key, data);
 
     /* process.on("message", function (message: ) {
 
@@ -269,7 +300,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     const cliArguments = new CLIArguments();
     cliArguments
         .add("in", {
-            required: true,
+            // required: true,
             validate: (value: unknown, args: Record<string, unknown>) => {
 
                 console.log()
@@ -280,7 +311,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
             error: `\u001b[31;1mMissing or incorrect \u001b[36;1m--in--\u001b[0m\u001b[31;1m argument\u001b[0m`
         })
         .add("out", {
-            required: true,
+            // required: true,
             validate: (value: unknown, args: Record<string, unknown>) => {
 
                 return Object.hasOwn(args, "out");
@@ -335,7 +366,7 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
 
                 if (args.plugins === undefined) return [];
 
-                
+
 
                 // if (fs.existsSync(args.out) === false) return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
 
@@ -353,8 +384,17 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
                 return String(value).split(/,/g);
 
             },
-        })
-        .compile();
+        });
+
+
+    try {
+
+        cliArguments.compile();
+
+    } catch (error: unknown) {
+
+    }
+        
 
 
     /*
@@ -369,12 +409,16 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     const bundled: boolean = cliArguments.get("bundled") as boolean; // bundle into one build file or leave as imports, basically do nothing
     const platform: Platform = cliArguments.get("platform") as Platform; // esbuild format ( "node" | "neutral" | "broswer" )
     const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
-    const watch: boolean = cliArguments.get("watch") as boolean;
     const externals: string[] = cliArguments.get("external") as string[];
+
+    const watch: boolean = cliArguments.get("watch") as boolean;
+    const fork: boolean = cliArguments.get("fork") as boolean;
+    const run: boolean = cliArguments.get("run") as boolean;
+    // const worker: boolean = cliArguments.get("worker") as boolean; 
     // const plugins: IForgePlugin = cliArguments.get(/plugins/i) as IForgePlugin;
 
     // parse the folder and filename from the --out-- CLI arguments
-    const outFilePath = path.parse(outFile);
+    // const outFilePath = path.parse(outFile);
 
     /*
     *
@@ -383,12 +427,68 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     */
     if (watch) {
 
-        $watch();
-        return;
+        $watch(cliArguments.get("key") as string, cliArguments.get(/data/i) as Record<string, unknown>,);
+        return 0;
 
     } else {
 
-        $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals });
+        const code: string = await $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals, run });
+
+        if (run) {
+
+            const tempFile: string = `./forge-temp-run.${Date.now()}.${QuickHash()}.js`;
+            await $fs.writeFile(tempFile, code);
+
+            process.on("exit", function () {
+
+                console.parse(`\n<yellow>unlinking <cyan>${tempFile}`);
+                fs.unlinkSync(tempFile);
+
+            });
+
+            process.on('SIGINT', function () {
+
+                console.log("Caught interrupt signal");
+
+                process.exit();
+
+            });
+
+            try {
+
+                execSync(`node ${tempFile}`, {
+                    stdio: "inherit",
+                    cwd: process.cwd()
+                });
+
+            } catch (error: unknown) {
+
+
+
+            }
+
+            
+
+
+
+
+            return;
+
+            // const child = eval(code);
+            // var script = new vm.Script(code);
+            // script.runInThisContext(); //  ({ require, process, module });
+
+            const cloneGlobal = () => Object.defineProperties(
+                { ...global },
+                Object.getOwnPropertyDescriptors(global)
+            )
+
+            const context = vm.createContext(cloneGlobal());
+
+            const vmResult = vm.runInNewContext(code, context); //  { ...global, ...process, require, process, module, console });
+
+
+        }
 
     }
 

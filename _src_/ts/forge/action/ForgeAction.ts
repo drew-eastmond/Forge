@@ -2,7 +2,7 @@ import { QuickHash, Serialize } from "../../core/Core";
 import { Subscription } from "../../core/Subscription";
 import { ForgeStream } from "../ForgeStream";
 import { ForgeTask } from "../ForgeTask";
-import { ActionRoute, IForgeRoute, RouteConfig } from "../server/route/Route";
+import { ActionRoute, IForgeRoute, RemoteRoute, RouteConfig } from "../server/route/ForgeRoute";
 import { IServiceAdapter } from "../service/AbstractServiceAdapter";
 import { IForgeTrigger, ParseTrigger, TriggerData } from "./ForgeTrigger";
 
@@ -133,16 +133,33 @@ export class ForgeAction extends Subscription implements IAction {
 
         this.enabled = actionConfig.enabled || true;
 
-        if ("service" in actionConfig.route) {
+        if (actionConfig.route !== undefined) {
 
-            this.route = new ActionRoute(actionConfig.route, this);
+            if ("action" in actionConfig.route) {
 
-        } else if ("local" in actionConfig.route) {
+                this.route = new ActionRoute(actionConfig.route, this);
 
-            this.route
+            } else if ("local" in actionConfig.route) {
+
+                this.route = new RemoteRoute(actionConfig.route);
+
+            } else if ("remote" in actionConfig.route) {
+
+
+
+            } else {
+
+
+
+            }
+
+        } else {
+
+            this.route = false;
 
         }
-        this.route = actionConfig.route || false;
+        
+        
 
         // this get merged, injected, then sent via `signals`
         this._data = data;
@@ -188,7 +205,7 @@ export class ForgeAction extends Subscription implements IAction {
 
     }
 
-    public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
+    public $signal(signal: string, data: Serialize, race?: number): Promise<Serialize> {
 
         return this._iServiceAdapter.$signal(signal, { ...this._data, ...data as object }, race);
 
@@ -202,7 +219,7 @@ export class ForgeAction extends Subscription implements IAction {
         this.stdout = [];
         this.stderr = [];
 
-        return this._iServiceAdapter.$reset(data);
+        return { action: this.name, reset: true }; // 'this._iServiceAdapter.$reset(data);
 
     }
 

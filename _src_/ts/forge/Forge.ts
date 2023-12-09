@@ -15,16 +15,21 @@ import { IServiceAdapter, ServiceConfig } from "./service/AbstractServiceAdapter
 import { ExecService } from "./service/ExecService";
 import { ForkService } from "./service/ForkService";
 import { SpawnService } from "./service/SpawnService";
+import { Accessor } from "../core/Accessor";
+import { PluginService } from "./service/PluginService";
+
+type ForgeServices = {
+    spawn?: Record<string, ServiceConfig>,
+    fork?: Record<string, ServiceConfig>,
+    exec?: Record<string, ServiceConfig>,
+    worker?: Record<string, ServiceConfig>,
+    plugin?: Record<string, ServiceConfig>
+}
 
 type ForgeConfig = {
     forge: Record<string, unknown>,
     variables: Record<string, unknown>,
-    services: {
-        spawn?: Record<string, ServiceConfig>,
-        fork?: Record<string, ServiceConfig>,
-        exec?: Record<string, ServiceConfig>,
-        worker?: Record<string, ServiceConfig>
-    },
+    services: ForgeServices,
     tasks: TaskConfig[]
 }
 
@@ -50,7 +55,7 @@ export class Forge {
 
     }
 
-    private _buildService(services: { spawn?: Record<string, ServiceConfig>, fork?: Record<string, ServiceConfig>, exec?: Record<string, ServiceConfig> }, errors: string[]): void {
+    private _buildService(services: ForgeServices, errors: string[]): void {
 
         if (services === undefined) throw new Error(`No services assigned`);
 
@@ -104,22 +109,112 @@ export class Forge {
             }
         }
 
+        const pluginObj: Record<string, ServiceConfig> = services.plugin;
+        if (pluginObj) {
+            for (const [key, serviceConfig] of Object.entries(pluginObj)) {
+
+                // todo Replace these queries with `Enforce`
+                // Validate required parameters for command and race
+
+                if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for PLUGIN service "${key}"`);
+                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for PLUGIN service "${key}"`);
+
+                // truthfully, we dont really use the return value
+                const service: IServiceAdapter = this.plugin(key, serviceConfig);
+
+            }
+        }
+
     }
 
-    public parse(input: string): void {
+    public parse(input: string, options?: {}): Record<string, unknown> {
 
-        const variables = JSON.parse(input).variables;
+        // extract the "variables" properties from the input string. I'm using a niave method to extract the 
+        const result: RegExpExecArray = /"variables":\s*\{/i.exec(input);
+        const start: number = result.index + result[0].length;
+        // console.log(result.index);
+        // console.log(input.charAt(result.index), result[0].length);
 
-        const entries: { access: string, value: unknown }[] = FlattenObject(variables);
+        let closureTracking: number = 1;
+        let i: number;
+        for (i = start; i < input.length; i++) {
 
-        /*
-        * 1. Replace all `static variables` : {variable} 
-        */
-        for (const { access, value } of entries) {
+            switch (input[i]) {
 
-            input = input.replace(new RegExp(`{${access}}`, "g"), String(value));
+                case "{":
+                    closureTracking++;
+                    break;
+
+                case "}":
+                    closureTracking--;
+                    break;
+
+            }
+
+            if (closureTracking == 0) {
+
+                console.log(JSON.parse("{" + input.substring(start, i) + "}"));
+                break;
+
+            }
 
         }
+
+        const variables: Record<string, unknown> = JSON.parse("{" + input.substring(start, i) + "}");
+        const accessor: Accessor = new Accessor(variables);
+
+        /* for (const { access, value } of accessor) {
+
+            console.log(access, value);
+
+        } */
+
+        // const regExp: RegExp = ;
+
+
+        /* const missedInjections: Set<string> = new Set();
+
+        let results: RegExpExecArray;
+        while (results = regExp.exec(input)) {
+
+            const access: string = results[1];
+            const accessSequence: string[] = access.split(".");
+
+            // console.log(results[1], accessor.has(results[1].split(".")));
+            if (accessor.has(accessSequence)) {
+
+                // const value: unknown = 
+
+                console.log(results[1]);
+                input = input.replace(`{${access}}`, accessor.extract(accessSequence) as string);
+
+            } else {
+
+                missedInjections.add(results[1]);
+
+            }
+
+        }
+
+
+        console.log(missedInjections); */
+        input = accessor.inject(input, /[^\{]\{\s*([\w_\.]+?)\s*\}[^\}]/g, (match: string, access: string): string => {
+        
+            switch (access) {
+                case "forge":
+                    return "./forge";
+
+                case "build.root":
+                    return "./www";
+
+            }
+
+            throw new Error(`unhandled injection property {${access}}`);
+
+        });
+        // console.log(input);
+
+        
 
         /*
         * 2. Reparse the new config string and add all the supplied forege task
@@ -152,6 +247,8 @@ export class Forge {
             this.add(forgeTask);
 
         }
+
+        return configObj;
 
     }
 
@@ -221,6 +318,17 @@ export class Forge {
 
     }
 
+    public plugin(name: string, config: ServiceConfig): IServiceAdapter {
+
+        if (this.services.has(name) && config === undefined) throw new Error(`IServiceAdapter (plugin) already exists "${name}"`);
+
+        const pluginService: PluginService = new PluginService(name, config);
+        this.services.set(name, pluginService);
+
+        return pluginService;
+
+    }
+
     public watch(glob: string[], options: { ignore: string[], debounce?: number, throttle?: number }): void {
 
         const watcher = chokidar.watch(glob, { 'ignored': this._ignoreArr });
@@ -276,6 +384,8 @@ export class Forge {
     }
 
     public async $signal(signal: string, data: Serialize): Promise<Serialize> {
+
+        if (data === undefined) throw new Error(`Forge.$signal("${signal}", data ) \`data\` parameter is undefined`);
 
         const results: Serialize = await this._forgeStream.$signal(signal, data);
 

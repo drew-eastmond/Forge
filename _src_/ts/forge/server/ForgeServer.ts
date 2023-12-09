@@ -12,7 +12,7 @@ import { IAction } from "../action/ForgeAction";
 import { Forge } from "../Forge";
 import { ForgeTask } from "../ForgeTask";
 import { ForgeModel, ForgeStore, IForgeModel } from "../model/ForgeModel";
-import { AbstractRoute, ActionRoute, DelegateRoute, IForgeServerRoute, RedirectRoute } from "./route/Route";
+import { GenericRoute, ActionRoute, DelegateRoute, IForgeRoute, RemoteRoute } from "./route/ForgeRoute";
 
 DebugFormatter.Init({ platform: "node" });
 
@@ -130,7 +130,7 @@ export class ForgeServer {
 
     private _debouncer: Debouncer = new Debouncer();
 
-    private readonly _routeSet: Set<IForgeServerRoute> = new Set();
+    private readonly _routeSet: Set<IForgeRoute> = new Set();
 
     // temporary for now. Connect to `ether` or `ForgeStorage`
     private readonly _database: Map<string, Map<string, StoreEntry>> = new Map();
@@ -393,7 +393,7 @@ export class ForgeServer {
             }.bind(this))
             .catch(function (error: unknown) {
 
-                console.error(error);
+                console.parse(`<cyan>back up file failed\n<yellow>${error.message}`);
 
             })
             .finally(function () {
@@ -452,11 +452,11 @@ export class ForgeServer {
 
     }
 
-    public add(overload: IForgeServerRoute | IForgeModel) : this {
+    public add(overload: IForgeRoute | IForgeModel) : this {
 
-        if (overload instanceof AbstractRoute) {
+        if (overload instanceof GenericRoute) {
             
-            const iForgeServerRoute: IForgeServerRoute = overload as IForgeServerRoute;
+            const iForgeServerRoute: IForgeRoute = overload as IForgeRoute;
             this._routeSet.add(iForgeServerRoute);
         
         } else if (overload instanceof ForgeModel) {

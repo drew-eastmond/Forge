@@ -12,6 +12,8 @@ export class ForkService extends AbstractServiceAdapter {
 
         super(name, config);
 
+        console.log(config);
+
         if (source === undefined) {
 
             const controller = new AbortController();
@@ -38,6 +40,8 @@ export class ForkService extends AbstractServiceAdapter {
     }
 
     private _onExit(): void {
+
+        console.parse("<red>fork service ended", this._commands);
 
         // const commands: string[] = this._command.split(/\s+/g);
         // this._child = spawn(commands[0], commands.slice(1));

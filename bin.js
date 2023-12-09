@@ -2790,7 +2790,7 @@ var { Readable } = require("stream");
 var { finished } = require("stream/promises");
 var fflate = require_node();
 var ForgeFile = class {
-  async $FileExist(file) {
+  static async $FileExist(file) {
     return $fs.access(file, fs.constants.F_OK).then(() => true).catch(() => false);
   }
   static async $DirectoryExists(path3) {
@@ -2812,6 +2812,26 @@ var ForgeFile = class {
     }).catch(function() {
       console.log("failed to create directory", path3);
       return false;
+    });
+  }
+  static async $Read(path3) {
+    return new Promise(async function(resolve, reject) {
+      try {
+        resolve(await $fs.readFile(path3));
+      } catch (error) {
+        reject(new Error(`Error reading file: "${path3}"`));
+      }
+    });
+  }
+  static async $Write(path3, contents) {
+    return new Promise(async function(resolve, reject) {
+      try {
+        const data = new Uint8Array(Buffer.from("Hello Node.js"));
+        await $fs.writeFile(path3, data);
+        resolve(true);
+      } catch (error) {
+        reject(new Error(`Error write file: "${path3}"`));
+      }
     });
   }
 };
@@ -2862,7 +2882,22 @@ var ForgeNPM = class {
     return true;
   }
 };
+var ForgeWeb = class {
+  static $Fetch(url, options) {
+    if (options.race === void 0 && options.signal === void 0)
+      throw new Error(`please provide a { race } or { signal } property for $Fetch("{url}", ... )`);
+    const race = options.race;
+    return new Promise(function(resolve, reject) {
+      fetch(url, {
+        ...options,
+        signal: options.signal || AbortSignal.timeout(race)
+      });
+    });
+  }
+};
 var ForgeIO = class _ForgeIO {
+  static File = ForgeFile;
+  static Web = ForgeWeb;
   async $FileExist(file) {
     return $fs.access(file, fs.constants.F_OK).then(() => true).catch(() => false);
   }
