@@ -105,6 +105,8 @@ export class ForgeClient extends Subscription {
                     await this._$raceDispatch(header, this.$reset(data, race));
                     break;
                 case "construct":
+
+                    break;
                 case "route":
                     console.log("ROUTED CHILD", data);
                     const { route, params } = data as { route: string, params: Serialize[] };

@@ -9258,14 +9258,31 @@ var __ForgeProtocol = "forge://";
 var AbstractServiceAdapter = class extends Subscription {
   constructor(name, config) {
     super();
+    this._race = /* @__PURE__ */ new Map();
     this._sessions = /* @__PURE__ */ new Map();
     this._bindings = /* @__PURE__ */ new Map();
     this._name = name;
     this._key = config.key || QuickHash();
-    this._race = config.race;
+    const race = config.race;
+    if (isNaN(race) === false) {
+      this._race.set(/.*/, race);
+    } else if (typeof race === "object") {
+      for (const [key, value] of Object.entries(race)) {
+        this._race.set(new RegExp(key), value);
+      }
+    } else {
+      throw new Error(`Invalid race value: ${race}`);
+    }
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
     this._bindings.set(this._pipeError, this._pipeError.bind(this));
     this._bindings.set(this.read, this.read.bind(this));
+  }
+  _getRace(signal) {
+    for (const [regExp, race] of this._race) {
+      if (regExp.test(signal))
+        return race;
+    }
+    throw `"${signal}" does not have a race`;
   }
   _pipeStdio(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
@@ -9281,7 +9298,7 @@ var AbstractServiceAdapter = class extends Subscription {
           output.push(line);
       }
     }
-    if (output.length) {
+    if (output.length && false) {
       console.parse(`<cyan>${output.join("\n")}</cyan>`);
     }
   }
@@ -9303,9 +9320,11 @@ var AbstractServiceAdapter = class extends Subscription {
       console.parse(`<magenta>${output.join("\n")}</magenta>`);
     }
   }
-  get race() {
-    return this._race;
-  }
+  /* get race(): number {
+  
+          return this._race;
+  
+      } */
   read(message) {
     try {
       const [protocol, header, data] = message;
@@ -9351,9 +9370,8 @@ var AbstractServiceAdapter = class extends Subscription {
   $signal(signal, data, race) {
     const session = QuickHash();
     const sessions = this._sessions;
-    const $race = $UseRace(race || this._race);
+    const $race = $UseRace(this._getRace(signal));
     $race[0].then(function() {
-      console.parse(`<green>AbstractServiceAdapter.$signal ( ... ) session resolved <cyan>"${signal}"</cyan></green>`);
     }).catch(function(error) {
       console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", error.message);
     }).finally(function() {
@@ -9454,6 +9472,7 @@ var ForgeClient = class extends Subscription {
           await this._$raceDispatch(header, this.$reset(data, race));
           break;
         case "construct":
+          break;
         case "route":
           console.log("ROUTED CHILD", data);
           const { route, params } = data;
@@ -9523,8 +9542,8 @@ async function $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta) {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT)
   }).then(async function(response) {
     console.log(`
-meta data for "${entryName}" stored
-`, "" + response);
+meta data for "<white>${entryName}</white>" stored
+`);
   }).catch(function(error) {
     if (error instanceof Error)
       console.parse(`<red>${error.message}</red> from <cyan>${fetchURL}<cyan>`);
@@ -9611,7 +9630,6 @@ async function $build(entryFile, outFile, options) {
 async function $watch(key, data) {
   const forgeClient = new class extends ForgeClient {
     async $watch(data2, race) {
-      console.parse(">>>>>>>(watch)<<<<<<\n", data2);
       if ("in" in data2 === false)
         throw `"in" property missing`;
       if ("out" in data2 === false)

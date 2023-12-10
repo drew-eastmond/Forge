@@ -95,7 +95,7 @@ async function $SaveMetaFile(entryFile: string, outFile: string, fileManifest: s
     })
         .then(async function (response: Response) {
 
-            console.log(`\nmeta data for "${entryName}" stored\n`, "" + response);
+            console.log(`\nmeta data for "<white>${entryName}</white>" stored\n`);
 
         })
         .catch(function (error: unknown) {
@@ -253,7 +253,7 @@ async function $watch(key: string, data: Record<string, unknown>): Promise<void>
 
         public async $watch(data: Serialize, race?: number): Promise<Serialize> {
 
-            console.parse(">>>>>>>(watch)<<<<<<\n", data);
+            // console.parse(">>>>>>>(watch)<<<<<<\n", data);
 
             if (("in" in data) === false) throw `"in" property missing`;
             if (("out" in data) === false) throw `"out" property missing`;
@@ -270,22 +270,6 @@ async function $watch(key: string, data: Record<string, unknown>): Promise<void>
         }
 
     } (key, data);
-
-    /* process.on("message", function (message: ) {
-
-        const entryFile: string = cliArguments.get("in") as string; // entry file location
-        const outFile: string = cliArguments.get("out") as string; // build location
-        const override: boolean = cliArguments.get("override") as boolean; // prevent overwriting build location in case of accident
-        const format: Format = cliArguments.get("format") as Format; // esbuild format ( "cjs" | "esm" | "iife" )
-        const bundled: boolean = cliArguments.get("bundled") as boolean; // bundle into one build file or leave as imports, basically do nothing
-        const platform: Platform = cliArguments.get("platform") as Platform; // esbuild format ( "node" | "neutral" | "broswer" )
-        const writeMeta: boolean = cliArguments.get("write_meta") as boolean; // write the metadata for further inquiries / errors checking
-        const watch: boolean = cliArguments.get("watch") as boolean;
-        const externals: string[] = cliArguments.get("external") as string[];
-
-
-
-    }); */
 
 }
 

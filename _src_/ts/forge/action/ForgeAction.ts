@@ -193,7 +193,7 @@ export class ForgeAction extends Subscription implements IAction {
     public async $trigger(forgeStream: ForgeStream): Promise<boolean> {
 
         if (this.enabled === false) return false;
-        if (forgeStream.executions.has(this)) return false;
+        if (forgeStream.settled.has(this)) return false;
 
         for (const iForgeTrigger of this._iForgeTriggers) {
 

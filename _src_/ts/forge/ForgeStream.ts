@@ -1,3 +1,4 @@
+import { resolve } from "dns";
 import { Serialize } from "../core/Core";
 import { IAction } from "./action/ForgeAction";
 import { ForgeTask } from "./ForgeTask";
@@ -12,7 +13,7 @@ export class ForgeStream {
     private _data: Serialize;
 
 
-    public readonly executions: Set<IAction> = new Set();
+    public readonly settled: Set<IAction> = new Set();
     public readonly resolves: Set<IAction> = new Set();
     public readonly rejections: Set<IAction> = new Set();
 
@@ -95,7 +96,7 @@ export class ForgeStream {
         this._signal = undefined;
         this._data = undefined;
 
-        this.executions.clear();
+        this.settled.clear();
         this.resolves.clear();
         this.rejections.clear();
 
@@ -110,10 +111,7 @@ export class ForgeStream {
 
     }
 
-    public async $signal(signal: string, data?: Serialize): Promise<Serialize> {
-
-        const race: number = 500;
-        console.error(`${this.constructor.name}.#signal hard coded to race`);
+    public async $signal(signal: string, data?: Serialize, race?: number): Promise<Serialize> {
 
         this._signal = signal;
         this._data = data;
@@ -121,7 +119,7 @@ export class ForgeStream {
         // collectiosn of all responses
         const resolves: Set<IAction> = this.resolves;
         const rejects: Set<IAction> = this.rejections;
-        const executions: Set<IAction> = this.executions;
+        const executions: Set<IAction> = this.settled;
         
 
         const signalStatus: Record<string, unknown> = {};
@@ -193,6 +191,8 @@ export class ForgeStream {
                 if (reboundCount == 0) {
 
                     signalStatus.executions = allSettled;
+                    signalStatus.resolves = resolves;
+                    signalStatus.reject = rejects;
 
                 } else {
 
@@ -216,7 +216,8 @@ export class ForgeStream {
 
         console.group(signal);
         console.log(data);
-        console.log(JSON.stringify(signalStatus));
+        // console.log (signalStatus.executions, { depth: 1 });
+        // console.log(JSON.stringify(signalStatus, null, 4));
         console.groupEnd();
 
         return signalStatus;

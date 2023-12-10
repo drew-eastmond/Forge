@@ -15,7 +15,7 @@ enum ActionStdioType {
 export type ServiceConfig = {
     command?: string
     debounce?: number,
-    race?: number,
+    race?: number | Record<string, number>,
 
     key?: string,
     reboot?: boolean,
@@ -43,8 +43,9 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     protected _name: string;
     protected _key: string;
-    protected _race: number;
     protected _reboot: boolean;
+
+    protected readonly _race: Map<RegExp, number> = new Map();
 
     protected readonly _sessions: Map<string, $Promise<unknown>> = new Map();
     protected readonly _bindings: Map<Function, Function> = new Map();
@@ -57,12 +58,44 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
         this._name = name;
 
         this._key = config.key || QuickHash();
-        this._race = config.race;
+
+        const race: number | Record<string, number> = config.race;
+        if (isNaN(race as number) === false) {
+
+            this._race.set(/.*/, race as number);
+
+        } else if (typeof race === "object") {
+
+            for (const [key, value] of Object.entries(race as Record<string, number>)) {
+
+                this._race.set(new RegExp(key), value);
+
+            }
+
+        } else {
+
+            throw new Error(`Invalid race value: ${race}`)
+
+        }
+
+        
 
         this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
         this._bindings.set(this._pipeError, this._pipeError.bind(this));
         
         this._bindings.set(this.read, this.read.bind(this));
+
+    }
+
+    protected _getRace(signal: string): number {
+
+        for (const [regExp, race] of this._race) {
+
+            if (regExp.test(signal)) return race;
+
+        }
+
+        throw `"${signal}" does not have a race`;
 
     }
 
@@ -90,7 +123,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         }
 
-        if (output.length) {
+        if (output.length && false) {
 
             console.parse(`<cyan>${output.join("\n")}</cyan>`);
 
@@ -130,11 +163,11 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     }
 
-    get race(): number {
+    /* get race(): number {
 
         return this._race;
 
-    }
+    } */
 
     public read(message: [string, Record<string, unknown>, Serialize]): boolean {
 
@@ -213,7 +246,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
     }
 
-    public $signal(signal: string, data: Serialize, race: number): Promise<Serialize> {
+    public $signal(signal: string, data: Serialize, race?: number): Promise<Serialize> {
 
         // console.log(signal, data, race);
 
@@ -221,7 +254,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         const sessions: Map<string, $Promise> = this._sessions;
 
-        const $race: $Promise<Serialize> = $UseRace(race || this._race);
+        const $race: $Promise<Serialize> = $UseRace(this._getRace(signal));
         $race[0]
             .then(function () {
 

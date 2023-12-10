@@ -1754,9 +1754,9 @@ var require_readdirp = __commonJS({
       return new ReaddirpStream(options);
     };
     var readdirpPromise = (root, options = {}) => {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve2, reject) => {
         const files = [];
-        readdirp(root, options).on("data", (entry) => files.push(entry)).on("end", () => resolve(files)).on("error", (error) => reject(error));
+        readdirp(root, options).on("data", (entry) => files.push(entry)).on("end", () => resolve2(files)).on("error", (error) => reject(error));
       });
     };
     readdirp.promise = readdirpPromise;
@@ -3866,13 +3866,13 @@ var require_nodefs_handler = __commonJS({
           }
         }).on(EV_ERROR, this._boundHandleError);
         return new Promise(
-          (resolve) => stream.once(STR_END, () => {
+          (resolve2) => stream.once(STR_END, () => {
             if (this.fsw.closed) {
               stream = void 0;
               return;
             }
             const wasThrottled = throttler ? throttler.clear() : false;
-            resolve();
+            resolve2();
             previous.getChildren().filter((item) => {
               return item !== directory && !current.has(item) && // in case of intersecting globs;
               // a path may have been filtered out of this readdir, but
@@ -8816,10 +8816,10 @@ var require_commonjs = __commonJS({
        * Return a void Promise that resolves once the stream ends.
        */
       async promise() {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve2, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve());
+          this.on("end", () => resolve2());
         });
       }
       /**
@@ -8843,7 +8843,7 @@ var require_commonjs = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return stop();
-          let resolve;
+          let resolve2;
           let reject;
           const onerr = (er) => {
             this.off("data", ondata);
@@ -8857,19 +8857,19 @@ var require_commonjs = __commonJS({
             this.off("end", onend);
             this.off(DESTROYED, ondestroy);
             this.pause();
-            resolve({ value, done: !!this[EOF] });
+            resolve2({ value, done: !!this[EOF] });
           };
           const onend = () => {
             this.off("error", onerr);
             this.off("data", ondata);
             this.off(DESTROYED, ondestroy);
             stop();
-            resolve({ done: true, value: void 0 });
+            resolve2({ done: true, value: void 0 });
           };
           const ondestroy = () => onerr(new Error("stream destroyed"));
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve = res2;
+            resolve2 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -9869,9 +9869,9 @@ var require_cjs3 = __commonJS({
         if (this.#asyncReaddirInFlight) {
           await this.#asyncReaddirInFlight;
         } else {
-          let resolve = () => {
+          let resolve2 = () => {
           };
-          this.#asyncReaddirInFlight = new Promise((res) => resolve = res);
+          this.#asyncReaddirInFlight = new Promise((res) => resolve2 = res);
           try {
             for (const e of await this.#fs.promises.readdir(fullpath, {
               withFileTypes: true
@@ -9884,7 +9884,7 @@ var require_cjs3 = __commonJS({
             children.provisional = 0;
           }
           this.#asyncReaddirInFlight = void 0;
-          resolve();
+          resolve2();
         }
         return children.slice(0, children.provisional);
       }
@@ -16781,11 +16781,11 @@ var require_raw_body = __commonJS({
       if (done) {
         return readStream(stream, encoding, length, limit, wrap(done));
       }
-      return new Promise(function executor(resolve, reject) {
+      return new Promise(function executor(resolve2, reject) {
         readStream(stream, encoding, length, limit, function onRead(err, buf) {
           if (err)
             return reject(err);
-          resolve(buf);
+          resolve2(buf);
         });
       });
     }
@@ -29582,7 +29582,7 @@ var require_view = __commonJS({
     var basename = path5.basename;
     var extname = path5.extname;
     var join = path5.join;
-    var resolve = path5.resolve;
+    var resolve2 = path5.resolve;
     module2.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -29616,7 +29616,7 @@ var require_view = __commonJS({
       debug('lookup "%s"', name);
       for (var i = 0; i < roots.length && !path6; i++) {
         var root = roots[i];
-        var loc = resolve(root, name);
+        var loc = resolve2(root, name);
         var dir = dirname(loc);
         var file = basename(loc);
         path6 = this.resolve(dir, file);
@@ -29627,7 +29627,7 @@ var require_view = __commonJS({
       debug('render "%s"', this.path);
       this.engine(this.path, options, callback);
     };
-    View.prototype.resolve = function resolve2(dir, file) {
+    View.prototype.resolve = function resolve3(dir, file) {
       var ext = this.ext;
       var path6 = join(dir, file);
       var stat = tryStat(path6);
@@ -30269,7 +30269,7 @@ var require_send = __commonJS({
     var extname = path5.extname;
     var join = path5.join;
     var normalize = path5.normalize;
-    var resolve = path5.resolve;
+    var resolve2 = path5.resolve;
     var sep = path5.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
@@ -30306,7 +30306,7 @@ var require_send = __commonJS({
       this._maxage = opts.maxAge || opts.maxage;
       this._maxage = typeof this._maxage === "string" ? ms(this._maxage) : Number(this._maxage);
       this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
-      this._root = opts.root ? resolve(opts.root) : null;
+      this._root = opts.root ? resolve2(opts.root) : null;
       if (!this._root && opts.from) {
         this.from(opts.from);
       }
@@ -30330,7 +30330,7 @@ var require_send = __commonJS({
       return this;
     }, "send.index: pass index as option");
     SendStream.prototype.root = function root(path6) {
-      this._root = resolve(String(path6));
+      this._root = resolve2(String(path6));
       debug("root %s", this._root);
       return this;
     };
@@ -30494,7 +30494,7 @@ var require_send = __commonJS({
           return res;
         }
         parts = normalize(path6).split(sep);
-        path6 = resolve(path6);
+        path6 = resolve2(path6);
       }
       if (containsDotFile(parts)) {
         var access = this._dotfiles;
@@ -31789,7 +31789,7 @@ var require_application = __commonJS({
     var deprecate = require_depd()("express");
     var flatten = require_array_flatten();
     var merge = require_utils_merge();
-    var resolve = require("path").resolve;
+    var resolve2 = require("path").resolve;
     var setPrototypeOf = require_setprototypeof();
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     var slice = Array.prototype.slice;
@@ -31828,7 +31828,7 @@ var require_application = __commonJS({
       this.mountpath = "/";
       this.locals.settings = this.settings;
       this.set("view", View);
-      this.set("views", resolve("views"));
+      this.set("views", resolve2("views"));
       this.set("jsonp callback name", "callback");
       if (env === "production") {
         this.enable("view cache");
@@ -33070,7 +33070,7 @@ var require_response = __commonJS({
     var send = require_send();
     var extname = path5.extname;
     var mime = send.mime;
-    var resolve = path5.resolve;
+    var resolve2 = path5.resolve;
     var vary = require_vary();
     var res = Object.create(http.ServerResponse.prototype);
     module2.exports = res;
@@ -33334,7 +33334,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve(path6) : path6;
+      var fullPath = !opts.root ? resolve2(path6) : path6;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -33598,7 +33598,7 @@ var require_serve_static = __commonJS({
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
     var parseUrl = require_parseurl();
-    var resolve = require("path").resolve;
+    var resolve2 = require("path").resolve;
     var send = require_send();
     var url4 = require("url");
     module2.exports = serveStatic;
@@ -33618,7 +33618,7 @@ var require_serve_static = __commonJS({
         throw new TypeError("option setHeaders must be function");
       }
       opts.maxage = opts.maxage || opts.maxAge || 0;
-      opts.root = resolve(root);
+      opts.root = resolve2(root);
       var onDirectory = redirect ? createRedirectDirectoryListener() : createNotFoundDirectoryListener();
       return function serveStatic2(req, res, next) {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -36478,8 +36478,8 @@ function QuickHash() {
 function $UsePromise() {
   let resolveCallback;
   let rejectCallback;
-  const promise = new Promise(function(resolve, reject) {
-    resolveCallback = resolve;
+  const promise = new Promise(function(resolve2, reject) {
+    resolveCallback = resolve2;
     rejectCallback = reject;
   });
   return [promise, resolveCallback, rejectCallback];
@@ -36490,8 +36490,8 @@ function $UseRace(delay, capture) {
   let promise;
   Promise;
   if (capture) {
-    promise = new Promise(function(resolve, reject) {
-      resolveCallback = resolve;
+    promise = new Promise(function(resolve2, reject) {
+      resolveCallback = resolve2;
       rejectCallback = reject;
       if (delay === void 0)
         return;
@@ -36500,8 +36500,8 @@ function $UseRace(delay, capture) {
       }, delay);
     }).catch(capture);
   } else {
-    promise = new Promise(function(resolve, reject) {
-      resolveCallback = resolve;
+    promise = new Promise(function(resolve2, reject) {
+      resolveCallback = resolve2;
       rejectCallback = reject;
       if (delay === void 0)
         return;
@@ -36955,20 +36955,20 @@ var ForgeFile = class {
     });
   }
   static async $Read(path5) {
-    return new Promise(async function(resolve, reject) {
+    return new Promise(async function(resolve2, reject) {
       try {
-        resolve(await $fs.readFile(path5));
+        resolve2(await $fs.readFile(path5));
       } catch (error) {
         reject(new Error(`Error reading file: "${path5}"`));
       }
     });
   }
   static async $Write(path5, contents) {
-    return new Promise(async function(resolve, reject) {
+    return new Promise(async function(resolve2, reject) {
       try {
         const data = new Uint8Array(Buffer.from("Hello Node.js"));
         await $fs.writeFile(path5, data);
-        resolve(true);
+        resolve2(true);
       } catch (error) {
         reject(new Error(`Error write file: "${path5}"`));
       }
@@ -37027,7 +37027,7 @@ var ForgeWeb = class {
     if (options.race === void 0 && options.signal === void 0)
       throw new Error(`please provide a { race } or { signal } property for $Fetch("{url}", ... )`);
     const race = options.race;
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve2, reject) {
       fetch(url4, {
         ...options,
         signal: options.signal || AbortSignal.timeout(race)
@@ -37063,18 +37063,18 @@ var ForgeIO = class _ForgeIO {
     });
   }
   static async $Download(url4, file) {
-    return await new Promise(async function(resolve, reject) {
+    return await new Promise(async function(resolve2, reject) {
       const fileStream = fs.createWriteStream(file);
       const { body } = await fetch(url4);
       await finished(Readable.fromWeb(body).pipe(fileStream));
-      resolve(true);
+      resolve2(true);
     }).catch(function(error) {
       console.error(error);
       return false;
     });
   }
   static async $UnZip(compressedData, directory) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve2, reject) {
       fflate.unzip(compressedData, async function(err, unzipped) {
         for (const [key, uint8Array] of Object.entries(unzipped)) {
           const unwrappedFileName = key.split(/[\\\/]/).slice(1).join("/");
@@ -37086,7 +37086,7 @@ var ForgeIO = class _ForgeIO {
             await $fs.writeFile(path.resolve(directory, unwrappedFileName), uint8Array);
           }
         }
-        resolve(true);
+        resolve2(true);
       });
     });
   }
@@ -37099,7 +37099,7 @@ var ForgeStream = class {
   _bindings = /* @__PURE__ */ new Map();
   _signal;
   _data;
-  executions = /* @__PURE__ */ new Set();
+  settled = /* @__PURE__ */ new Set();
   resolves = /* @__PURE__ */ new Set();
   rejections = /* @__PURE__ */ new Set();
   constructor() {
@@ -37144,7 +37144,7 @@ var ForgeStream = class {
   async $reset() {
     this._signal = void 0;
     this._data = void 0;
-    this.executions.clear();
+    this.settled.clear();
     this.resolves.clear();
     this.rejections.clear();
     const promises = [];
@@ -37153,14 +37153,12 @@ var ForgeStream = class {
     }
     return { reset: await Promise.allSettled(promises) };
   }
-  async $signal(signal, data) {
-    const race = 500;
-    console.error(`${this.constructor.name}.#signal hard coded to race`);
+  async $signal(signal, data, race) {
     this._signal = signal;
     this._data = data;
     const resolves = this.resolves;
     const rejects = this.rejections;
-    const executions = this.executions;
+    const executions = this.settled;
     const signalStatus = {};
     let reboundSignal = true;
     let reboundCount = 0;
@@ -37194,6 +37192,8 @@ var ForgeStream = class {
         reboundSignal = true;
         if (reboundCount == 0) {
           signalStatus.executions = allSettled;
+          signalStatus.resolves = resolves;
+          signalStatus.reject = rejects;
         } else {
           if (reboundCount == 1) {
             signalStatus.rebound = allSettled;
@@ -37206,7 +37206,6 @@ var ForgeStream = class {
     }
     console.group(signal);
     console.log(data);
-    console.log(JSON.stringify(signalStatus));
     console.groupEnd();
     return signalStatus;
   }
@@ -37369,11 +37368,11 @@ var Subscription = class {
   }
   $listen(notify, callback, race) {
     const _this = this;
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve2, reject) {
       const subscribeForCallback = function(...rest) {
         const result = callback(...rest);
         if (result === true) {
-          resolve(result);
+          resolve2(result);
           return _this.unsubscribe;
         }
       };
@@ -37492,7 +37491,7 @@ var GenericRoute = class {
     this._$delegate = $delegate;
   }
   async _$parseRequest(request) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve2, reject) {
       const buffers = [];
       request.on("data", (chunk) => {
         buffers.push(chunk);
@@ -37500,7 +37499,7 @@ var GenericRoute = class {
         const result = Buffer.concat(buffers).toString();
         const post = JSON.parse(result);
         const get = request.query;
-        resolve({ get, post, request: { post, ...get } });
+        resolve2({ get, post, request: { post, ...get } });
       });
     });
   }
@@ -37662,14 +37661,14 @@ var ResolveTrigger = class {
     if (this._resolver == "any" /* Any */) {
       for (let { task, action } of this._resolves) {
         const iAction = forgeStream.find(task, action);
-        if (forgeStream.executions.has(iAction))
+        if (forgeStream.settled.has(iAction))
           return true;
       }
     } else if (this._resolver == "all" /* All */) {
       let allSettled = true;
       for (let { task, action } of this._resolves) {
         const iAction = forgeStream.find(task, action);
-        if (forgeStream.executions.has(iAction) === false)
+        if (forgeStream.settled.has(iAction) === false)
           allSettled = false;
       }
     }
@@ -37714,14 +37713,14 @@ var SettledTrigger = class {
     if (this._resolver == "any" /* Any */) {
       for (let { task, action } of this._allSettled) {
         const iAction = forgeStream.find(task, action);
-        if (forgeStream.executions.has(iAction))
+        if (forgeStream.settled.has(iAction))
           return true;
       }
     } else if (this._resolver == "all" /* All */) {
       let allSettled = true;
       for (let { task, action } of this._allSettled) {
         const iAction = forgeStream.find(task, action);
-        if (forgeStream.executions.has(iAction) === false)
+        if (forgeStream.settled.has(iAction) === false)
           allSettled = false;
       }
     }
@@ -37793,7 +37792,7 @@ var ForgeAction = class _ForgeAction extends Subscription {
   async $trigger(forgeStream) {
     if (this.enabled === false)
       return false;
-    if (forgeStream.executions.has(this))
+    if (forgeStream.settled.has(this))
       return false;
     for (const iForgeTrigger of this._iForgeTriggers) {
       if (await iForgeTrigger.$trigger(forgeStream))
@@ -37835,8 +37834,8 @@ var ForgeAction = class _ForgeAction extends Subscription {
       }, delay);
       completeDelay = Math.max(delay, completeDelay);
     }
-    return new Promise(function(resolve) {
-      setTimeout(resolve, completeDelay);
+    return new Promise(function(resolve2) {
+      setTimeout(resolve2, completeDelay);
     });
   }
   write(header, data) {
@@ -38176,14 +38175,14 @@ var $fs2 = require("fs").promises;
 var mimeTypes2 = require_mime_types();
 DebugFormatter.Init({ platform: "node" });
 async function $ParseRequestBody(request) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function(resolve2, reject) {
     const buffers = [];
     request.on("data", (chunk) => {
       buffers.push(chunk);
     }).on("end", () => {
       const mime = request.get("Content-Type");
       const buffer = Buffer.concat(buffers);
-      resolve({ mime, buffer });
+      resolve2({ mime, buffer });
     });
   });
 }
@@ -38421,18 +38420,34 @@ var ActionStdioType = /* @__PURE__ */ ((ActionStdioType2) => {
 var AbstractServiceAdapter = class extends Subscription {
   _name;
   _key;
-  _race;
   _reboot;
+  _race = /* @__PURE__ */ new Map();
   _sessions = /* @__PURE__ */ new Map();
   _bindings = /* @__PURE__ */ new Map();
   constructor(name, config) {
     super();
     this._name = name;
     this._key = config.key || QuickHash();
-    this._race = config.race;
+    const race = config.race;
+    if (isNaN(race) === false) {
+      this._race.set(/.*/, race);
+    } else if (typeof race === "object") {
+      for (const [key, value] of Object.entries(race)) {
+        this._race.set(new RegExp(key), value);
+      }
+    } else {
+      throw new Error(`Invalid race value: ${race}`);
+    }
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
     this._bindings.set(this._pipeError, this._pipeError.bind(this));
     this._bindings.set(this.read, this.read.bind(this));
+  }
+  _getRace(signal) {
+    for (const [regExp, race] of this._race) {
+      if (regExp.test(signal))
+        return race;
+    }
+    throw `"${signal}" does not have a race`;
   }
   _pipeStdio(message) {
     const lines = String(message).split(/\r\n|\r|\n/g);
@@ -38448,7 +38463,7 @@ var AbstractServiceAdapter = class extends Subscription {
           output.push(line);
       }
     }
-    if (output.length) {
+    if (output.length && false) {
       console.parse(`<cyan>${output.join("\n")}</cyan>`);
     }
   }
@@ -38470,9 +38485,11 @@ var AbstractServiceAdapter = class extends Subscription {
       console.parse(`<magenta>${output.join("\n")}</magenta>`);
     }
   }
-  get race() {
-    return this._race;
-  }
+  /* get race(): number {
+  
+          return this._race;
+  
+      } */
   read(message) {
     try {
       const [protocol, header, data] = message;
@@ -38518,9 +38535,8 @@ var AbstractServiceAdapter = class extends Subscription {
   $signal(signal, data, race) {
     const session = QuickHash();
     const sessions = this._sessions;
-    const $race = $UseRace(race || this._race);
+    const $race = $UseRace(this._getRace(signal));
     $race[0].then(function() {
-      console.parse(`<green>AbstractServiceAdapter.$signal ( ... ) session resolved <cyan>"${signal}"</cyan></green>`);
     }).catch(function(error) {
       console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", error.message);
     }).finally(function() {
@@ -38573,13 +38589,13 @@ var ExecService = class extends AbstractServiceAdapter {
     const pipeStdio = this._bindings.get(this._pipeStdio);
     const pipeError = this._bindings.get(this._pipeError);
     const command = this._command.replace(/\{\{command\}\}/g, data.command);
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve2, reject) {
       const child = exec2(command, { stdio: "pipe" });
       child.on("exit", function(error, stdout, stderr) {
         if (error) {
           reject({ name, "reject": `execution error (${error})` });
         } else {
-          resolve({ name, "resolve": "successfully executed" });
+          resolve2({ name, "resolve": "successfully executed" });
         }
       });
       child.stdout.on("data", pipeStdio);
@@ -38926,11 +38942,10 @@ var Forge3 = class {
     }
     return { reset: await Promise.allSettled($promises) };
   }
-  async $signal(signal, data) {
+  async $signal(signal, data, race) {
     if (data === void 0)
       throw new Error(`Forge.$signal("${signal}", data ) \`data\` parameter is undefined`);
-    const results = await this._forgeStream.$signal(signal, data);
-    return results;
+    return this._forgeStream.$signal(signal, data, race);
   }
   abort() {
   }
@@ -39009,7 +39024,8 @@ if (require.main === module) {
       const watch = config?.forge?.watch;
       console.log(PORT, WWW_ROOT, WATCH);
     }).catch(function(error) {
-      console.parse(`<red>${error.message}`);
+      console.parse(`<red>${error.message}</red>`);
+      process.exit(1);
     });
     if (WWW_ROOT) {
       const forgeServer = await forge.$serve(PORT, WWW_ROOT);

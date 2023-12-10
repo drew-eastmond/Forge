@@ -383,13 +383,11 @@ export class Forge {
 
     }
 
-    public async $signal(signal: string, data: Serialize): Promise<Serialize> {
+    public async $signal(signal: string, data: Serialize, race?: number): Promise<Serialize> {
 
         if (data === undefined) throw new Error(`Forge.$signal("${signal}", data ) \`data\` parameter is undefined`);
 
-        const results: Serialize = await this._forgeStream.$signal(signal, data);
-
-        return results;
+        return this._forgeStream.$signal(signal, data, race);
 
     }
 
