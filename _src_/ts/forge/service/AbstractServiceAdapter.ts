@@ -3,9 +3,8 @@ import { ISubscription, Subscription } from "../../core/Subscription";
 
 const __ForgeProtocol: string = "forge://";
 
-enum ActionStdioType {
+enum StdioOption {
 
-    Default = "pipe",
     Pipe = "pipe",
     Inherit = "inherit",
     Silent = "silent"
@@ -15,6 +14,7 @@ enum ActionStdioType {
 export type ServiceConfig = {
     command?: string
     debounce?: number,
+    stdio?: string,
     race?: number | Record<string, number>,
 
     key?: string,
@@ -23,7 +23,6 @@ export type ServiceConfig = {
 }
 
 export interface IServiceAdapter extends ISubscription {
-    get race(): number;
 
     read(message: [string, Record<string, unknown>, Serialize]): void;
 
@@ -33,7 +32,7 @@ export interface IServiceAdapter extends ISubscription {
 
     $reset(data: Serialize): Promise<Serialize>;
 
-    $signal(signal: string, data: Serialize, race: number): Promise<Serialize>;
+    $signal(signal: string, data: Serialize, race?: number): Promise<Serialize>;
 
     $reboot();
 
@@ -44,6 +43,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     protected _name: string;
     protected _key: string;
     protected _reboot: boolean;
+    protected _stdio: StdioOption;
 
     protected readonly _race: Map<RegExp, number> = new Map();
 
@@ -78,6 +78,20 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         }
 
+        const stdio: string = config.stdio || "pipe";
+        switch (stdio.toLowerCase()) {
+            case "pipe":
+                this._stdio = StdioOption.Pipe;
+                break;
+            case "inherit":
+                this._stdio = StdioOption.Inherit;
+                break;
+            case "silent":
+                this._stdio = StdioOption.Silent;
+                break;
+            default:
+                throw new Error(`Invalid stdio option ( "pipe" | "inherit" | "silent" ): ${config.stdio}`);
+        }
         
 
         this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
@@ -123,7 +137,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
 
         }
 
-        if (output.length && false) {
+        if (output.length && (this._stdio == "pipe" || this._stdio == "inherit")) {
 
             console.parse(`<cyan>${output.join("\n")}</cyan>`);
 

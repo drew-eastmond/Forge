@@ -9273,6 +9273,20 @@ var AbstractServiceAdapter = class extends Subscription {
     } else {
       throw new Error(`Invalid race value: ${race}`);
     }
+    const stdio = config.stdio || "pipe";
+    switch (stdio.toLowerCase()) {
+      case "pipe":
+        this._stdio = "pipe" /* Pipe */;
+        break;
+      case "inherit":
+        this._stdio = "inherit" /* Inherit */;
+        break;
+      case "silent":
+        this._stdio = "silent" /* Silent */;
+        break;
+      default:
+        throw new Error(`Invalid stdio option ( "pipe" | "inherit" | "silent" ): ${config.stdio}`);
+    }
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
     this._bindings.set(this._pipeError, this._pipeError.bind(this));
     this._bindings.set(this.read, this.read.bind(this));
@@ -9298,7 +9312,7 @@ var AbstractServiceAdapter = class extends Subscription {
           output.push(line);
       }
     }
-    if (output.length && false) {
+    if (output.length && (this._stdio == "pipe" || this._stdio == "inherit")) {
       console.parse(`<cyan>${output.join("\n")}</cyan>`);
     }
   }
