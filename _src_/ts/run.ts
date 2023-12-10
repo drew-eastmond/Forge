@@ -111,7 +111,7 @@ if (require.main === module) {
 				const config: Record<string, any> = forge.parse(fileData);
 
 				// override 
-				console.log(config?.forge?.serve?.port, PORT);
+				// console.log(config?.forge?.serve?.port, PORT);
 				const port: number = config?.forge?.serve?.port;
 				if (isNaN(port) === false) PORT = port;
 
@@ -122,7 +122,7 @@ if (require.main === module) {
 				const watch: string[] = config?.forge?.watch;
 				// if (watch && watch.constructor === Array) WATCH.concat(watch);
 
-				console.log(PORT, WWW_ROOT, WATCH);
+				console.log(`PORT (${PORT}), WWW_ROOT (${WWW_ROOT}), WATCH (${WATCH})`);
 
 			})
 			.catch(function (error: unknown) {

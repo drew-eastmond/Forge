@@ -38244,7 +38244,7 @@ var ForgeServer2 = class {
       }
     }
     $fs2.writeFile("./backup.json", JSON.stringify(saveObj));
-    console.parse("<red>saved</red>");
+    console.parse("<red>saved backup/session file (<yellow>./backup.json</yellow>)</red>");
   }.bind(this);
   async _$setupServer(port) {
     this._app = express();
@@ -38410,17 +38410,17 @@ var ForgeServer2 = class {
 
 // forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
 var __ForgeProtocol = "forge://";
-var ActionStdioType = /* @__PURE__ */ ((ActionStdioType2) => {
-  ActionStdioType2["Default"] = "pipe";
-  ActionStdioType2["Pipe"] = "pipe";
-  ActionStdioType2["Inherit"] = "inherit";
-  ActionStdioType2["Silent"] = "silent";
-  return ActionStdioType2;
-})(ActionStdioType || {});
+var StdioOption = /* @__PURE__ */ ((StdioOption2) => {
+  StdioOption2["Pipe"] = "pipe";
+  StdioOption2["Inherit"] = "inherit";
+  StdioOption2["Silent"] = "silent";
+  return StdioOption2;
+})(StdioOption || {});
 var AbstractServiceAdapter = class extends Subscription {
   _name;
   _key;
   _reboot;
+  _stdio;
   _race = /* @__PURE__ */ new Map();
   _sessions = /* @__PURE__ */ new Map();
   _bindings = /* @__PURE__ */ new Map();
@@ -38437,6 +38437,20 @@ var AbstractServiceAdapter = class extends Subscription {
       }
     } else {
       throw new Error(`Invalid race value: ${race}`);
+    }
+    const stdio = config.stdio || "pipe";
+    switch (stdio.toLowerCase()) {
+      case "pipe":
+        this._stdio = "pipe" /* Pipe */;
+        break;
+      case "inherit":
+        this._stdio = "inherit" /* Inherit */;
+        break;
+      case "silent":
+        this._stdio = "silent" /* Silent */;
+        break;
+      default:
+        throw new Error(`Invalid stdio option ( "pipe" | "inherit" | "silent" ): ${config.stdio}`);
     }
     this._bindings.set(this._pipeStdio, this._pipeStdio.bind(this));
     this._bindings.set(this._pipeError, this._pipeError.bind(this));
@@ -38463,7 +38477,7 @@ var AbstractServiceAdapter = class extends Subscription {
           output.push(line);
       }
     }
-    if (output.length && false) {
+    if (output.length && (this._stdio == "pipe" || this._stdio == "inherit")) {
       console.parse(`<cyan>${output.join("\n")}</cyan>`);
     }
   }
@@ -39014,7 +39028,6 @@ if (require.main === module) {
     const forge = new Forge3();
     await $fs4.readFile(".forge", "utf-8").then(async function(fileData) {
       const config = forge.parse(fileData);
-      console.log(config?.forge?.serve?.port, PORT);
       const port = config?.forge?.serve?.port;
       if (isNaN(port) === false)
         PORT = port;
@@ -39022,7 +39035,7 @@ if (require.main === module) {
       if (wwwRoot && await ForgeIO.File.$DirectoryExists(wwwRoot))
         WWW_ROOT = wwwRoot;
       const watch = config?.forge?.watch;
-      console.log(PORT, WWW_ROOT, WATCH);
+      console.log(`PORT (${PORT}), WWW_ROOT (${WWW_ROOT}), WATCH (${WATCH})`);
     }).catch(function(error) {
       console.parse(`<red>${error.message}</red>`);
       process.exit(1);

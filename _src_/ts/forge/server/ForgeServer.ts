@@ -165,7 +165,7 @@ export class ForgeServer {
         }
 
         $fs.writeFile("./backup.json", JSON.stringify(saveObj));
-        console.parse("<red>saved</red>")
+        console.parse("<red>saved backup/session file (<yellow>./backup.json</yellow>)</red>")
 
     }.bind(this);
 
