@@ -127,7 +127,8 @@ if (require.main === module) {
 			})
 			.catch(function (error: unknown) {
 
-				console.parse(`<red>${error.message}`);
+				console.parse(`<red>${error.message}</red>`);
+				process.exit(1);
 
 			});
 

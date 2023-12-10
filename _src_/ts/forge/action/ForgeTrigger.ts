@@ -148,7 +148,7 @@ export class ResolveTrigger implements IForgeTrigger {
 
                 const iAction: IAction = forgeStream.find(task, action);
 
-                if (forgeStream.executions.has(iAction)) return true;
+                if (forgeStream.settled.has(iAction)) return true;
 
             }
 
@@ -159,7 +159,7 @@ export class ResolveTrigger implements IForgeTrigger {
 
                 const iAction: IAction = forgeStream.find(task, action);
 
-                if (forgeStream.executions.has(iAction) === false) allSettled = false;
+                if (forgeStream.settled.has(iAction) === false) allSettled = false;
 
             }
 
@@ -240,7 +240,7 @@ export class SettledTrigger implements IForgeTrigger {
 
                 const iAction: IAction = forgeStream.find(task, action);
 
-                if (forgeStream.executions.has(iAction)) return true;
+                if (forgeStream.settled.has(iAction)) return true;
 
             }
 
@@ -251,7 +251,7 @@ export class SettledTrigger implements IForgeTrigger {
 
                 const iAction: IAction = forgeStream.find(task, action);
 
-                if (forgeStream.executions.has(iAction) === false) allSettled = false;
+                if (forgeStream.settled.has(iAction) === false) allSettled = false;
 
             }
 
