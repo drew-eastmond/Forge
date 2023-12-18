@@ -277,7 +277,7 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
             })
             .catch(function (error: unknown) {
 
-                console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", error.message);
+                console.parse("<yellow>$signal <cyan>race</cyan> exception caught :</yellow>", (error as Error).message);
 
             })
             .finally(function () {
@@ -296,6 +296,25 @@ export class AbstractServiceAdapter extends Subscription implements IServiceAdap
     }
 
     public async $reboot(): Promise<void> {
+
+    }
+
+    public async $route(route: string, params: Serialize): Promise<{ mime: string, buffer: Buffer }> {
+
+        return this.$signal("route", { route, params }, this._getRace("route"))
+            .then(async function (data: Serialize) {
+
+                const { mime, contents } = data as { mime: string, contents: string };
+                return { mime, buffer: Buffer.from(contents, "base64") };
+
+            })
+            .catch(function (error: unknown) {
+
+                console.log(error);
+
+                return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
+
+            }) as Promise<{ mime: string, buffer: Buffer }>;
 
     }
 

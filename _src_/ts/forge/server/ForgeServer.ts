@@ -260,7 +260,9 @@ export class ForgeServer {
 
         }.bind(this));
 
-        this._app.all("/:task/:action/*", async function (request, response, next: Function) {
+        this._app.all("/:task/*", async function (request, response, next: Function) {
+
+            console.log(`\nTASK ROUTE\n`);
 
             const route: string = request.params[0];
 
@@ -271,7 +273,9 @@ export class ForgeServer {
             const fileName: string = path.resolve(taskName, file);
             const query: any = request.query;
 
-            const tasks = this._forge.tasks();
+            const tasks: Map<string, ForgeTask> = this._forge.tasks();
+
+            console.log(tasks.keys(), taskName);
 
             const forgeTask: ForgeTask = tasks.get(taskName);
             if (forgeTask === undefined) {
@@ -283,7 +287,7 @@ export class ForgeServer {
                 return;
 
             }
-
+            
             const iAction: IAction = forgeTask.actions().get(actionName);
 
             console.parse(`<green>has :task/:actions > <cyan>"${taskName}"</cyan>/<cyan>"${actionName}"</cyan> from <cyan>[ ${Array.from(forgeTask.actions().keys())} ]</cyan></green>\n\n`);
@@ -393,7 +397,7 @@ export class ForgeServer {
             }.bind(this))
             .catch(function (error: unknown) {
 
-                console.parse(`<cyan>back up file failed\n<yellow>${error.message}`);
+                console.parse(`<cyan>back up file failed\n<yellow>${(error as Error).message}`);
 
             })
             .finally(function () {

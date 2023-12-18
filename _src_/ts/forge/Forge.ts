@@ -68,7 +68,7 @@ export class Forge {
                 // Validate required parameters for command and race
 
                 if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for SPAWN service "${key}"`);
-                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
+                if (serviceConfig.race === undefined) errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
 
                 // truthfully, we dont really use the return value
                 const service: IServiceAdapter = this.spawn(key, serviceConfig);
@@ -85,7 +85,7 @@ export class Forge {
                 // Validate required parameters for command and race
 
                 if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for FORK service "${key}"`);
-                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
+                if (serviceConfig.race === undefined) errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
 
                 // truthfully, we dont really use the return value
                 const service: IServiceAdapter = this.fork(key, serviceConfig);
@@ -101,7 +101,7 @@ export class Forge {
                 // Validate required parameters for command and race
 
                 if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for EXEC service "${key}"`);
-                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for EXEC service "${key}"`);
+                if (serviceConfig.race === undefined) errors.push(`Invalid \`race\` parameter provided for EXEC service "${key}"`);
 
                 // truthfully, we dont really use the return value
                 const service: IServiceAdapter = this.exec(key, serviceConfig);
@@ -117,7 +117,7 @@ export class Forge {
                 // Validate required parameters for command and race
 
                 if (serviceConfig.command === undefined) errors.push(`Invalid \`command\` parameter provided for PLUGIN service "${key}"`);
-                if (isNaN(serviceConfig.race)) errors.push(`Invalid \`race\` parameter provided for PLUGIN service "${key}"`);
+                if (serviceConfig.race === undefined) errors.push(`Invalid \`race\` parameter provided for PLUGIN service "${key}"`);
 
                 // truthfully, we dont really use the return value
                 const service: IServiceAdapter = this.plugin(key, serviceConfig);

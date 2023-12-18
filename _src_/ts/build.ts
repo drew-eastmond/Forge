@@ -16,11 +16,14 @@ import { Format, Platform, build as esBuild } from "esbuild";
 * imports
 *
 */
-import { DependencyHelper } from "./util/DependencyHelper";
+import { DependencyHelper } from "./forge/build/DependencyHelper";
 import { CLIArguments } from "./core/Argument";
 import { DebugFormatter } from "./core/Debug";
 import { ForgeClient } from "./forge/ForgeClient";
 import { QuickHash, Serialize } from "./core/Core";
+import { chown } from "fs/promises";
+import { ForgeBuildPlugin, IForgeBuildPlugin } from "./forge/build/ForgeBuildPlugin";
+import plugin = require("../../../plugin");
 
 /*
 *
@@ -40,7 +43,7 @@ const REQUEST_TIMEOUT: number = 125;
 
 /*
 *
-*  types / enums
+*  types / enums / interfaces
 *
 */
 type EsbuildResult = {
@@ -58,7 +61,7 @@ type BuildOptions = {
     metafile: boolean,
     treeShaking: boolean,
     external: string[],
-    run: boolean
+    plugins: IForgeBuildPlugin[],
 }
 
 /*
@@ -70,7 +73,13 @@ function SanitizeFileUrl(...rest: string[]) {
 
     let resolvedUrl: string = path.resolve(...rest);
     resolvedUrl = (/\.\w+$/.test(resolvedUrl)) ? resolvedUrl : resolvedUrl + ".ts";
-    return resolvedUrl.replace(/[\\\/]+/g, "/");
+    return path.relative(__dirname, resolvedUrl.replace(/[\\\/]+/g, "/"));
+
+}
+
+function FilterNodeModules(file: string): boolean {
+
+
 
 }
 
@@ -106,7 +115,7 @@ async function $SaveMetaFile(entryFile: string, outFile: string, fileManifest: s
 
 }
 
-async function $SortDependencies(code: string, storeKey: string, fileManifest: string[]): Promise<string> {
+async function $SortDependencies(code: string, storeKey: string, fileManifest: string[], plugins: IForgeBuildPlugin[], inputs: Record<string, unknown>): Promise<string> {
 
     // now extract any modified dependencies
     return await fetch(`${API_BASE}/storage/load/${storeKey}/dependencies`, {
@@ -131,19 +140,19 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             }
 
             // split the compiled code into segments using 
-            const compiledSegments: string[] = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
-            const header: string = compiledSegments[0];
+            const compiledSections: string[] = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
+            const headerSection: string = compiledSections[0];
 
-            const segmentMap: Map<string, string> = new Map();
-            for (let i = 1; i < compiledSegments.length; i += 2) {
+            const sectionMap: Map<string, string> = new Map();
+            for (let i = 1; i < compiledSections.length; i += 2) {
 
                 for (const file of fileManifest) {
 
-                    const importName = SanitizeFileUrl(compiledSegments[i]);
+                    const importName: string = SanitizeFileUrl(compiledSections[i]);
 
                     if (file.indexOf(importName) == 0) {
 
-                        segmentMap.set(file, compiledSegments[i + 1]);
+                        sectionMap.set(file, compiledSections[i + 1]);
                         break;
 
                     }
@@ -152,37 +161,82 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
             }
 
-            let output: string = header;
+            let output: string = "";
+
+            /*
+             *  tranform the header
+             */
+            let header: string = `// (Forge) Header\n\n${headerSection}`;
+            for (const plugin of plugins) header = await plugin.$header(header);
+            output += header;
+
+            /*
+             *  Transform each section
+             */
             for (const nodeData of dependencyHelper) {
 
                 const file: string = nodeData.title;
-                output += `// (Forge) ${file}\n` + segmentMap.get(file); // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+                let section: string = `// (Forge) ${file}\n${sectionMap.get(file)}`;
 
+                for (const plugin of plugins) section = await plugin.$section(section, file);
+
+                output += section; // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+                
             }
+
+            /*
+             *  Tranform the footer
+             */
+            let footer: string = "// (Forge) Footer\n\n";
+            for (const plugin of plugins) footer = await plugin.$footer(footer);
+            output += footer;
+
 
             return output;
 
-            // let output = JSON.stringify(Array.from(dependencyMap.entries())) + "\n";
-            /*output += fs.readFileSync("./_src_/_templates_/header.js") + "\n\n" + header + "\n\n";
-            for (const file of sortedManifest) {
+        })
+        .catch(async function (error: unknown) {
 
-                output += `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+            if (plugins.length === 0) return code;
+
+            const compiledSections: string[] = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
+            const headerSection: string = compiledSections[0];
+
+
+            let output: string = "";
+
+            /*
+             *  tranform the header
+             */
+            let header: string = `// (Forge) Header\n\n${headerSection}`;
+            for (const plugin of plugins) header = await plugin.$header(header);
+            output += header;
+
+            /*
+             *  Transform each section
+             */
+            for (let i = 1; i < compiledSections.length; i += 2) {
+
+                const importName: string = SanitizeFileUrl(compiledSections[i]);
+                let section: string = `// (Forge) ${importName}\n${compiledSections[i + 1]}`;
+
+                for (const plugin of plugins) section = await plugin.$section(section, importName);
+
+                output += section; // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
 
             }
 
-            output += "\n" + fs.readFileSync("./_src_/_templates_/footer.js"); */
+            /*
+             *  Tranform the footer
+             */
+            let footer: string = "// (Forge) Footer\n\n";
+            for (const plugin of plugins) footer = await plugin.$footer(footer);
+            output += footer;
 
-        })
-        .catch(function (error: unknown) {
 
-            // no storeKey, no need to change any of the code 
-            return code;
+            return output;
 
         });
-
-
-            // flatten then entries then intersect each entry. We may have added to removed files.
-            // The dependencies are a conveient way to help reorder the imported files
 
 }
 
@@ -203,15 +257,18 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
         outdir: outFilePath.dir,
 
         treeShaking: options.treeShaking,
-        // outfile: outFile,
+        // outfile: "./drew-tester.js",
         // sourcemap: "linked"
-
+        // target: ["node18"],
 
         // plugins: [yourPlugin]
         external: ["esbuild", ...options.external]
     });
 
     const fileManifest: string[] = Object.keys(result.metafile.inputs);
+
+    console.log(result.metafile.inputs["forge/_src_/ts/forge/Forge.ts"]); // ["_src_\ts\core\Core.ts"]);
+    process.exit(1);
 
     let code: string;
     for (const out of result.outputFiles) {
@@ -227,7 +284,7 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
         return /node_modules/.test(value) === false;
 
-    }));
+    }), options.plugins);
 
     if (outFile !== undefined) {
 
@@ -239,9 +296,7 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 \t* ${(options.bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 \t* <cyan>format</cyan> : ${options.format}
 \t* <cyan>platform</cyan> : ${options.platform}
-\t* <cyan>tree shaking</cyan> : ${options.treeShaking || false}
-\t* <cyan>run</cyan> : ${options.run || false}
-`);
+\t* <cyan>tree shaking</cyan> : ${options.treeShaking || false}`);
 
     return code;
 
@@ -286,8 +341,6 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
         .add("in", {
             // required: true,
             validate: (value: unknown, args: Record<string, unknown>) => {
-
-                console.log()
 
                 return Object.hasOwn(args, "in");
 
@@ -350,11 +403,16 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
 
                 if (args.plugins === undefined) return [];
 
+                const plugins: IForgeBuildPlugin[] = []; 
 
+                const sources: string[] = (args.plugins as string).split(",");
+                for (const source of sources) {
 
-                // if (fs.existsSync(args.out) === false) return `\u001b[31;1m(Aborting) To prevent accidentally overwritting compile target \u001b[36;1m--out--\u001b[0m. \u001b[31;1mPlease add \u001b[36;1m--override\u001b[0m \u001b[31;1margument\u001b[0m\n`;
+                    plugins.push(new ForgeBuildPlugin(source));
 
-                return true;
+                }
+
+                return plugins;
 
             },
         })
@@ -399,7 +457,22 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     const fork: boolean = cliArguments.get("fork") as boolean;
     const run: boolean = cliArguments.get("run") as boolean;
     // const worker: boolean = cliArguments.get("worker") as boolean; 
-    // const plugins: IForgePlugin = cliArguments.get(/plugins/i) as IForgePlugin;
+    const plugins: IForgeBuildPlugin[] = cliArguments.get(/plugins/i) as IForgeBuildPlugin[];
+
+    /* console.log(plugins);
+    for (const plugin of plugins) {
+
+        await plugin.$start([""]);
+
+        console.log(await plugin.$header(""));
+        console.log(await plugin.$section(""));
+        console.log(await plugin.$footer(""));
+
+        console.log(await plugin.$complete(""));
+
+    }
+    console.log(plugins);
+    process.exit(); */
 
     // parse the folder and filename from the --out-- CLI arguments
     // const outFilePath = path.parse(outFile);
@@ -416,63 +489,22 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
 
     } else {
 
-        const code: string = await $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals, run });
+        const code: string = await $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals, run, plugins });
 
         if (run) {
 
-            const tempFile: string = `./forge-temp-run.${Date.now()}.${QuickHash()}.js`;
-            await $fs.writeFile(tempFile, code);
+            /*
+             *  Spawn a node instance ( fresh Node enviroment ) and eval the code. No need to create a temp file, but unlimted messaging size
+             */
+            const child = spawn("node", ["-e", `
+                // process.stdin.setEncoding("utf-8");
+                process.stdin.on("data", (data) => { eval(String(data))});` ], { stdio: ['pipe', 'inherit', 'inherit'] }); 
 
-            process.on("exit", function () {
-
-                console.parse(`\n<yellow>unlinking <cyan>${tempFile}`);
-                fs.unlinkSync(tempFile);
-
-            });
-
-            process.on('SIGINT', function () {
-
-                console.log("Caught interrupt signal");
-
-                process.exit();
-
-            });
-
-            try {
-
-                execSync(`node ${tempFile}`, {
-                    stdio: "inherit",
-                    cwd: process.cwd()
-                });
-
-            } catch (error: unknown) {
-
-
-
-            }
-
-            
-
-
-
-
-            return;
-
-            // const child = eval(code);
-            // var script = new vm.Script(code);
-            // script.runInThisContext(); //  ({ require, process, module });
-
-            const cloneGlobal = () => Object.defineProperties(
-                { ...global },
-                Object.getOwnPropertyDescriptors(global)
-            )
-
-            const context = vm.createContext(cloneGlobal());
-
-            const vmResult = vm.runInNewContext(code, context); //  { ...global, ...process, require, process, module, console });
-
+            child.stdin.write(code);
 
         }
+
+        console.parse(`\t<green>* <cyan>run</cyan> : ${run || false}`);
 
     }
 

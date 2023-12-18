@@ -18,7 +18,7 @@ DebugFormatter.Init({ platform: "node" });
 
 }); */
 
-if (require.main === module) {
+if (require.main === module || true) {
 
 	(async function () {
 
@@ -127,7 +127,7 @@ if (require.main === module) {
 			})
 			.catch(function (error: unknown) {
 
-				console.parse(`<red>${error.message}</red>`);
+				console.parse(`<red>${(error as Error).message}</red>`);
 				process.exit(1);
 
 			});

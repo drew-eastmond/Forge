@@ -170,6 +170,7 @@ const forgeTpl: Record<string, unknown> = {
     variables: {},
     services: {
         spawn: {},
+        worker: {},
         fork: {},
         exec: {},
         plugin: {}
@@ -478,7 +479,7 @@ if (require.main === module) {
 
         if (cliArguments.get(/tailwindcss/i)) {
 
-            InstallPackage("tailwindcss");
+            await $InstallModule("tailwindcss");
             execSync("npx tailwindcss init");
 
             $fs.writeFile(path.resolve(currentPath, ".forge"), JSON.stringify(forgeTpl));
@@ -487,7 +488,7 @@ if (require.main === module) {
 
         if (cliArguments.get(/twig/i)) {
 
-            InstallPackage("twig");
+            $InstallModule("twig");
 
         }
 
