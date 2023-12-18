@@ -1,3 +1,7 @@
+console.log("Drew is sooo coool");
+
+// (Forge) Header
+
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
@@ -36434,7 +36438,8 @@ var require_compression = __commonJS({
   }
 });
 
-// forge/_src_/ts/core/Core.ts
+// (Forge) _src_\ts\core\Core.ts
+
 var __HashCount = 0;
 function __CatchException(error) {
   return error;
@@ -36513,7 +36518,8 @@ function $UseRace(delay, capture) {
   return [promise, resolveCallback, rejectCallback];
 }
 
-// forge/_src_/ts/core/Argument.ts
+// (Forge) _src_\ts\core\Argument.ts
+
 var AbstractArguments = class {
   _args = {};
   _validationMap = /* @__PURE__ */ new Map();
@@ -36714,7 +36720,8 @@ var CompositeArguments = class extends AbstractArguments {
   }
 };
 
-// forge/_src_/ts/core/Debug.ts
+// (Forge) _src_\ts\core\Debug.ts
+
 var DebugForeground = /* @__PURE__ */ ((DebugForeground2) => {
   DebugForeground2["Black"] = "\x1B[30m";
   DebugForeground2["Red"] = "\x1B[31m";
@@ -36921,7 +36928,8 @@ console.parse = function(...rest) {
   }));
 };
 
-// forge/_src_/ts/forge/io/ForgeIO.ts
+// (Forge) _src_\ts\forge\io\ForgeIO.ts
+
 var $fs = require("node:fs/promises");
 var fs = require("fs");
 var path = require("path");
@@ -37092,7 +37100,8 @@ var ForgeIO = class _ForgeIO {
   }
 };
 
-// forge/_src_/ts/forge/ForgeStream.ts
+// (Forge) _src_\ts\forge\ForgeStream.ts
+
 var ForgeStream = class {
   _tasks = /* @__PURE__ */ new Map();
   _iActions = /* @__PURE__ */ new Map();
@@ -37211,7 +37220,8 @@ var ForgeStream = class {
   }
 };
 
-// forge/_src_/ts/core/PoolManager.ts
+// (Forge) _src_\ts\core\PoolManager.ts
+
 var PoolManager = class _PoolManager {
   static __ClassMap = /* @__PURE__ */ new Map();
   // @-ts-expect-errors
@@ -37270,7 +37280,8 @@ var PoolManager = class _PoolManager {
   }
 };
 
-// forge/_src_/ts/core/Subscription.ts
+// (Forge) _src_\ts\core\Subscription.ts
+
 var Unsubscribe = new class {
 }();
 var Subscription = class {
@@ -37386,7 +37397,8 @@ var Subscription = class {
   }
 };
 
-// forge/_src_/ts/forge/server/route/ForgeRoute.ts
+// (Forge) _src_\ts\forge\server\route\ForgeRoute.ts
+
 var path2 = require("path");
 var url = require("url");
 var mimeTypes = require_mime_types();
@@ -37593,7 +37605,8 @@ var ForgeRouter = class {
   }
 };
 
-// forge/_src_/ts/forge/action/ForgeTrigger.ts
+// (Forge) _src_\ts\forge\action\ForgeTrigger.ts
+
 var ResolverValues = /* @__PURE__ */ ((ResolverValues2) => {
   ResolverValues2["Any"] = "any";
   ResolverValues2["All"] = "all";
@@ -37728,7 +37741,8 @@ var SettledTrigger = class {
   }
 };
 
-// forge/_src_/ts/forge/action/ForgeAction.ts
+// (Forge) _src_\ts\forge\action\ForgeAction.ts
+
 var ForgeAction = class _ForgeAction extends Subscription {
   static Parse(iServiceAdapter, actionData, data) {
     const route = actionData.route;
@@ -37852,7 +37866,8 @@ var ForgeAction = class _ForgeAction extends Subscription {
   }
 };
 
-// forge/_src_/ts/forge/ForgeTask.ts
+// (Forge) _src_\ts\forge\ForgeTask.ts
+
 var ForgeTask3 = class {
   _forge;
   _iActions = /* @__PURE__ */ new Map();
@@ -37908,7 +37923,8 @@ var ForgeTask3 = class {
   }
 };
 
-// forge/_src_/ts/core/timing/Debounce.ts
+// (Forge) _src_\ts\core\timing\Debounce.ts
+
 var Debouncer = class {
   _callbackMap = /* @__PURE__ */ new Map();
   constructor() {
@@ -37966,7 +37982,8 @@ var Debouncer = class {
   }
 };
 
-// forge/_src_/ts/core/collection/Tree.ts
+// (Forge) _src_\ts\core\collection\Tree.ts
+
 var Tree = class {
   _instanceSet = /* @__PURE__ */ new Set();
   _parentMap = /* @__PURE__ */ new Map();
@@ -38058,7 +38075,8 @@ var Tree = class {
   }
 };
 
-// forge/_src_/ts/forge/model/ForgeModel.ts
+// (Forge) _src_\ts\forge\model\ForgeModel.ts
+
 var ForgeStore = class {
   _iForgeModel;
   _id;
@@ -38166,7 +38184,8 @@ var ForgeModel = class {
   }
 };
 
-// forge/_src_/ts/forge/server/ForgeServer.ts
+// (Forge) _src_\ts\forge\server\ForgeServer.ts
+
 var express = require_express2();
 var compression = require_compression();
 var url2 = require("url");
@@ -38298,7 +38317,10 @@ var ForgeServer2 = class {
         response.sendStatus(404).end();
       }
     }.bind(this));
-    this._app.all("/:task/:action/*", async function(request, response, next) {
+    this._app.all("/:task/*", async function(request, response, next) {
+      console.log(`
+TASK ROUTE
+`);
       const route = request.params[0];
       const taskName = request.params.task;
       const actionName = request.params.action;
@@ -38306,6 +38328,7 @@ var ForgeServer2 = class {
       const fileName = path3.resolve(taskName, file);
       const query = request.query;
       const tasks = this._forge.tasks();
+      console.log(tasks.keys(), taskName);
       const forgeTask = tasks.get(taskName);
       if (forgeTask === void 0) {
         console.parse("<red>NO task</red>", taskName);
@@ -38408,7 +38431,8 @@ var ForgeServer2 = class {
   }
 };
 
-// forge/_src_/ts/forge/service/AbstractServiceAdapter.ts
+// (Forge) _src_\ts\forge\service\AbstractServiceAdapter.ts
+
 var __ForgeProtocol = "forge://";
 var StdioOption = /* @__PURE__ */ ((StdioOption2) => {
   StdioOption2["Pipe"] = "pipe";
@@ -38562,9 +38586,19 @@ var AbstractServiceAdapter = class extends Subscription {
   }
   async $reboot() {
   }
+  async $route(route, params) {
+    return this.$signal("route", { route, params }, this._getRace("route")).then(async function(data) {
+      const { mime, contents } = data;
+      return { mime, buffer: Buffer.from(contents, "base64") };
+    }).catch(function(error) {
+      console.log(error);
+      return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
+    });
+  }
 };
 
-// forge/_src_/ts/forge/service/ExecService.ts
+// (Forge) _src_\ts\forge\service\ExecService.ts
+
 var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
 var ExecService = class extends AbstractServiceAdapter {
   _source;
@@ -38621,7 +38655,8 @@ var ExecService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/forge/service/ForkService.ts
+// (Forge) _src_\ts\forge\service\ForkService.ts
+
 var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
 var ForkService = class extends AbstractServiceAdapter {
   _source;
@@ -38651,7 +38686,8 @@ var ForkService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/forge/service/SpawnService.ts
+// (Forge) _src_\ts\forge\service\SpawnService.ts
+
 var { spawn: spawn4, fork: fork4, exec: exec4, execSync: execSync4 } = require("child_process");
 var SpawnService = class extends AbstractServiceAdapter {
   _source;
@@ -38672,7 +38708,8 @@ var SpawnService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/core/Accessor.ts
+// (Forge) _src_\ts\core\Accessor.ts
+
 var Accessor = class {
   _source;
   _seperator;
@@ -38748,7 +38785,8 @@ var Accessor = class {
   }
 };
 
-// forge/_src_/ts/forge/service/PluginService.ts
+// (Forge) _src_\ts\forge\service\PluginService.ts
+
 var PluginService = class extends AbstractServiceAdapter {
   _source;
   _commands;
@@ -38782,7 +38820,8 @@ var PluginService = class extends AbstractServiceAdapter {
   }
 };
 
-// forge/_src_/ts/forge/Forge.ts
+// (Forge) _src_\ts\forge\Forge.ts
+
 var { spawn: spawn5, fork: fork5, exec: exec5, execSync: execSync5 } = require("child_process");
 var chokidar = require_chokidar();
 var $fs3 = require("fs").promises;
@@ -38808,7 +38847,7 @@ var Forge3 = class {
       for (const [key, serviceConfig] of Object.entries(spawnObj)) {
         if (serviceConfig.command === void 0)
           errors.push(`Invalid \`command\` parameter provided for SPAWN service "${key}"`);
-        if (isNaN(serviceConfig.race))
+        if (serviceConfig.race === void 0)
           errors.push(`Invalid \`race\` parameter provided for SPAWN service "${key}"`);
         const service = this.spawn(key, serviceConfig);
       }
@@ -38818,7 +38857,7 @@ var Forge3 = class {
       for (const [key, serviceConfig] of Object.entries(forkObj)) {
         if (serviceConfig.command === void 0)
           errors.push(`Invalid \`command\` parameter provided for FORK service "${key}"`);
-        if (isNaN(serviceConfig.race))
+        if (serviceConfig.race === void 0)
           errors.push(`Invalid \`race\` parameter provided for FORK service "${key}"`);
         const service = this.fork(key, serviceConfig);
       }
@@ -38828,7 +38867,7 @@ var Forge3 = class {
       for (const [key, serviceConfig] of Object.entries(execObj)) {
         if (serviceConfig.command === void 0)
           errors.push(`Invalid \`command\` parameter provided for EXEC service "${key}"`);
-        if (isNaN(serviceConfig.race))
+        if (serviceConfig.race === void 0)
           errors.push(`Invalid \`race\` parameter provided for EXEC service "${key}"`);
         const service = this.exec(key, serviceConfig);
       }
@@ -38838,7 +38877,7 @@ var Forge3 = class {
       for (const [key, serviceConfig] of Object.entries(pluginObj)) {
         if (serviceConfig.command === void 0)
           errors.push(`Invalid \`command\` parameter provided for PLUGIN service "${key}"`);
-        if (isNaN(serviceConfig.race))
+        if (serviceConfig.race === void 0)
           errors.push(`Invalid \`race\` parameter provided for PLUGIN service "${key}"`);
         const service = this.plugin(key, serviceConfig);
       }
@@ -38977,11 +39016,12 @@ var Forge3 = class {
   }
 };
 
-// forge/_src_/ts/run.ts
+// (Forge) _src_\ts\run.ts
+
 var fs2 = require("fs");
 var $fs4 = require("node:fs/promises");
 DebugFormatter.Init({ platform: "node" });
-if (require.main === module) {
+if (require.main === module || true) {
   (async function() {
     const compositeArguments = new CompositeArguments();
     compositeArguments.add(/^port$/i, {
@@ -39542,3 +39582,6 @@ compression/index.js:
    * MIT Licensed
    *)
 */
+console.log("templated")// (Forge) Footer
+
+

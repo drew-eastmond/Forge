@@ -8626,10 +8626,42 @@ var require_mime_types = __commonJS({
   }
 });
 
+// plugin.js
+var require_plugin = __commonJS({
+  "plugin.js"(exports, module2) {
+    module2.exports = {
+      $start: async function(input) {
+        console.log("plugin start", input);
+      },
+      $header: async function(content) {
+        console.log("plugin $header");
+        return `console.log("Drew is sooo coool");
+
+${content}`;
+      },
+      $section: async function(content, file) {
+        console.log("plugin $segment", file);
+        console.log(content);
+        process.exit(1);
+        return content;
+      },
+      $footer: async function(content) {
+        console.log("plugin $footer", content);
+        return `console.log("templated")${content}
+`;
+      },
+      $complete: async function(content) {
+        console.log("plugin $complete", content);
+        return content;
+      }
+    };
+  }
+});
+
 // Forge/_src_/ts/build.ts
 var import_esbuild = require("esbuild");
 
-// Forge/_src_/ts/util/DependencyHelper.ts
+// Forge/_src_/ts/forge/build/DependencyHelper.ts
 var DependencyHelper = class {
   constructor(dependencies) {
     this._count = 0;
@@ -9397,6 +9429,15 @@ var AbstractServiceAdapter = class extends Subscription {
   }
   async $reboot() {
   }
+  async $route(route, params) {
+    return this.$signal("route", { route, params }, this._getRace("route")).then(async function(data) {
+      const { mime: mime2, contents } = data;
+      return { mime: mime2, buffer: Buffer.from(contents, "base64") };
+    }).catch(function(error) {
+      console.log(error);
+      return { mime: "text/html", buffer: Buffer.from("route error", "utf8") };
+    });
+  }
 };
 
 // Forge/_src_/ts/forge/service/ForkService.ts
@@ -9527,18 +9568,59 @@ var ForgeClient = class extends Subscription {
   }
 };
 
+// Forge/_src_/ts/forge/build/ForgeBuildPlugin.ts
+var ForgeBuildPlugin = class {
+  constructor(source) {
+    if (source.constructor === String) {
+      this._source = require(source);
+    } else {
+      this._source = source;
+    }
+  }
+  async $start(inputs) {
+    if (this._source.$start instanceof Function) {
+      await this._source.$start(inputs);
+    }
+  }
+  async $header(content) {
+    if (this._source.$header instanceof Function) {
+      return await this._source.$header(content);
+    }
+    return content;
+  }
+  async $section(content, file) {
+    if (this._source.$section instanceof Function) {
+      return await this._source.$section(content, file);
+    }
+    return content;
+  }
+  async $footer(content) {
+    if (this._source.$footer instanceof Function) {
+      return await this._source.$footer(content);
+    }
+    return content;
+  }
+  async $complete(content) {
+    if (this._source.$complete instanceof Function) {
+      return await this._source.$complete(content);
+    }
+    return content;
+  }
+};
+
 // Forge/_src_/ts/build.ts
 var path2 = require("path");
 var fs = require("fs");
 var $fs2 = require("node:fs/promises");
 var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
 var vm = require("node:vm");
+var plugin = require_plugin();
 var API_BASE = "http://localhost:1234/esbuild/typescript";
 var REQUEST_TIMEOUT = 125;
 function SanitizeFileUrl(...rest) {
   let resolvedUrl = path2.resolve(...rest);
   resolvedUrl = /\.\w+$/.test(resolvedUrl) ? resolvedUrl : resolvedUrl + ".ts";
-  return resolvedUrl.replace(/[\\\/]+/g, "/");
+  return path2.relative(__dirname, resolvedUrl.replace(/[\\\/]+/g, "/"));
 }
 async function $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta) {
   if (writeMeta === true) {
@@ -9563,7 +9645,7 @@ meta data for "<white>${entryName}</white>" stored
       console.parse(`<red>${error.message}</red> from <cyan>${fetchURL}<cyan>`);
   });
 }
-async function $SortDependencies(code, storeKey, fileManifest) {
+async function $SortDependencies(code, storeKey, fileManifest, plugins, inputs) {
   return await fetch(`${API_BASE}/storage/load/${storeKey}/dependencies`, {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT)
   }).then(async function(response) {
@@ -9577,27 +9659,63 @@ async function $SortDependencies(code, storeKey, fileManifest) {
       default:
         throw new Error(`error fetching dependencies for "${storeKey}"`);
     }
-    const compiledSegments = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
-    const header = compiledSegments[0];
-    const segmentMap = /* @__PURE__ */ new Map();
-    for (let i = 1; i < compiledSegments.length; i += 2) {
+    const compiledSections = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
+    const headerSection = compiledSections[0];
+    const sectionMap = /* @__PURE__ */ new Map();
+    for (let i = 1; i < compiledSections.length; i += 2) {
       for (const file of fileManifest) {
-        const importName = SanitizeFileUrl(compiledSegments[i]);
+        const importName = SanitizeFileUrl(compiledSections[i]);
         if (file.indexOf(importName) == 0) {
-          segmentMap.set(file, compiledSegments[i + 1]);
+          sectionMap.set(file, compiledSections[i + 1]);
           break;
         }
       }
     }
-    let output = header;
+    let output = "";
+    let header = `// (Forge) Header
+
+${headerSection}`;
+    for (const plugin2 of plugins)
+      header = await plugin2.$header(header);
+    output += header;
     for (const nodeData of dependencyHelper) {
       const file = nodeData.title;
-      output += `// (Forge) ${file}
-` + segmentMap.get(file);
+      let section = `// (Forge) ${file}
+${sectionMap.get(file)}`;
+      for (const plugin2 of plugins)
+        section = await plugin2.$section(section, file);
+      output += section;
     }
+    let footer = "// (Forge) Footer\n\n";
+    for (const plugin2 of plugins)
+      footer = await plugin2.$footer(footer);
+    output += footer;
     return output;
-  }).catch(function(error) {
-    return code;
+  }).catch(async function(error) {
+    if (plugins.length === 0)
+      return code;
+    const compiledSections = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
+    const headerSection = compiledSections[0];
+    let output = "";
+    let header = `// (Forge) Header
+
+${headerSection}`;
+    for (const plugin2 of plugins)
+      header = await plugin2.$header(header);
+    output += header;
+    for (let i = 1; i < compiledSections.length; i += 2) {
+      const importName = SanitizeFileUrl(compiledSections[i]);
+      let section = `// (Forge) ${importName}
+${compiledSections[i + 1]}`;
+      for (const plugin2 of plugins)
+        section = await plugin2.$section(section, importName);
+      output += section;
+    }
+    let footer = "// (Forge) Footer\n\n";
+    for (const plugin2 of plugins)
+      footer = await plugin2.$footer(footer);
+    output += footer;
+    return output;
   });
 }
 async function $build(entryFile, outFile, options) {
@@ -9614,12 +9732,15 @@ async function $build(entryFile, outFile, options) {
     loader: { ".ts": "tsx", ".js": "jsx" },
     outdir: outFilePath.dir,
     treeShaking: options.treeShaking,
-    // outfile: outFile,
+    // outfile: "./drew-tester.js",
     // sourcemap: "linked"
+    // target: ["node18"],
     // plugins: [yourPlugin]
     external: ["esbuild", ...options.external]
   });
   const fileManifest = Object.keys(result.metafile.inputs);
+  console.log(result.metafile.inputs["forge/_src_/ts/forge/Forge.ts"]);
+  process.exit(1);
   let code;
   for (const out of result.outputFiles) {
     code = out.text;
@@ -9628,7 +9749,7 @@ async function $build(entryFile, outFile, options) {
   await $SaveMetaFile(entryFile, outFile, fileManifest, options.metafile);
   code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
     return /node_modules/.test(value) === false;
-  }));
+  }), options.plugins);
   if (outFile !== void 0) {
     await $fs2.writeFile(outFile, code);
   }
@@ -9636,9 +9757,7 @@ async function $build(entryFile, outFile, options) {
 	* ${options.bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 	* <cyan>format</cyan> : ${options.format}
 	* <cyan>platform</cyan> : ${options.platform}
-	* <cyan>tree shaking</cyan> : ${options.treeShaking || false}
-	* <cyan>run</cyan> : ${options.run || false}
-`);
+	* <cyan>tree shaking</cyan> : ${options.treeShaking || false}`);
   return code;
 }
 async function $watch(key, data) {
@@ -9665,7 +9784,6 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
   cliArguments.add("in", {
     // required: true,
     validate: (value, args) => {
-      console.log();
       return Object.hasOwn(args, "in");
     },
     error: `\x1B[31;1mMissing or incorrect \x1B[36;1m--in--\x1B[0m\x1B[31;1m argument\x1B[0m`
@@ -9709,7 +9827,12 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
     sanitize: (value, args) => {
       if (args.plugins === void 0)
         return [];
-      return true;
+      const plugins2 = [];
+      const sources = args.plugins.split(",");
+      for (const source of sources) {
+        plugins2.push(new ForgeBuildPlugin(source));
+      }
+      return plugins2;
     }
   }).add("external", {
     default: [],
@@ -9736,38 +9859,19 @@ DebugFormatter.Init({ platform: "node", default: { foreground: "", background: "
   const watch = cliArguments.get("watch");
   const fork4 = cliArguments.get("fork");
   const run = cliArguments.get("run");
+  const plugins = cliArguments.get(/plugins/i);
   if (watch) {
     $watch(cliArguments.get("key"), cliArguments.get(/data/i));
     return 0;
   } else {
-    const code = await $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals, run });
+    const code = await $build(entryFile, outFile, { bundled, format, platform, metafile: writeMeta, treeShaking: false, write: true, external: externals, run, plugins });
     if (run) {
-      const tempFile = `./forge-temp-run.${Date.now()}.${QuickHash()}.js`;
-      await $fs2.writeFile(tempFile, code);
-      process.on("exit", function() {
-        console.parse(`
-<yellow>unlinking <cyan>${tempFile}`);
-        fs.unlinkSync(tempFile);
-      });
-      process.on("SIGINT", function() {
-        console.log("Caught interrupt signal");
-        process.exit();
-      });
-      try {
-        execSync3(`node ${tempFile}`, {
-          stdio: "inherit",
-          cwd: process.cwd()
-        });
-      } catch (error) {
-      }
-      return;
-      const cloneGlobal = () => Object.defineProperties(
-        { ...global },
-        Object.getOwnPropertyDescriptors(global)
-      );
-      const context = vm.createContext(cloneGlobal());
-      const vmResult = vm.runInNewContext(code, context);
+      const child = spawn3("node", ["-e", `
+                // process.stdin.setEncoding("utf-8");
+                process.stdin.on("data", (data) => { eval(String(data))});`], { stdio: ["pipe", "inherit", "inherit"] });
+      child.stdin.write(code);
     }
+    console.parse(`	<green>* <cyan>run</cyan> : ${run || false}`);
   }
 })();
 /*! Bundled license information:
