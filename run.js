@@ -36438,7 +36438,7 @@ var require_compression = __commonJS({
   }
 });
 
-// (Forge) _src_\ts\core\Core.ts
+// (Forge) forge\_src_\ts\core\Core.ts
 
 var __HashCount = 0;
 function __CatchException(error) {
@@ -36518,7 +36518,8 @@ function $UseRace(delay, capture) {
   return [promise, resolveCallback, rejectCallback];
 }
 
-// (Forge) _src_\ts\core\Argument.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\Argument.ts
 
 var AbstractArguments = class {
   _args = {};
@@ -36720,7 +36721,8 @@ var CompositeArguments = class extends AbstractArguments {
   }
 };
 
-// (Forge) _src_\ts\core\Debug.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\Debug.ts
 
 var DebugForeground = /* @__PURE__ */ ((DebugForeground2) => {
   DebugForeground2["Black"] = "\x1B[30m";
@@ -36928,7 +36930,8 @@ console.parse = function(...rest) {
   }));
 };
 
-// (Forge) _src_\ts\forge\io\ForgeIO.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\io\ForgeIO.ts
 
 var $fs = require("node:fs/promises");
 var fs = require("fs");
@@ -37100,7 +37103,8 @@ var ForgeIO = class _ForgeIO {
   }
 };
 
-// (Forge) _src_\ts\forge\ForgeStream.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\ForgeStream.ts
 
 var ForgeStream = class {
   _tasks = /* @__PURE__ */ new Map();
@@ -37220,7 +37224,8 @@ var ForgeStream = class {
   }
 };
 
-// (Forge) _src_\ts\core\PoolManager.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\PoolManager.ts
 
 var PoolManager = class _PoolManager {
   static __ClassMap = /* @__PURE__ */ new Map();
@@ -37280,7 +37285,8 @@ var PoolManager = class _PoolManager {
   }
 };
 
-// (Forge) _src_\ts\core\Subscription.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\Subscription.ts
 
 var Unsubscribe = new class {
 }();
@@ -37397,7 +37403,8 @@ var Subscription = class {
   }
 };
 
-// (Forge) _src_\ts\forge\server\route\ForgeRoute.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\server\route\ForgeRoute.ts
 
 var path2 = require("path");
 var url = require("url");
@@ -37605,7 +37612,8 @@ var ForgeRouter = class {
   }
 };
 
-// (Forge) _src_\ts\forge\action\ForgeTrigger.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\action\ForgeTrigger.ts
 
 var ResolverValues = /* @__PURE__ */ ((ResolverValues2) => {
   ResolverValues2["Any"] = "any";
@@ -37741,7 +37749,8 @@ var SettledTrigger = class {
   }
 };
 
-// (Forge) _src_\ts\forge\action\ForgeAction.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\action\ForgeAction.ts
 
 var ForgeAction = class _ForgeAction extends Subscription {
   static Parse(iServiceAdapter, actionData, data) {
@@ -37866,7 +37875,8 @@ var ForgeAction = class _ForgeAction extends Subscription {
   }
 };
 
-// (Forge) _src_\ts\forge\ForgeTask.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\ForgeTask.ts
 
 var ForgeTask3 = class {
   _forge;
@@ -37923,7 +37933,8 @@ var ForgeTask3 = class {
   }
 };
 
-// (Forge) _src_\ts\core\timing\Debounce.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\timing\Debounce.ts
 
 var Debouncer = class {
   _callbackMap = /* @__PURE__ */ new Map();
@@ -37982,7 +37993,8 @@ var Debouncer = class {
   }
 };
 
-// (Forge) _src_\ts\core\collection\Tree.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\collection\Tree.ts
 
 var Tree = class {
   _instanceSet = /* @__PURE__ */ new Set();
@@ -38075,7 +38087,8 @@ var Tree = class {
   }
 };
 
-// (Forge) _src_\ts\forge\model\ForgeModel.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\model\ForgeModel.ts
 
 var ForgeStore = class {
   _iForgeModel;
@@ -38184,7 +38197,8 @@ var ForgeModel = class {
   }
 };
 
-// (Forge) _src_\ts\forge\server\ForgeServer.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\server\ForgeServer.ts
 
 var express = require_express2();
 var compression = require_compression();
@@ -38431,7 +38445,8 @@ TASK ROUTE
   }
 };
 
-// (Forge) _src_\ts\forge\service\AbstractServiceAdapter.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\service\AbstractServiceAdapter.ts
 
 var __ForgeProtocol = "forge://";
 var StdioOption = /* @__PURE__ */ ((StdioOption2) => {
@@ -38597,7 +38612,8 @@ var AbstractServiceAdapter = class extends Subscription {
   }
 };
 
-// (Forge) _src_\ts\forge\service\ExecService.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\service\ExecService.ts
 
 var { spawn: spawn2, fork: fork2, exec: exec2, execSync: execSync2 } = require("child_process");
 var ExecService = class extends AbstractServiceAdapter {
@@ -38655,7 +38671,8 @@ var ExecService = class extends AbstractServiceAdapter {
   }
 };
 
-// (Forge) _src_\ts\forge\service\ForkService.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\service\ForkService.ts
 
 var { spawn: spawn3, fork: fork3, exec: exec3, execSync: execSync3 } = require("child_process");
 var ForkService = class extends AbstractServiceAdapter {
@@ -38686,7 +38703,8 @@ var ForkService = class extends AbstractServiceAdapter {
   }
 };
 
-// (Forge) _src_\ts\forge\service\SpawnService.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\service\SpawnService.ts
 
 var { spawn: spawn4, fork: fork4, exec: exec4, execSync: execSync4 } = require("child_process");
 var SpawnService = class extends AbstractServiceAdapter {
@@ -38708,7 +38726,8 @@ var SpawnService = class extends AbstractServiceAdapter {
   }
 };
 
-// (Forge) _src_\ts\core\Accessor.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\core\Accessor.ts
 
 var Accessor = class {
   _source;
@@ -38785,7 +38804,8 @@ var Accessor = class {
   }
 };
 
-// (Forge) _src_\ts\forge\service\PluginService.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\service\PluginService.ts
 
 var PluginService = class extends AbstractServiceAdapter {
   _source;
@@ -38820,7 +38840,8 @@ var PluginService = class extends AbstractServiceAdapter {
   }
 };
 
-// (Forge) _src_\ts\forge\Forge.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\forge\Forge.ts
 
 var { spawn: spawn5, fork: fork5, exec: exec5, execSync: execSync5 } = require("child_process");
 var chokidar = require_chokidar();
@@ -39016,7 +39037,8 @@ var Forge3 = class {
   }
 };
 
-// (Forge) _src_\ts\run.ts
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) forge\_src_\ts\run.ts
 
 var fs2 = require("fs");
 var $fs4 = require("node:fs/promises");
@@ -39582,6 +39604,8 @@ compression/index.js:
    * MIT Licensed
    *)
 */
-console.log("templated")// (Forge) Footer
+
+module.export = { "ahahaha": "dfdsf" }// (Forge) Footer
 
 
+console.log("templated via plugin")

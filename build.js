@@ -8629,8 +8629,9 @@ var require_mime_types = __commonJS({
 // plugin.js
 var require_plugin = __commonJS({
   "plugin.js"(exports, module2) {
+    var $fs3 = require("node:fs/promises");
     module2.exports = {
-      $start: async function(input) {
+      $start: async function(entry, inputs) {
         console.log("plugin start", input);
       },
       $header: async function(content) {
@@ -8641,18 +8642,19 @@ ${content}`;
       },
       $section: async function(content, file) {
         console.log("plugin $segment", file);
-        console.log(content);
+        console.log(await $fs3.readFile(file, "utf-8"));
         process.exit(1);
-        return content;
+        return content + `
+module.export = { "ahahaha": "dfdsf" }`;
       },
       $footer: async function(content) {
         console.log("plugin $footer", content);
-        return `console.log("templated")${content}
-`;
+        return `${content}
+console.log("templated via plugin")`;
       },
-      $complete: async function(content) {
-        console.log("plugin $complete", content);
-        return content;
+      $complete: async function(output) {
+        console.log("plugin $complete", output);
+        return output;
       }
     };
   }
@@ -8666,23 +8668,23 @@ var DependencyHelper = class {
   constructor(dependencies) {
     this._count = 0;
     this._dependencies = dependencies;
-    for (const nodeData of this) {
-      nodeData.id = String(this._count++);
+    for (const nodeData2 of this) {
+      nodeData2.id = String(this._count++);
     }
   }
   *[Symbol.iterator]() {
-    for (const nodeData of this._dependencies) {
-      yield nodeData;
-      for (const childData of nodeData.children) {
+    for (const nodeData2 of this._dependencies) {
+      yield nodeData2;
+      for (const childData of nodeData2.children) {
         yield childData;
       }
     }
   }
   _has(file) {
-    for (const nodeData of this._dependencies) {
-      if (nodeData.title == file)
+    for (const nodeData2 of this._dependencies) {
+      if (nodeData2.title == file)
         return true;
-      for (const childData of nodeData.children) {
+      for (const childData of nodeData2.children) {
         if (childData.title == file)
           return true;
       }
@@ -8691,10 +8693,10 @@ var DependencyHelper = class {
   }
   _indexOf(file) {
     for (let i = 0; i < this._dependencies.length; i++) {
-      const nodeData = this._dependencies[i];
-      if (nodeData.title == file)
+      const nodeData2 = this._dependencies[i];
+      if (nodeData2.title == file)
         return i;
-      for (const childData of nodeData.children) {
+      for (const childData of nodeData2.children) {
         if (childData.title == file)
           return i;
       }
@@ -8726,8 +8728,8 @@ var DependencyHelper = class {
     whileRemoval:
       while (hasRemoval) {
         hasRemoval = false;
-        for (const nodeData of this._dependencies) {
-          const children = nodeData.children;
+        for (const nodeData2 of this._dependencies) {
+          const children = nodeData2.children;
           for (let i = 0; i < children.length; i++) {
             const childData = children[i];
             const childTitle = childData.title;
@@ -8747,14 +8749,14 @@ var DependencyHelper = class {
   }
   remove(file) {
     for (let i = 0; i < this._dependencies.length; i++) {
-      const nodeData = this._dependencies[i];
-      if (nodeData.title == file) {
-        this._dependencies.splice(i, 1, ...nodeData.children);
+      const nodeData2 = this._dependencies[i];
+      if (nodeData2.title == file) {
+        this._dependencies.splice(i, 1, ...nodeData2.children);
         return;
       }
-      for (const childData of nodeData.children) {
+      for (const childData of nodeData2.children) {
         if (childData.title == file) {
-          nodeData.children.splice(i, 1, ...nodeData.children);
+          nodeData2.children.splice(i, 1, ...nodeData2.children);
           return;
         }
       }
@@ -9008,19 +9010,19 @@ var DebugFormatter = class {
     this.stream += "\x1B[0m";
     return this;
   }
-  parse(input) {
+  parse(input2) {
     const tagsRegExp = /(<([\w$_\.]+)\s*>)|(<\/([\w$_\.]+)\s*>)|(<([\w$_\.]+)\s*\/>)/mg;
     const fragments = [];
     let result;
     let lastIndex = 0;
-    while (result = tagsRegExp.exec(input)) {
+    while (result = tagsRegExp.exec(input2)) {
       if (lastIndex < result.index)
-        fragments.push(input.substring(lastIndex, result.index));
+        fragments.push(input2.substring(lastIndex, result.index));
       fragments.push(result[0]);
       lastIndex = tagsRegExp.lastIndex;
     }
-    if (lastIndex < input.length)
-      fragments.push(input.substring(lastIndex));
+    if (lastIndex < input2.length)
+      fragments.push(input2.substring(lastIndex));
     for (const fragment of fragments) {
       switch (fragment.toLowerCase()) {
         case "<black>":
@@ -9620,7 +9622,10 @@ var REQUEST_TIMEOUT = 125;
 function SanitizeFileUrl(...rest) {
   let resolvedUrl = path2.resolve(...rest);
   resolvedUrl = /\.\w+$/.test(resolvedUrl) ? resolvedUrl : resolvedUrl + ".ts";
-  return path2.relative(__dirname, resolvedUrl.replace(/[\\\/]+/g, "/"));
+  return path2.relative(process.cwd(), resolvedUrl.replace(/[\\\/]+/g, "/"));
+}
+function FilterNodeModules(file) {
+  return /node_modules/.test(file) === false;
 }
 async function $SaveMetaFile(entryFile, outFile, fileManifest, writeMeta) {
   if (writeMeta === true) {
@@ -9678,8 +9683,8 @@ ${headerSection}`;
     for (const plugin2 of plugins)
       header = await plugin2.$header(header);
     output += header;
-    for (const nodeData of dependencyHelper) {
-      const file = nodeData.title;
+    for (const nodeData2 of dependencyHelper) {
+      const file = nodeData2.title;
       let section = `// (Forge) ${file}
 ${sectionMap.get(file)}`;
       for (const plugin2 of plugins)
@@ -9740,19 +9745,15 @@ async function $build(entryFile, outFile, options) {
   });
   const fileManifest = Object.keys(result.metafile.inputs);
   console.log(result.metafile.inputs["forge/_src_/ts/forge/Forge.ts"]);
-  process.exit(1);
   let code;
   for (const out of result.outputFiles) {
     code = out.text;
     break;
   }
   await $SaveMetaFile(entryFile, outFile, fileManifest, options.metafile);
-  code = await $SortDependencies(code, entryFile, fileManifest.filter(function(value) {
-    return /node_modules/.test(value) === false;
-  }), options.plugins);
-  if (outFile !== void 0) {
+  code = await $SortDependencies(code, entryFile, fileManifest.filter(FilterNodeModules), options.plugins);
+  if (outFile !== void 0)
     await $fs2.writeFile(outFile, code);
-  }
   console.parse(`<green>Build Successful : from "<yellow>${entryFile}</yellow>" to "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1e3).toFixed(3)}s)</green>
 	* ${options.bundled ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}
 	* <cyan>format</cyan> : ${options.format}
