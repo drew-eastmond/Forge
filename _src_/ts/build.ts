@@ -24,6 +24,8 @@ import { QuickHash, Serialize } from "./core/Core";
 import { chown } from "fs/promises";
 import { ForgeBuildPlugin, IForgeBuildPlugin } from "./forge/build/ForgeBuildPlugin";
 import plugin = require("../../../plugin");
+import { BuildEntry, BuildManifest } from "./forge/build/BuildManifest";
+import { DependencyManager } from "./forge/build/DependencyManager";
 
 /*
 *
@@ -69,17 +71,17 @@ type BuildOptions = {
 * functions
 *
 */
-function SanitizeFileUrl(...rest: string[]) {
+function SanitizeFileUrl(...rest: string[]): string {
 
     let resolvedUrl: string = path.resolve(...rest);
     resolvedUrl = (/\.\w+$/.test(resolvedUrl)) ? resolvedUrl : resolvedUrl + ".ts";
-    return path.relative(__dirname, resolvedUrl.replace(/[\\\/]+/g, "/"));
+    return path.relative(process.cwd(), resolvedUrl.replace(/[\\\/]+/g, "/"));
 
 }
 
 function FilterNodeModules(file: string): boolean {
 
-
+    return /node_modules/.test(file) === false; 
 
 }
 
@@ -115,7 +117,47 @@ async function $SaveMetaFile(entryFile: string, outFile: string, fileManifest: s
 
 }
 
-async function $SortDependencies(code: string, storeKey: string, fileManifest: string[], plugins: IForgeBuildPlugin[], inputs: Record<string, unknown>): Promise<string> {
+async function $transformSections(plugins: Iterable<IForgeBuildPlugin>, header: string, sections: Iterable<[string, string]>, footer: string): Promise<string> {
+
+    let output: string = "";
+
+    /*
+     *  tranform the header
+     */
+    //  header: string = `// (Forge) Header\n\n${header}`;
+    for (const plugin of plugins) header = await plugin.$header(header);
+    output += header;
+
+    /*
+     *  Transform each section
+     */
+    for (const [content, file] of sections) {
+
+        const file: string = nodeData.title;
+        let section: string = `// (Forge) ${file}\n${content}`;
+
+        for (const plugin of plugins) section = await plugin.$section(section, file);
+
+        output += section; // `// ${file}\nForgeAnalytics.Analytics().Segments().Next("${file}");\n` + fileObj[file] + `\n\n`;
+
+    }
+
+    /*
+     *  Tranform the footer
+     */
+    // let footer: string = "// (Forge) Footer\n\n";
+    for (const plugin of plugins) footer = await plugin.$footer(footer);
+    output += footer;
+
+
+    return output;
+
+}
+
+async function $SortDependencies(code: string, storeKey: string, fileManifest: string[], plugins: IForgeBuildPlugin[], inputs?: Record<string, unknown>): Promise<string> {
+
+    const dependencyManager: DependencyManager = new DependencyManager(storeKey, inputs);
+    dependencyManager.code = code;
 
     // now extract any modified dependencies
     return await fetch(`${API_BASE}/storage/load/${storeKey}/dependencies`, {
@@ -123,15 +165,16 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
     })
         .then(async function (response: Response) {
 
-            let dependencyHelper: DependencyHelper;
+            // let dependencyHelper: DependencyHelper;
 
             const contentType: string = response.headers.get("Content-Type") as string;
             switch (contentType) {
 
                 case "application/json":
 
-                    dependencyHelper = new DependencyHelper(await response.json());
-                    dependencyHelper.intersect(fileManifest);
+                    // dependencyHelper = new DependencyHelper(await response.json());
+                    // dependencyHelper.intersect(fileManifest);
+                    dependencyManager.load(await response.json());
                     break;
 
                 default:
@@ -140,7 +183,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
             }
 
             // split the compiled code into segments using 
-            const compiledSections: string[] = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
+            /* const compiledSections: string[] = code.split(/[ ]*\/\/\s+(.+?)\.tsx?/g);
             const headerSection: string = compiledSections[0];
 
             const sectionMap: Map<string, string> = new Map();
@@ -159,7 +202,7 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
                 }
 
-            }
+            } */
 
             let output: string = "";
 
@@ -236,7 +279,10 @@ async function $SortDependencies(code: string, storeKey: string, fileManifest: s
 
             return output;
 
-        });
+        })
+        /* .then(async function () {
+
+        }) */
 
 }
 
@@ -267,8 +313,10 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
     const fileManifest: string[] = Object.keys(result.metafile.inputs);
 
-    console.log(result.metafile.inputs["forge/_src_/ts/forge/Forge.ts"]); // ["_src_\ts\core\Core.ts"]);
-    process.exit(1);
+    const buildManifest: BuildManifest = new BuildManifest(entryFile, result);
+
+    console.log(...buildManifest); // ["_src_\ts\core\Core.ts"]);
+    // process.exit(1);
 
     let code: string;
     for (const out of result.outputFiles) {
@@ -280,17 +328,14 @@ async function $build(entryFile: string, outFile: string, options: BuildOptions)
 
     await $SaveMetaFile(entryFile, outFile, fileManifest, options.metafile)
 
-    code = await $SortDependencies(code, entryFile, fileManifest.filter(function (value) {
 
-        return /node_modules/.test(value) === false;
+    code = await $SortDependencies(code, entryFile, fileManifest.filter(FilterNodeModules), options.plugins);
 
-    }), options.plugins);
+    /*
+    *  
+    */
+    if (outFile !== undefined) await $fs.writeFile(outFile, code);
 
-    if (outFile !== undefined) {
-
-        await $fs.writeFile(outFile, code);
-
-    }
 
     console.parse(`<green>Build Successful : from "<yellow>${entryFile}</yellow>" to "<yellow>${outFile}</yellow>" <cyan>(${((Date.now() - startTime) / 1000).toFixed(3)}s)</green>
 \t* ${(options.bundled) ? "<cyan>bundled</cyan>" : "<blue>unbundled</blue>"} : ${options.bundled}

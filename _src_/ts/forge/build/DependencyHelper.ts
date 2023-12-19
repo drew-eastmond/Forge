@@ -12,14 +12,9 @@ export class DependencyHelper {
     private _dependencies: NodeData[];
     private _count: number = 0;
 
-    constructor(dependencies: NodeData[]) {
+    constructor(dependencies?: NodeData[]) {
 
-        this._dependencies = dependencies;
-        for (const nodeData of this) {
-
-            nodeData.id = String(this._count++);
-
-        }
+        if (dependencies) this.load(dependencies);
 
     }
 
@@ -180,6 +175,19 @@ export class DependencyHelper {
             }
 
         }
+
+    }
+
+    public load(dependencies: NodeData[]): this {
+
+        this._dependencies = dependencies;
+        for (const nodeData of this) {
+
+            nodeData.id = String(this._count++);
+
+        }
+
+        return this;
 
     }
 
