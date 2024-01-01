@@ -1,9 +1,4 @@
-import { Forge } from "./_src_/ts/forge/Forge";
-import { ForgeAction, IAction } from "./_src_/ts/forge/action/ForgeAction";
-import { ForgeTask } from "./_src_/ts/forge/ForgeTask";
-import { ForgeServer } from "./_src_/ts/forge/server/ForgeServer";
-import { IServiceAdapter } from "./_src_/ts/forge/service/AbstractServiceAdapter";
-import { ResolverValues, ResolveTrigger, SignalTrigger, WatchTrigger } from "./_src_/ts/forge/action/ForgeTrigger";
+import { Forge, ForgeAction, IAction, ForgeTask, ForgeServer, IServiceAdapter, ResolverValues, ResolveTrigger, SignalTrigger, WatchTrigger } from "@onyx-ignition/forge-core";
 
 /*
 * The star of the show. THE FORGE INSTANCE

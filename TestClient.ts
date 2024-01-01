@@ -1,9 +1,10 @@
 const { spawn, fork, exec, execSync } = require("child_process");
 
-import { CLIArguments } from "./_src_/ts/core/Argument";
-import { Serialize } from "./_src_/ts/core/Core";
-import { ForgeClient } from "./_src_/ts/forge/ForgeClient";
+import { CLIArguments, Forge, ForgeClient, Serialize } from "@onyx-ignition/forge-core";
 
+// import { CLIArguments } from "./_src_/ts/core/Argument";
+// import { Serialize } from "./_src_/ts/core/Core";
+// import { ForgeClient } from "./_src_/ts/forge/ForgeClient";
 
 const cliArguments: CLIArguments = new CLIArguments();
 cliArguments.
@@ -11,6 +12,7 @@ cliArguments.
         required: true
     })
     .compile();
+    
 
 const CLIENT_KEY: string = cliArguments.get("key") as string;
 new class extends ForgeClient {
@@ -38,4 +40,10 @@ new class extends ForgeClient {
 
     }
 
-}(CLIENT_KEY);
+    public async $route(route: string, parameters: Serialize[], race: number): Promise<{ mime: string, contents: Buffer }> {
+
+        return
+
+    }
+
+}(CLIENT_KEY, { "command": "node ./test.js", race: 500 }, { "root": "./www", race: 500 });
