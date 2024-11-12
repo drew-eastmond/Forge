@@ -1,6 +1,24 @@
 {
     "name": "@onyx-ignition/forge",
     "version": "0.0.7",
+    "description": "Core library used for all Forge Packages",
+    "bin": "bin.js",
+    "main": "./index.js",
+    "exports": {
+        ".": {
+            "require": "./index.js"
+        }
+    },
+    "scripts": {
+        "test": "echo \"Warning: no test specified\" && exit 0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/drew-eastmond/Forge.git"
+    },
+    "author": "Drew Eastmond",
+
+
     "moduleResolution": "nodenext",
     "devDependencies": {
         "@types/node": "^20.7.2",
