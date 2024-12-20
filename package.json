@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "description": "NPX entry and Core library used for all Forge Packages",
     "bin": "bin.js",
-    "main": "index.js",
+    "main": "./index.js",
     "exports": {
         ".": {
             "require": "./index.js",
