@@ -4,8 +4,8 @@
 name: Node.js Package
 
 on:
-  pull_request:
-    types: [opened, edited]
+  release:
+    types: [published]
 
 jobs:
   build:

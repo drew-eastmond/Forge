@@ -8,7 +8,7 @@ You probably don't have much time to think! The sales team is down your ass to b
 I Got You Buddy!!!
 
 ```
-npx onyx-ignition-forge --init --flatten --typescript --packager-- pnpm 
+npx @onyx-ignition/forge [--init] [--typescript] [--inline-- {{inline_file}}]
 ```
 
 This will install a unzipped clone forge ( from `master` ) that is pre-configured with:
