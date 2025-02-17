@@ -39562,6 +39562,7 @@ var Forge2 = class {
         const watcher = $fs2.watch(folder, { signal, recursive: true });
         for await (const event of watcher) {
           const file = event.filename;
+          console.cyan(event);
           switch (event.eventType) {
             case "change":
             case "rename":
@@ -40832,7 +40833,6 @@ if (require.main === module) {
     const BUILD = forgeArguments.get(/^build$|^b$/);
     const WORKER = forgeArguments.get(/^worker$/i);
     if (BUILD) {
-      console.log("build");
     }
     if (INLINE) {
       try {
