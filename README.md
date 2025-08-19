@@ -47,11 +47,14 @@ Forge is currently comprised of 6 distinct components with more on the way.
  <img alt="YOUR-ALT-TEXT" src="https://github.com/drew-eastmond/Forge/blob/main/docs/forge-overview.svg">
 </picture>
 
+### Bundlers
+The `Forge` engine is currently built on top node. Considerations are being made to port to WASM for maximum portability. In the meantime Forge has options to transform or bundle files on the fly and in some cases. It can more then enough to build projects that ultilize javascript. 
 
 ### Tasks and Actions
-A `ForgeTask` is comprised of a cascade of `ForgeAction` instances. These actions are executed based on triggers. `ForgeAction` typically wraps around CLI commands or internal scripts, provide execution tracking, and communication via sockets. `Forge` will orchastrate subsequent actions execution based on resolutions or rejections. 
+A `ForgeTask` is comprised of a cascade of `ForgeAction` instances. These actions are executed based on triggers. `ForgeAction` wraps around CLI commands or internal scripts, as to provide execution tracking, and communication via sockets. `Forge` will orchastrate actions execution based on resolutions or rejections. 
 
-### Clients
+### Sockets & Clients
+Sockets 
 These act as communication stubs for integrating your own components into the `Forge` ecosystem. `ForgeClient` offer conveince of setting up models, bi-communication signals, and tunneling HTTP routes from the parent. All packages are derived from `ForgeClient` as the core. Although you can replicate packages with an extensive collection of routes; there mill most definitely be a series of conflicts.
 
 ### Models and Stores
