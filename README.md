@@ -39,7 +39,7 @@ Params
 | --watch--     | Instantiate a watcher at directory provided     |
 
 <picture>
- <source media="(prefers-color-scheme: dark)" srcset="./forge-overview.svg">
- <source media="(prefers-color-scheme: light)" srcset="./forge-overview.svg">
- <img alt="YOUR-ALT-TEXT" src="./forge-overview.svg">
+ <source media="(prefers-color-scheme: dark)" srcset="https://github.com/drew-eastmond/Forge/docs/forge-overview.svg">
+ <source media="(prefers-color-scheme: light)" srcset="https://github.com/drew-eastmond/Forge/docs/forge-overview.svg">
+ <img alt="YOUR-ALT-TEXT" src="https://github.com/drew-eastmond/Forge/docs/forge-overview.svg">
 </picture>
