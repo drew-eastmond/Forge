@@ -12,8 +12,9 @@ npx https://github.com/drew-eastmond/Forge --inline-- ./run.ts --port-- 1234 --w
 ```
 Opens a file watcher at `./src`. Target files can be bundled to `--www--`, and served immediately to http port http://localhost:1234 serving files from `./www`. Next you can use the integrated esbuilder or your parameterized CLI commands to launch workflows based on file filters and "signals". For example here is a simple inline script to build .ts, .tsx, .js, .jsx file to `./www/js/`
 
-If you rather build your own workflow here is a typescript equivalent of the previous command. 
-```
+If you rather build your own workflow here is a typescript equivalent of the previous command.
+
+```js
 // watch all file changes at "./src"
 forge.$watch("./src", { ignore: [], debounce: 500 });
 
