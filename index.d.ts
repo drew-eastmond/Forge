@@ -557,7 +557,7 @@ declare module "@onyx-ignition/forge-core" {
 	export const EmptyData: ArrayBuffer;
 	export function GetRange(start: number, end: number): number;
 	export function IsObject(item: unknown): boolean;
-	export function CatchThrowError(error: any): any;
+	export function CatchThrowError(error: unknown): unknown;
 	export function CatchCapture<T = unknown>(capture: Capture): (error: unknown) => T;
 	export function EmptyFunction(): void;
 	export function EncodeBase64(json: Record<string, unknown>): string;
@@ -584,6 +584,16 @@ declare module "@onyx-ignition/forge-core" {
 	}): Promise<S | T>;
 	export function EscapeHTML(value: string): string;
 	export function Capitalize(value: string): string;
+	export class GenericSession<T> {
+	    readonly $promise: $Promise<T>;
+	    protected _timeout: TimeoutClear;
+	    constructor(options?: {
+	        delay?: number;
+	        capture?: Capture;
+	    });
+	    renew(delay: number): this;
+	    stop(): this;
+	}
 	
 		
 	export class Cipher {
@@ -671,6 +681,7 @@ declare module "@onyx-ignition/forge-core" {
 	    peek(offset: number): ArrayBuffer;
 	    frame(): void;
 	    complete(): boolean;
+	    skip(): void;
 	    readString(): string;
 	    readAttributes(): Record<string, unknown>;
 	}
@@ -1849,6 +1860,13 @@ declare module "@onyx-ignition/forge-core" {
 	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	}
+	export class SignalSession extends GenericSession<unknown> {
+	    private readonly _header;
+	    private readonly _socket;
+	    constructor(delay: number, header: Record<string, unknown>, socket: IForgeSocket);
+	    renew(delay: number): this;
+	    toString(): string;
+	}
 	export class ForgeClient extends Subscription {
 	    static Arguments(options: Record<string, unknown> & {
 	        race: Record<string, number>;
@@ -1868,8 +1886,8 @@ declare module "@onyx-ignition/forge-core" {
 	    }) => Promise<void>;
 	    protected _executing: boolean;
 	    protected _queue: [];
-	    protected _iSocket: IForgeSocket;
-	    protected _iModel: IForgeModel;
+	    protected _socket: IForgeSocket;
+	    protected _model: IForgeModel;
 	    protected readonly _race: ForgeRace;
 	    protected readonly _routing: ForgeClientRouting;
 	    readonly routes: Set<IForgeRoute>;
@@ -1880,14 +1898,14 @@ declare module "@onyx-ignition/forge-core" {
 	    protected _$subscribeMessage(notify: string, source: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
 	    get $ready(): Promise<Serialize>;
 	    $start(data: Serialize): Promise<Serialize>;
-	    protected $reset(data: Serialize, race: number): Promise<Serialize>;
+	    protected $reset(data: Serialize, session: SignalSession): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize, options: {
 	        race?: number;
 	        capture: Capture;
 	    }): Promise<Serialize>;
-	    $execute(signal: string, data: Serialize, race: number): Promise<Serialize>;
-	    $watch(data: Serialize, race: number): Promise<Serialize>;
+	    $execute(signal: string, data: Serialize, session: SignalSession): Promise<Serialize>;
+	    $watch(data: Serialize, session: SignalSession): Promise<Serialize>;
 	    $model(attributes: Attributes): Promise<IForgeModel>;
 	}
 	
@@ -1915,12 +1933,10 @@ declare module "@onyx-ignition/forge-core" {
 	
 	export class Forge {
 	    private _forgeServer;
-	    private _iModel;
-	    private readonly _taskMap;
-	    private readonly _ignoreArr;
+	    private _model;
+	    private readonly _tasks;
 	    private readonly _controller;
 	    readonly sockets: Map<string, IForgeSocket>;
-	    private readonly _iStores;
 	    constructor();
 	    private _addSocket;
 	    private _buildSocket;
@@ -1944,8 +1960,8 @@ declare module "@onyx-ignition/forge-core" {
 	        command: string;
 	    }): IForgeSocket;
 	    $watch(roots: string[], options: {
-	        threshold: number;
-	        ignore: RegExp[];
+	        threshold?: number;
+	        ignore?: RegExp[];
 	        debounce?: number;
 	        throttle?: number;
 	    }): Promise<ForgeFileWatcher>;
@@ -2023,15 +2039,12 @@ declare module "@onyx-ignition/forge-core" {
 	export class ForgeController {
 	    private readonly _tasks;
 	    private readonly _iActions;
-	    private readonly _bindings;
 	    private _signal;
 	    private _data;
 	    readonly settled: Set<IAction>;
 	    readonly resolves: Set<IAction>;
 	    readonly rejections: Set<IAction>;
 	    constructor();
-	    private _thenRaced$Execute;
-	    private _$catchRaced$Execute;
 	    get actions(): Iterable<[string, IAction]>;
 	    get signal(): string;
 	    get data(): Serialize;
@@ -2077,17 +2090,26 @@ declare module "@onyx-ignition/forge-core" {
 	
 	
 	export function $CompareModels(iModelA: IForgeModel, iModelB: IForgeModel): Promise<boolean>;
-	export class ModelReactor extends Reactor<IForgeStore[], [IForgeModel, IForgeStore[]]> {
-	    private readonly _iModel;
-	    readonly stores: Set<IForgeStore>;
-	    constructor(iModel: IForgeModel, stores?: IForgeStore[]);
-	    setter(iStores: IForgeStore[]): [IForgeModel, IForgeStore[]];
+	type ModelReactorKey = "connect" | "write" | "mutate" | "branch" | "fork" | "purge" | "order" | "lock" | "unlock" | "frame";
+	export type ModelReactorState = {
+	    [key in ModelReactorKey]?: IForgeStore[];
+	};
+	export class ModelReactor extends Reactor<ModelReactorState> {
+	    private readonly _stores;
+	    constructor();
+	    /**
+	     * All setters will dispatch subscriptions
+	     * @param state
+	     * @param previous
+	     * @returns
+	     */
+	    frame(): void;
 	}
 	export interface IForgeModel {
 	    race: number;
 	    [Symbol.iterator](): IterableIterator<[IForgeStore, Attributes]>;
 	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    [Reactivity]: IReactor<IForgeStore[], [IForgeModel, IForgeStore[]]>;
+	    [Reactivity]: IReactor<ModelReactorState>;
 	    get proxies(): ForgeModelProxyManager;
 	    get state(): string;
 	    get root(): IForgeStore;
@@ -2160,7 +2182,7 @@ declare module "@onyx-ignition/forge-core" {
 	    protected readonly _$bodies: Map<IForgeStore, [ArrayBuffer, string]>;
 	    protected readonly _waitingStores: Map<string, $Promise<IForgeStore>>;
 	    protected readonly _locks: Map<IForgeStore, string>;
-	    readonly [Reactivity]: IReactor<IForgeStore[], [IForgeModel, IForgeStore[]]>;
+	    readonly [Reactivity]: IReactor<ModelReactorState>;
 	    race: number;
 	    constructor();
 	    constructor(attributes: Attributes);
@@ -2203,9 +2225,9 @@ declare module "@onyx-ignition/forge-core" {
 	        mime: string;
 	        hash?: string;
 	    }): Promise<string>;
-	    $purge(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $hasLock(iStore: IForgeStore): Promise<boolean>;
-	    $lock(iStore: IForgeStore): Promise<string>;
+	    $purge(store: IForgeStore): Promise<IForgeStore[]>;
+	    $hasLock(store: IForgeStore): Promise<boolean>;
+	    $lock(store: IForgeStore): Promise<string>;
 	    $unlock(hash: string): Promise<IForgeStore>;
 	    $import(iStore: IForgeStore, importData: {
 	        parent: string | IForgeStore;
@@ -2217,7 +2239,7 @@ declare module "@onyx-ignition/forge-core" {
 	    $query(): Promise<IQuery<IForgeStore>>;
 	    $query(root: IForgeStore): Promise<IQuery<IForgeStore>>;
 	    $query(root: IForgeStore, recursive: boolean): Promise<IQuery<IForgeStore>>;
-	    $write(iStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $write(store: IForgeStore, data: ArrayBuffer, mime: string): Promise<IForgeStore>;
 	    $mutate(store: IForgeStore, mutatedStore: IForgeStore): Promise<IForgeStore>;
 	    $validate(iStore: IForgeStore): $IResult<Attributes>;
 	    $wait(hash: string): Promise<IForgeStore>;
@@ -2225,6 +2247,7 @@ declare module "@onyx-ignition/forge-core" {
 	    $message(iSocket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
 	    toString(): string;
 	}
+	
 	
 		
 	
@@ -2533,7 +2556,6 @@ declare module "@onyx-ignition/forge-core" {
 	
 	
 	
-	
 	export type ForgeModelRoutePermissionExport = {
 	    state: [string, string];
 	    stores: Record<string, unknown>;
@@ -2549,10 +2571,8 @@ declare module "@onyx-ignition/forge-core" {
 	    private readonly _access;
 	    readonly stores: Map<string, IForgeStore>;
 	    readonly hashes: Map<IForgeStore, string>;
-	    readonly [Reactivity]: ModelReactor;
 	    race: number;
-	    constructor(iModel: IForgeModel, permit: [string, string], access?: ForgeModelRouteAccess[]);
-	    private _subscribeModelReactor;
+	    constructor(model: IForgeModel, permit: [string, string], access?: ForgeModelRouteAccess[]);
 	    filterState(headers: ForgeHTTPHeaders): string;
 	    filterVerifications(headers: ForgeHTTPHeaders): Record<string, string>;
 	    $branch(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteRequest): Promise<boolean>;
@@ -3212,6 +3232,7 @@ declare module "@onyx-ignition/forge-core" {
 	
 	
 	
+	type SocketSession = GenericSession<Serialize>;
 	enum StdioOption {
 	    Pipe = "pipe",
 	    Inherit = "inherit",
@@ -3271,13 +3292,13 @@ declare module "@onyx-ignition/forge-core" {
 	    protected _$start: $Promise<Serialize>;
 	    protected _$ready: $Promise<Serialize>;
 	    protected readonly _race: ForgeRace;
-	    protected readonly _sessions: Map<string, $Promise<unknown>>;
+	    protected readonly _sessions: Map<string, SocketSession>;
 	    protected readonly _bindings: Map<Function, Function>;
 	    protected readonly _routing: ForgeSocketRouting;
 	    constructor(name: string, config: SocketConfig);
 	    protected _pipeStdio(message: string): void;
 	    protected _pipeError(message: string): void;
-	    protected _getSession(race: number, capture: Capture): [string, $Promise<Serialize>];
+	    protected _getSession(race: number, capture: Capture): [string, Promise<Serialize>];
 	    protected _$thenStart(data: Serialize): Promise<void>;
 	    get key(): string;
 	    get name(): string;

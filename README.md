@@ -13,31 +13,36 @@ Opens a file watcher at `./src`. Target files can be bundled to `--www--`, and s
 When an inline script is provided. `Forge` will automatically import the whole Forge library. These inline scripts are extremely portable between team members. Ideally each member can code their own workflows and distribute their "specialities" among other members. Here is a typescript equivalent of the previous command but will build a typescript file using the internal bundler.
 
 ```js
-// build Forge engine
-const forge: Forge = new Forge();
-// watch all file changes at "./src"
-forge.$watch("./src", { ignore: [], debounce: 500 });
+(async function () {
 
+    const forge: Forge = new Forge();
 
-// create a local server ( express ) at http:/localhost:1234/. Add an route that map requests to "./www"
-const forgeServer: ForgeServer = await forge.$serve(1234); 
-forgeServer.routes
-    .add(new FileDirectoryRoute({ root: "./www/", indexes: ["index.html"], resolve: { status: 200, end: true } }));
+    // watch all file changes at "./src"
+    const fileWatcher: ForgeFileWatcher = forge.$watch(["./src"], { ignore: [], debounce: 500 });
 
+    // create a local server ( express ) at http:/localhost:1234/. Add an route that map requests to "./www"
+    const forgeServer: ForgeServer = await forge.$serve(1234);
+    forgeServer.routes
+        .add(new FileDirectoryRoute({ root: "./www/", indexes: ["index.html"], resolve: { status: 200, end: true } }));
 
-// create a task with a single action to build .ts, .tsx, .js, .jsx to "./www/js/"
-const socket: IForgeSocket = forge.exec(
-    `https://github.com/drew-eastmond/Forge --build-- .{{ entry: "./src", target: "./www/src/", format: "cjs", platform: "node" }}`, 
-    {  race: { ".+": 5000 } }
-);
+    // create a task with a single action to build .ts, .tsx, .js, .jsx to "./www/js/"
+    const socket: IForgeSocket = forge.exec(
+        `https://github.com/drew-eastmond/Forge --build-- {{ entry: "./src", target: "./www/src/", format: "cjs", platform: "node" }}`,
+        { race: { ".+": 5000 } }
+    );
 
-forge.add(new ForgeTask(forge, { task: "basic builder" })
-				.add(new SocketAction(socket, { name: "bundle action", enabled: true }, { data: "some helpful data" })
-					.add(new SignalTrigger(["start", "watch"]))));
+    forge
+        .add(new ForgeTask(forge, { task: "basic builder" })
+            .add(new SocketAction(socket, { name: "bundle action", enabled: true }, { data: "some helpful data" })
+                .add(new SignalTrigger(["start", "watch"])
+            )
+        )
+    );
 
-		
-// launch a start signal with the data provided, and start an initial build to update the current project.
-await socket.$start({ data: "hi. I'm goign to be the first signal for you to process." });
+    // launch a start signal with the data provided, and start an initial build to update the current project.
+    await socket.$start({ data: "hi. I'm goign to be the first signal for you to process." });
+
+}());
 ```
 
 
