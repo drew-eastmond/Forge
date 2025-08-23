@@ -1,20 +1,51 @@
-# Forge ( documentation - work in progress 2025/08/19 )
+# Forge ( BETA )
 
 ## Getting Started ( Blazingly Fast via NPX )
 
-Need help building typescript projects, automating task like SASS files, intergrating react or angular, processing images, or intergrating AI agents into your local CI/CD.
+Need help building typescript projects, automating task like compiling SASS files, integrating react or angular into builds  , batch processing images, or intergrating AI agents into your local CI/CD. Forge even has a built in file watcher.
 
 I Got You Buddy!!!
 
+### Base usage via NPX 
+```
+npx https://github.com/drew-eastmond/Forge --inline-- ./run.ts --port-- 1234 --www--- ./www --watch-- ./src
+```
+Opens a file watcher at `./src`. Target files can be bundled to `--www--`, and served immediately to http port http://localhost:1234 serving files from `./www`. Next you can use the integrated esbuilder or your parameterized CLI commands to launch workflows based on file filters and "signals". For example here is a simple inline script to build .ts, .tsx, .js, .jsx file to `./www/js/`
 
-### Base usage via NPX to open a http port http://localhost:1234 serving files from ./www while watching ./src
+If you rather build your own workflow here is a typescript equivalent of the previous command. 
 ```
-npx https://github.com/drew-eastmond/Forge --port-- 1234 --www--- ./www --watch-- ./src
+// watch all file changes at "./src"
+forge.$watch("./src", { ignore: [], debounce: 500 });
+
+// create a local server ( express ) at http:/localhost:1234/. Add an route that map requests to "./www"
+const forgeServer: ForgeServer = await forge.$serve(1234); 
+forgeServer.routes
+    .add(new FileDirectoryRoute({ root: "./www/", indexes: ["index.html"], resolve: { status: 200, end: true } }));
+
+// create a task with a single action to build .ts, .tsx, .js, .jsx to "./www/js/"
+const socket: IForgeSocket = forge.exec(
+    `https://github.com/drew-eastmond/Forge --build-- .{{ entry: "./src", target: "./www/src/", format: "cjs", platform: "node" }}`, 
+    {  race: { ".+": 5000 } }
+);
+forge.add(new ForgeTask(forge, { task: "basic builder" })
+				.add(new SocketAction(socket, { name: "bundle action", enabled: true }, { data: "some helpful data" })
+					.add(new SignalTrigger(["start", "watch"]))));
+		
+// launch a start signal with the data provided, and start an initial build to update the current project.
+await socket.$start({ data: "hi. I'm goign to be the first signal for you to process." });
 ```
+ 
+
+
+scripts pass to 
+### How to Use
+
+Forge is built to be generic development enviroment for HTML5 applications and games. By itself, this CLI command will open a file watcher at `--watch--` directory. 
+ 
+ 
+
 ### Base usage via NPM 
-```
-npm run start -- --port-- 1234 --www--- ./www --watch ./src
-```
+
 
 Params
 
@@ -51,11 +82,10 @@ Forge is currently comprised of 6 distinct components with more on the way.
 The `Forge` engine is currently built on top node. Considerations are being made to port to WASM for maximum portability. In the meantime Forge has options to transform or bundle files on the fly and in some cases. It can more then enough to build projects that ultilize javascript. 
 
 ### Tasks and Actions
-A `ForgeTask` is comprised of a cascade of `ForgeAction` instances. These actions are executed based on triggers. `ForgeAction` wraps around CLI commands or internal scripts, as to provide execution tracking, and communication via sockets. `Forge` will orchastrate actions execution based on resolutions or rejections. 
+A `ForgeTask` is comprised of a cascade of `ForgeAction` instances. `Forge` will schedule actions based on triggers where if can sequence dependencies based resolutions or rejections. `ForgeAction` wraps around CLI commands or internal scripts, as to provide execution tracking, and communication via sockets.
 
 ### Sockets & Clients
-Sockets 
-These act as communication stubs for integrating your own components into the `Forge` ecosystem. `ForgeClient` offer conveince of setting up models, bi-communication signals, and tunneling HTTP routes from the parent. All packages are derived from `ForgeClient` as the core. Although you can replicate packages with an extensive collection of routes; there mill most definitely be a series of conflicts.
+`ForgeSocket` and it's variants are communication wrappers for processes. They help serialize and deserialize data between main thread and any sub-process. If those sub-processes contain a `ForgeClient` stub. It will automatically connect and provided routing. This opens of setting up models, bi-communication signals, and tunneling HTTP routes from the parent. All packages are derived from `ForgeClient` as it's core. Although you can replicate packages with an extensive collection of routes; there mill most definitely be a series of conflicts.
 
 ### Models and Stores
 Models acts as a lightweight database comprised of a collection of `ForgeStore` that operate like buckets. `ForgeModel` has advance functionality like a sync engine, query interface, permissions, locks, etc... Ideally these are instantiated as isolated or intergrated to expose access to other processes. `ForegStore` was meant to operate as a component state that is passed to `ForgeActions` during execution. 
