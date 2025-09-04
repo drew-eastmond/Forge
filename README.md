@@ -13,6 +13,7 @@ Opens a file watcher at `./src`. Target files can be bundled to `--www--`, and s
 When an inline script is provided. `Forge` will automatically import the whole Forge library. These inline scripts are extremely portable between team members. Ideally each member can code their own workflows and distribute their "specialities" among other members. Here is a typescript equivalent of the previous command but will build a typescript file using the internal bundler.
 
 ```js
+// async iife to get access to top level await
 (async function () {
 
     const forge: Forge = new Forge();
@@ -26,18 +27,17 @@ When an inline script is provided. `Forge` will automatically import the whole F
         .add(new FileDirectoryRoute({ root: "./www/", indexes: ["index.html"], resolve: { status: 200, end: true } }));
 
     // create a task with a single action to build .ts, .tsx, .js, .jsx to "./www/js/"
-    const socket: IForgeSocket = forge.exec(
-        `https://github.com/drew-eastmond/Forge --build-- {{ entry: "./src", target: "./www/src/", format: "cjs", platform: "node" }}`,
-        { race: { ".+": 5000 } }
-    );
+    const socket: IForgeSocket = forge.exec("typescript bunlder", {
+        command: `npx https://github.com/drew-eastmond/Forge --build-- "{ ""entry"": ""./src/ts/index.ts"", ""target"": ""./www/js/tester-messier.js"", ""format"": ""cjs"", ""platform"": ""node"" }"`,
+        race: { ".+": 5000 } 
+    });
 
     forge
         .add(new ForgeTask(forge, { task: "basic builder" })
             .add(new SocketAction(socket, { name: "bundle action", enabled: true }, { data: "some helpful data" })
-                .add(new SignalTrigger(["start", "watch"])
+                .add(new SignalTrigger(["start", "watch"]))
             )
-        )
-    );
+        );
 
     // launch a start signal with the data provided, and start an initial build to update the current project.
     await socket.$start({ data: "hi. I'm goign to be the first signal for you to process." });

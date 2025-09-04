@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-declare module "@onyx-ignition/forge-core" {
+declare module "@onyx-ignition/forge" {
 	
 	
 	
@@ -1544,8 +1544,7 @@ declare module "@onyx-ignition/forge-core" {
 	
 	
 	export class ESBuildBundler extends Subscription {
-	    static $Tranform(code: string): Promise<string>;
-	    static $Tranform(code: string, options: BuildOptions): Promise<string>;
+	    static $Transform(code: string, options: Partial<BuildOptions>): Promise<string>;
 	    static $Build(entry: string, options: BuildOptions): $IResult<Attributes>;
 	    static $Build(entry: string, options: BuildOptions, iPlugins: IForgeBuildPlugin[]): $IResult<Attributes>;
 	    private _entry;
@@ -1891,13 +1890,16 @@ declare module "@onyx-ignition/forge-core" {
 	    protected readonly _race: ForgeRace;
 	    protected readonly _routing: ForgeClientRouting;
 	    readonly routes: Set<IForgeRoute>;
-	    constructor(key: string, data: Record<string, unknown>, options: {
-	        race: Record<string, number>;
+	    constructor();
+	    constructor(options: {
+	        key?: string;
+	        name?: string;
+	        race?: Record<string, number>;
 	    });
 	    private _$raceDispatch;
 	    protected _$subscribeMessage(notify: string, source: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
 	    get $ready(): Promise<Serialize>;
-	    $start(data: Serialize): Promise<Serialize>;
+	    $connect(data: Serialize): Promise<Serialize>;
 	    protected $reset(data: Serialize, session: SignalSession): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize, options: {
@@ -1944,21 +1946,11 @@ declare module "@onyx-ignition/forge-core" {
 	    get model(): IForgeModel;
 	    tasks(): Map<string, ForgeTask>;
 	    add(forgeTask: ForgeTask): this;
-	    spawn(name: string, config: SocketConfig & {
-	        command: string;
-	    }): IForgeSocket;
-	    fork(name: string, config: SocketConfig & {
-	        command: string;
-	    }): IForgeSocket;
-	    worker(name: string, config: SocketConfig & {
-	        command: string;
-	    }): IForgeSocket;
-	    exec(name: string, config: SocketConfig & {
-	        command: string;
-	    }): IForgeSocket;
-	    plugin(name: string, config: SocketConfig & {
-	        command: string;
-	    }): IForgeSocket;
+	    spawn(name: string, config: SocketConfig): IForgeSocket;
+	    fork(name: string, config: SocketConfig): IForgeSocket;
+	    worker(name: string, config: SocketConfig): IForgeSocket;
+	    exec(name: string, config: SocketConfig): IForgeSocket;
+	    plugin(name: string, config: SocketConfig): IForgeSocket;
 	    $watch(roots: string[], options: {
 	        threshold?: number;
 	        ignore?: RegExp[];
@@ -2890,17 +2882,18 @@ declare module "@onyx-ignition/forge-core" {
 	    ext: string;
 	    name: string;
 	};
+	export type ForgePathStatus = {
+	    isSubdirectory: boolean;
+	    exists: boolean;
+	    contains: boolean;
+	};
 	export class ForgePath {
 	    static IsAbsolute(file: string): boolean;
 	    static Parse(file: string): ForgeParsedPath;
 	    static Resolve(...rest: string[]): string;
 	    static Relative(source: string, target: string): string;
 	    static Contains(source: string, target: string): boolean;
-	    static $Status(root: string, target: string): Promise<{
-	        isSubdirectory: boolean;
-	        exists: boolean;
-	        contains: boolean;
-	    }>;
+	    static $Status(root: string, target: string): Promise<ForgePathStatus>;
 	    static Sanitize(...rest: string[]): string;
 	}
 	
@@ -3068,11 +3061,14 @@ declare module "@onyx-ignition/forge-core" {
 		
 	
 	
-	export type FileRouteDelegate = (forgeRequest: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute, pathing: {
+	
+	export type FileRoutePathing = {
 	    relative: string;
 	    absolute: string;
+	    base: string;
 	    ext: string;
-	}) => Promise<boolean>;
+	};
+	export type FileRouteDelegate = (forgeRequest: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute, pathing: FileRoutePathing) => Promise<boolean>;
 	export class FileRoute extends ForgeRoute {
 	    private _file;
 	    private _mime;
@@ -3093,7 +3089,7 @@ declare module "@onyx-ignition/forge-core" {
 	    invalidate(): this;
 	}
 	export class FileDirectoryRoute extends ForgeRoute {
-	    static Routing: {
+	    static Hooks: {
 	        $Authorize: {
 	            Match: (...matches: string[]) => RouteDelegate;
 	            RegExp: (regExp: RegExp, options?: {
@@ -3104,15 +3100,13 @@ declare module "@onyx-ignition/forge-core" {
 	    };
 	    private _root;
 	    private _indexes;
-	    private _extract;
 	    private readonly _resolve;
 	    private readonly _reject;
-	    private readonly _access;
+	    readonly statuses: Map<string, ForgePathStatus>;
 	    readonly cache: Map<string, ArrayBuffer>;
 	    constructor(config: {
 	        root: string;
 	        indexes?: string[];
-	        extract?: (request: ForgeRequest) => string | RegExp | string;
 	        hooks?: (IForgeRouteHook & {
 	            $render?: FileRouteDelegate;
 	        })[];
@@ -3121,30 +3115,18 @@ declare module "@onyx-ignition/forge-core" {
 	            status?: number;
 	            end?: boolean;
 	        };
-	        reject: {
+	        reject?: {
 	            status?: number;
 	            end?: boolean;
 	        };
 	    });
 	    get root(): string;
 	    get indexes(): string[];
-	    $status(target: string): Promise<{
-	        isSubdirectory: boolean;
-	        exists: boolean;
-	        contains: boolean;
-	    }>;
-	    $status(target: string, root: string): Promise<{
-	        isSubdirectory: boolean;
-	        exists: boolean;
-	        contains: boolean;
-	    }>;
+	    $status(target: string): Promise<ForgePathStatus>;
+	    $status(target: string, root: string): Promise<ForgePathStatus>;
 	    $exists(target: string): Promise<boolean>;
-	    $fetch(relative: string): Promise<ArrayBuffer>;
-	    protected _$render(request: ForgeRequest, response: ForgeResponse, pathing: {
-	        relative: string;
-	        absolute: string;
-	        ext: string;
-	    }): Promise<boolean>;
+	    $fetch(relative: string, absolute: string): Promise<ArrayBuffer>;
+	    protected _$render(request: ForgeRequest, response: ForgeResponse, pathing: FileRoutePathing): Promise<boolean>;
 	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
@@ -3258,7 +3240,7 @@ declare module "@onyx-ignition/forge-core" {
 	    resolve(header: Record<string, unknown>, data: Serialize): void;
 	    reject(header: Record<string, unknown>, data: Serialize): void;
 	    $reset(data: Serialize): Promise<Serialize>;
-	    $start(data: Serialize): Promise<Serialize>;
+	    $connect(data: Serialize): Promise<Serialize>;
 	    $session(header: Record<string, unknown>, data: Serialize, race: number, capture: Capture): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize, options: {
@@ -3289,8 +3271,8 @@ declare module "@onyx-ignition/forge-core" {
 	    protected _key: string;
 	    protected _reboot: boolean;
 	    protected _stdio: StdioOption;
-	    protected _$start: $Promise<Serialize>;
-	    protected _$ready: $Promise<Serialize>;
+	    protected _$local: $Promise<Serialize>;
+	    protected _$remote: $Promise<Serialize>;
 	    protected readonly _race: ForgeRace;
 	    protected readonly _sessions: Map<string, SocketSession>;
 	    protected readonly _bindings: Map<Function, Function>;
@@ -3305,8 +3287,11 @@ declare module "@onyx-ignition/forge-core" {
 	    get routing(): ForgeSocketRouting;
 	    race(): number;
 	    race(value: string): number;
-	    get $ready(): Promise<Serialize>;
-	    $start(data: Serialize): Promise<Serialize>;
+	    get $ready(): Promise<{
+	        local: Serialize;
+	        remote: Serialize;
+	    }>;
+	    $connect(data: Serialize): Promise<Serialize>;
 	    read(message: [string, Record<string, unknown>, Serialize]): boolean;
 	    write(header: Record<string, unknown>, data: Serialize): void;
 	    resolve(header: Record<string, unknown>, data: Serialize): void;
@@ -3329,12 +3314,12 @@ declare module "@onyx-ignition/forge-core" {
 	
 	
 	export class ForgeSocketRoute extends ForgeRoute {
-	    static $Authorize(iSocket: IForgeSocket, options: {
+	    static $Authorize(socket: IForgeSocket, options: {
 	        race: number;
 	        capture: Capture;
 	    }): (request: ForgeRequest, response: ForgeResponse) => Promise<boolean>;
-	    private _iSocket;
-	    constructor(iSocket: IForgeSocket, config: {
+	    private socket;
+	    constructor(socket: IForgeSocket, config: {
 	        hooks?: IForgeRouteHook[];
 	        race?: number;
 	    });
@@ -3394,10 +3379,11 @@ declare module "@onyx-ignition/forge-core" {
 	
 	export class WorkerSocket extends AbstractForgeSocket {
 	    private _worker;
-	    private _commands;
-	    private _args;
+	    private _command;
+	    private readonly _$online;
 	    constructor(name: string, config: SocketConfig);
 	    constructor(name: string, config: SocketConfig, port: MessagePort);
+	    $connect(data: Serialize): Promise<Serialize>;
 	    private _onExit;
 	    write(header: Omit<Serialize, "key">, data: Serialize): void;
 	}
