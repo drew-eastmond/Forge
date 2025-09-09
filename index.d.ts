@@ -992,109 +992,6 @@ declare module "@onyx-ignition/forge" {
 	    protected readonly _delegates: Set<ReactiveDelegate<IReactor<T>[]>>;
 	    protected readonly _frameBinded: any;
 	    constructor(iReactors: IReactor<T>[]);
-	    protected _operate(iReactor: IReactor<T>, states: ReactorMap<T>): boolean;
-	    setter(iReactor: IReactor<T>): IReactor<T>[];
-	    getter(): IReactor<T>[];
-	    getter(delegate: ReactiveDelegate<IReactor<T>[]>): IReactor<T>[];
-	    frame(delay?: number): void;
-	}
-	export class AndReactor<T extends T[]> extends CircuitReactor<T> {
-	    constructor(iReactors: IReactor<T>[]);
-	    setter(iReactor: IReactor<T>): IReactor<T>[];
-	    getter(): IReactor<T>[];
-	    getter(delegate: ReactiveDelegate<IReactor<T>[]>): IReactor<T>[];
-	}
-	
-	
-		const Reactivity: unique symbol;
-	const HaltReactivity: unique symbol;
-	type ReactiveDelegate<T> = (value: T, previous?: T) => unknown;
-	type Reaction<T> = (delegate?: ReactiveDelegate<T>) => T;
-	interface IReactor<T> {
-	    setter: (value: T) => T;
-	    getter: Reaction<T>;
-	}
-	class ReactiveTraits<T> implements IReactor<T> {
-	    private _state;
-	    private _setter;
-	    private _getter;
-	    private readonly _delegates;
-	    constructor();
-	    constructor(state: T);
-	    constructor(state: T, transform: {
-	        getter?: (state: T) => T;
-	        setter?: (newState: T, oldState: T) => T;
-	    });
-	    getter(): T;
-	    getter(delegate: ReactiveDelegate<T>): T;
-	    setter(value: T): T;
-	}
-	function reactive<T = unknown>(value: T): IReactor<T>;
-	
-		export const Reactivity: unique symbol;
-	export const HaltReactivity: unique symbol;
-	export type ReactiveDelegate<T> = (value: T, previous?: T) => unknown;
-	export type Reaction<T> = (delegate?: ReactiveDelegate<T>) => T;
-	export interface IReactor<I, O = I> {
-	    setter: (value: I) => O;
-	    getter: Reaction<O>;
-	}
-	export class ReactiveTrait<S, T = S> implements IReactor<S, T> {
-	    private _state;
-	    private _setter;
-	    private _getter;
-	    private readonly _delegates;
-	    constructor();
-	    constructor(state: S);
-	    constructor(state: S, transform: {
-	        getter?: (state: S) => T;
-	        setter?: (newState: S, oldState: S) => S;
-	    });
-	    protected _transformSet(state: S, previous: S): S;
-	    protected _transformGet(state: S): T;
-	    getter(): T;
-	    getter(delegate: ReactiveDelegate<T>): T;
-	    setter(value: S): T;
-	}
-	export function reactive<T = unknown>(value: T): IReactor<T>;
-	
-		export const AsyncReactivity: unique symbol;
-	export const HaltAsyncReactivity: unique symbol;
-	export type AsyncReactiveDelegate<T> = (value: T, previous?: T) => Promise<unknown>;
-	export type AsyncReaction<T> = (delegate?: AsyncReactiveDelegate<T>) => Promise<T | unknown>;
-	export interface IAsyncReactor<T> {
-	    $setter: (value: T) => Promise<T>;
-	    $getter: AsyncReaction<T>;
-	}
-	export class AsyncReactiveTrait<T> implements IAsyncReactor<T> {
-	    private _state;
-	    private _$state;
-	    private _$setter;
-	    private _$getter;
-	    private readonly _$delegates;
-	    constructor();
-	    constructor(state: T);
-	    constructor(state: T, transform: {
-	        $get?: (state: T) => Promise<T>;
-	        $set?: (newState: T, oldState: T) => Promise<T>;
-	    });
-	    [Symbol.asyncIterator](): AsyncIterableIterator<T>;
-	    $getter(): Promise<T>;
-	    $getter($delegate: AsyncReactiveDelegate<T>): Promise<T>;
-	    $setter(value: T): Promise<T>;
-	}
-	export function $reactive<T = unknown>(value: T): IAsyncReactor<T>;
-	
-		
-	const NullState: unique symbol;
-	type ReactorMap<T> = Map<IReactor<T>, T | typeof NullState>;
-	export class CircuitReactor<T> implements IReactor<IReactor<T>, IReactor<T>[]> {
-	    protected _states: ReactorMap<T>;
-	    protected _activeStates: Set<IReactor<T>>;
-	    private _clearTimeout;
-	    protected readonly _delegates: Set<ReactiveDelegate<IReactor<T>[]>>;
-	    protected readonly _frameBinded: any;
-	    constructor(iReactors: IReactor<T>[]);
 	    get activeStates(): IReactor<T>[];
 	    protected _operate(states: ReactorMap<T>, iReactor?: IReactor<T>): boolean;
 	    setter(iReactor: IReactor<T>): IReactor<T>[];
@@ -1912,12 +1809,6 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 	
-		
-	export class ForgeClientServer {
-	    private _iSocket;
-	    constructor(iSocket: IForgeSocket);
-	}
-	
 		export class ForgeRace {
 	    private _default;
 	    private _race;
@@ -1965,65 +1856,6 @@ declare module "@onyx-ignition/forge" {
 	    abort(): void;
 	    $serve(port: number): Promise<ForgeServer>;
 	}
-	
-		
-	
-	
-	
-	
-	
-	
-	
-	class ForgeClientRouting {
-	    protected _$catchRoute: (error: unknown) => false;
-	    private _client;
-	    constructor(client: ForgeClient);
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	export class ForgeClient extends Subscription {
-	    static Arguments(options: Record<string, unknown> & {
-	        race: Record<string, number>;
-	    }): [string, Record<string, unknown>, Record<string, unknown> & {
-	        race: Record<string, number>;
-	    }];
-	    static $Serve: (file: string, request: ForgeRequest, response: ForgeResponse, options: {
-	        resolve?: {
-	            status?: number;
-	            end?: boolean;
-	        };
-	        reject?: {
-	            status: number;
-	            write: string;
-	            end?: boolean;
-	        };
-	    }) => Promise<void>;
-	    protected _executing: boolean;
-	    protected _queue: [];
-	    protected _iSocket: IForgeSocket;
-	    protected _iModel: IForgeModel;
-	    protected readonly _race: ForgeRace;
-	    protected readonly _routing: ForgeClientRouting;
-	    readonly routes: Set<IForgeRoute>;
-	    constructor(key: string, data: Record<string, unknown>, options: {
-	        race: Record<string, number>;
-	    });
-	    private _$raceDispatch;
-	    protected _$subscribeMessage(notify: string, source: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
-	    get $ready(): Promise<Serialize>;
-	    $start(data: Serialize): Promise<Serialize>;
-	    protected $reset(data: Serialize, race: number): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize, options: {
-	        race?: number;
-	        capture: Capture;
-	    }): Promise<Serialize>;
-	    $execute(signal: string, data: Serialize, race: number): Promise<Serialize>;
-	    $watch(data: Serialize, race: number): Promise<Serialize>;
-	    $model(attributes: Attributes): Promise<IForgeModel>;
-	}
-	
 	
 		
 	
@@ -2242,76 +2074,6 @@ declare module "@onyx-ignition/forge" {
 	
 	
 		
-	
-	
-	
-	
-	
-	export type ForgeModelRouteAccessData = {
-	    state: string;
-	    stores: Record<string, string>;
-	    permit: string;
-	    access: string;
-	    verifications: string[];
-	    write?: {
-	        data?: ArrayBuffer;
-	        attributes?: Attributes;
-	        mime?: string;
-	    };
-	    ordering?: string[];
-	};
-	export enum ForgeModelRouteAccess {
-	    Fork = "fork",
-	    Read = "read",
-	    Write = "write",
-	    Purge = "purge",
-	    Order = "order"
-	}
-	export type ForgeModelRouteHook = IForgeRouteHook & {
-	    $parse(request: ForgeRequest, response: ForgeResponse): Promise<ForgeModelRouteAccessData>;
-	};
-	export class ForgeModelRoutePermission {
-	    private _iModel;
-	    private _state;
-	    private readonly _verfications;
-	    private readonly _iStores;
-	    private readonly _access;
-	    private readonly _permit;
-	    constructor(iModel: IForgeModel, iStores: IForgeStore[], permit: string, access?: ForgeModelRouteAccess[]);
-	    $fork(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteAccessData): Promise<boolean>;
-	    $read(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteAccessData): Promise<boolean>;
-	    $write(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteAccessData): Promise<boolean>;
-	    $purge(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteAccessData): Promise<boolean>;
-	    $order(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteAccessData): Promise<boolean>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse, accessData: ForgeModelRouteAccessData): Promise<boolean>;
-	    authorize(accessData: ForgeModelRouteAccessData): boolean;
-	    export(): {
-	        state: string;
-	        stores: string[];
-	        verifications: string[];
-	        access: Partial<Record<ForgeModelRouteAccess, string>>;
-	        permit: string;
-	    };
-	    refresh(): void;
-	}
-	export class ForgeModelRoute extends ForgeRoute implements ForgeModelRouteHook {
-	    protected _iModel: IForgeModel;
-	    protected _hasParsing: boolean;
-	    protected readonly _permissions: Map<string, ForgeModelRoutePermission>;
-	    constructor(iModel: IForgeModel, config: {
-	        race?: number;
-	        hooks?: ForgeModelRouteHook[];
-	    });
-	    get state(): GetState<string>;
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $parse(request: ForgeRequest, response: ForgeResponse): Promise<ForgeModelRouteAccessData>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    expose(stores: IForgeStore[]): ForgeModelRoutePermission;
-	    expose(stores: IForgeStore[], access?: ForgeModelRouteAccess[]): ForgeModelRoutePermission;
-	    add(hook: ForgeModelRouteHook): this;
-	}
-	
-		
 	export class ForgeModelState {
 	    private _substates;
 	    private readonly _stores;
@@ -2320,13 +2082,6 @@ declare module "@onyx-ignition/forge" {
 	    add(store: IForgeStore): string;
 	    remove(store: IForgeStore): void;
 	    clean(states: string[]): void;
-	}
-	
-		
-	export class ForgeModelGroup {
-	    private _state;
-	    private readonly _iStores;
-	    constructor(iStores: IForgeStore[]);
 	}
 	
 		
@@ -2585,7 +2340,6 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 		
-		
 	
 	export function $ParseStoreUpgrade(root: IForgeStore, content: string, customDelegates: Record<string, QueryDelegate>): Promise<void>;
 	
@@ -2731,8 +2485,6 @@ declare module "@onyx-ignition/forge" {
 	    }): AsyncIterableIterator<T>;
 	    toString(): string;
 	}
-	
-		export function ParseStoreUpgrade(content: string): void;
 	
 		
 	
@@ -2992,7 +2744,7 @@ declare module "@onyx-ignition/forge" {
 	    stream(buffer: ArrayBuffer): void;
 	    flush(): void;
 	    end(): void;
-	    redirect(): void;
+	    redirect(url: string): void;
 	    unwrap(): IResponseAdapter;
 	    $import(responseExport: ForgeResponseExport): Promise<this>;
 	    $export(includeWrites?: boolean): Promise<ForgeResponseExport>;
@@ -3100,6 +2852,7 @@ declare module "@onyx-ignition/forge" {
 	    };
 	    private _root;
 	    private _indexes;
+	    private _caching;
 	    private readonly _resolve;
 	    private readonly _reject;
 	    readonly statuses: Map<string, ForgePathStatus>;
@@ -3119,20 +2872,28 @@ declare module "@onyx-ignition/forge" {
 	            status?: number;
 	            end?: boolean;
 	        };
+	        caching?: boolean;
 	    });
 	    get root(): string;
 	    get indexes(): string[];
 	    $status(target: string): Promise<ForgePathStatus>;
 	    $status(target: string, root: string): Promise<ForgePathStatus>;
 	    $exists(target: string): Promise<boolean>;
+	    $pathing(request: ForgeRequest): Promise<FileRoutePathing>;
 	    $fetch(relative: string, absolute: string): Promise<ArrayBuffer>;
 	    protected _$render(request: ForgeRequest, response: ForgeResponse, pathing: FileRoutePathing): Promise<boolean>;
 	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    add(hook: IForgeRouteHook & {
+	    add(hook: {
+	        $authorize?: RouteDelegate;
+	        $resolve?: RouteDelegate;
+	        $reject?: RouteDelegate;
+	        $finally?: RouteDelegate;
 	        $render?: FileRouteDelegate;
 	    }): this;
+	    uncache(): any;
+	    uncache(relative: string): any;
 	}
 	
 		
@@ -3198,8 +2959,13 @@ declare module "@onyx-ignition/forge" {
 	
 		
 	
+	export class DummySocket extends AbstractForgeSocket {
+	    write(header: Record<string, unknown>, data: Serialize): void;
+	}
+	
+		
+	
 	export class ExecSocket extends AbstractForgeSocket {
-	    private _source;
 	    private _command;
 	    private _config;
 	    constructor(name: string, config: SocketConfig);
@@ -3225,6 +2991,7 @@ declare module "@onyx-ignition/forge" {
 	    debounce?: number;
 	    stdio?: string;
 	    race?: Record<string, number>;
+	    env?: Record<string, string>;
 	    key?: string;
 	    reboot?: boolean;
 	};
@@ -3386,19 +3153,6 @@ declare module "@onyx-ignition/forge" {
 	    $connect(data: Serialize): Promise<Serialize>;
 	    private _onExit;
 	    write(header: Omit<Serialize, "key">, data: Serialize): void;
-	}
-	
-		
-	
-	
-	export class CompositeExpression extends ForgeSyntaxExpression {
-	    private _consumer;
-	    private readonly _statementQueries;
-	    constructor(attributes: Attributes);
-	    private _defaultConsume;
-	    private _consumeState;
-	    consume(token: string): boolean;
-	    add(iSyntaxExpression: IForgeSyntaxExpression): this;
 	}
 	
 		
@@ -3600,6 +3354,14 @@ declare module "@onyx-ignition/forge" {
 	    slice(): string[];
 	    slice(cursor: number): string[];
 	    frame(): void;
+	}
+	
+		export class ForgeVirtualScript {
+	    exports: unknown;
+	    constructor();
+	    constructor(code: string);
+	    constructor(code: string, exposed: Record<string, unknown>);
+	    evaluate(code: string, exposed?: Record<string, unknown>): unknown;
 	}
 	
 		
