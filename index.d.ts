@@ -1,97 +1,7 @@
 // @ts-nocheck
 
 declare module "@onyx-ignition/forge" {
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	export { Accessor, IForgeArguments, CLIArguments, EnvArguments, CompositeArguments, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Sequence, Topology, ITreeNode, TreeNode, TreeCollection, Attributes, IntervalClear, TimeoutClear, Serialize, Capture, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, FlattenObject, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, Mimes, IPoolable, PoolManager, QueryDelegate, $QueryDelegate, AttributesQuery, QueryCallback, IQuery, WaitConfirmation, WaitFilter, IWaitingQuery, QueryManager, WaitingQueryManager, AsyncReactivity, HaltAsyncReactivity, AsyncReactiveDelegate, AsyncReaction, IAsyncReactor, AsyncReactiveTrait, $reactive, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, Reactor, reactive, IResult, $IResult, Result, Notification, ISubscription, Unsubscribe, Subscription, IThottle, SequentialThottle, Debouncer, CallbackAction, ActionData, ActionConfig, IAction, AbstractForgeAction, ResolverValues, TriggerData, IForgeTrigger, ParseTrigger, SignalTrigger, WatchTrigger, ResolveTrigger, RejectTrigger, SettledTrigger, SocketAction, ForgeAccess, ForgeAuthorization, ForgeUser, Platform, Format, EsbuildResult, BuildOptions, ImportEntrty, BuildEntry, SectionEntry, Verbosity, BuildConfig, ESBuildBundler, ForgeBuilder, TSCBundler, DependencyManager, NodeData, DependencySorter, BrowserExtension, ExportExtension, ExtensionSource, IForgeBuildExtension, AcbstractExtension, ForgeBuildExtension, NodeExtension, IForgeBuildPlugin, ForgeBuildPlugin, TypescriptBuilder, TypescriptFile, ForgeClient, ForgeRace, Forge, ForgeController, TaskConfig, ForgeTask, $CompareModels, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFileWatcher, ForgeIO, ForgeParsedPath, ForgePath, IForgeRequestAdapter, ForgeRequestExport, ForgeRequest, ResponseOutput, IResponseAdapter, ForgeResponseExport, ForgeResponseChunk, ForgeResponse, $ParseRequestBody, RequestBodyParser, ForgeServer, ForgeHTTPCookies, ForgeHTTPHeaders, FileRouteDelegate, FileRoute, FileDirectoryRoute, RouteDelegate, IForgeRoute, IForgeRouteHook, ForgeRoute, DelegateRoute, HTTPRoute, ExecSocket, SocketConfig, IForgeSocket, AbstractForgeSocket, ForgeSocketRoute, ForkSocket, PluginSocket, RestSocket, SpawnSocket, WorkerSocket, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer };
-	
-		export class Accessor {
+	export class Accessor {
 	    private _source;
 	    private _entries;
 	    constructor(source: Record<string, unknown>, seperator?: string);
@@ -1377,7 +1287,7 @@ declare module "@onyx-ignition/forge" {
 	
 		
 	export type Platform = "browser" | "node" | "neutral";
-	export type Format = "forge-js" | "forge-ts" | "iife" | "cjs" | "esm" | "tsc";
+	export type Format = "iife" | "cjs" | "esm";
 	export type EsbuildResult = {
 	    outputFiles: {
 	        text: string;
@@ -1527,74 +1437,15 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 		
-	
-	type ImportEntrty = {
-	    path: string;
-	    kind: "require-call" | "import-statement";
-	    original?: string;
-	    external?: boolean;
-	};
-	export type SectionEntry = {
-	    file: string;
-	    code: string;
-	    bytes: number;
-	    imports: ImportEntrty[];
-	    format: "cjs" | "esm";
-	};
-	export class DependencyManager {
-	    private _fileManifest;
-	    private _dependencyHelper;
-	    private _inputs;
-	    private _options;
-	    entry: string;
-	    header: string;
-	    footer: string;
-	    private readonly _sectionMap;
-	    constructor(entry: string, inputs: Record<string, unknown>, buildOptions: BuildOptions);
-	    private _sanitizeFileUrl;
-	    set code(val: string);
-	    $sections(): Promise<SectionEntry[]>;
-	    has(file: string): boolean;
-	    load(dependencies: NodeData[]): this;
-	}
-	
-	
-		export type NodeData = Record<string, unknown> & {
-	    id: string;
-	    title: string;
-	    children: NodeData[];
-	};
-	/**
-	 * @constructor { NodeData[] } - dependencies
-	 */
-	export class DependencySorter {
-	    private _dependencies;
-	    private _count;
-	    constructor(dependencies?: NodeData[]);
-	    [Symbol.iterator](): Iterator<NodeData>;
-	    private _has;
-	    private _indexOf;
-	    private _spliceDependency;
-	    /**
-	     * intersect :
-	     *
-	     *
-	     * @param { string[] } inputs - This is supplied from the esbuild/typescript during each build step
-	     */
-	    intersect(inputs: string[]): NodeData[];
-	    remove(file: string): void;
-	    load(dependencies: NodeData[]): this;
-	}
-	
-		
-	
+	type SectionEntry = any;
 	export class BrowserExtension extends AcbstractExtension {
 	    $section(content: string, sectionEntry: SectionEntry): Promise<string>;
 	}
 	
+	
 		
 	
-	
+	type SectionEntry = any;
 	export class ExportExtension implements IForgeBuildExtension {
 	    private _mode;
 	    private _base;
@@ -1611,7 +1462,8 @@ declare module "@onyx-ignition/forge" {
 	    $complete(output: string): Promise<string>;
 	}
 	
-		
+	
+		type SectionEntry = any;
 	export type ExtensionSource = {
 	    $start?: (entry: string, manifest: Record<string, unknown>, BuildOptions: Record<string, unknown>) => Promise<void>;
 	    $header?: (content: string) => Promise<string>;
@@ -1646,6 +1498,7 @@ declare module "@onyx-ignition/forge" {
 	    $complete(content: string): Promise<string>;
 	    toString(): string;
 	}
+	
 	
 		
 	export class NodeExtension extends AcbstractExtension {
@@ -1721,7 +1574,6 @@ declare module "@onyx-ignition/forge" {
 	    readonly exports: Set<string>;
 	    hash: string;
 	    constructor(root: string, options?: {
-	        root?: string;
 	        $fetch?: (file: string) => Promise<string>;
 	        $package?: Promise<Set<string>>;
 	    });
@@ -2416,6 +2268,7 @@ declare module "@onyx-ignition/forge" {
 	    static Number(attributes: Attributes, value: number): ForgeStore;
 	    static JSON(attributes: Attributes, value: Record<string, unknown>): ForgeStore;
 	    static Binary(attributes: Attributes, value: ArrayBuffer): IForgeStore;
+	    static String(attributes: Attributes, value: string): IForgeStore;
 	    static Store(attributes: Attributes, value: ArrayBuffer, mime: string): IForgeStore;
 	    protected _mime: string;
 	    protected _attributes: Attributes;
@@ -2587,6 +2440,7 @@ declare module "@onyx-ignition/forge" {
 	    static Read(path: string, options?: Record<string, unknown>): ArrayBuffer;
 	    static $ReadString(path: string, encoding?: 'utf8' | string): Promise<string>;
 	    static $Read(path: string): Promise<ArrayBuffer>;
+	    static Write(path: string, contents: string | Buffer | ArrayBuffer, options?: {}): void;
 	    static $Write(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
 	    static $Write(path: string, contents: string | Buffer | ArrayBuffer, options: {}): Promise<void>;
 	    static $Append(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
@@ -3137,6 +2991,7 @@ declare module "@onyx-ignition/forge" {
 	    private _source;
 	    private _commands;
 	    constructor(name: string, config: SocketConfig, source?: any);
+	    protected _$thenStart(data: Serialize): Promise<void>;
 	    private _onExit;
 	    write(header: Serialize, ...data: Serialize[]): void;
 	}
