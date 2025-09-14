@@ -1332,6 +1332,60 @@ declare module "@onyx-ignition/forge" {
 	    Warn = 2,
 	    Error = 3
 	}
+	export interface TransformOptions {
+	    /** Documentation: https://esbuild.github.io/api/#sourcefile */
+	    sourcefile?: string;
+	    /** Documentation: https://esbuild.github.io/api/#loader */
+	    loader?: any;
+	    /** Documentation: https://esbuild.github.io/api/#banner */
+	    banner?: string;
+	    /** Documentation: https://esbuild.github.io/api/#footer */
+	    footer?: string;
+	}
+	export interface Note {
+	    text: string;
+	    location: Location | null;
+	}
+	export interface Location {
+	    file: string;
+	    namespace: string;
+	    /** 1-based */
+	    line: number;
+	    /** 0-based, in bytes */
+	    column: number;
+	    /** in bytes */
+	    length: number;
+	    lineText: string;
+	    suggestion: string;
+	}
+	export interface Message {
+	    id: string;
+	    pluginName: string;
+	    text: string;
+	    location: Location | null;
+	    notes: Note[];
+	    /**
+	     * Optional user-specified data that is passed through unmodified. You can
+	     * use this to stash the original error, for example.
+	     */
+	    detail: any;
+	}
+	export interface TransformResult<ProvidedOptions extends TransformOptions = TransformOptions> {
+	    code: string;
+	    map: string;
+	    warnings: Message[];
+	    /** Only when "mangleCache" is present */
+	    mangleCache: any;
+	    /** Only when "legalComments" is "external" */
+	    legalComments: any;
+	}
+	export interface OnLoadArgs {
+	    path: string;
+	    namespace: string;
+	    suffix: string;
+	    pluginData: any;
+	    with: Record<string, string>;
+	}
 	export class BuildConfig {
 	    bundled: boolean;
 	    platform: Platform;
@@ -1340,12 +1394,13 @@ declare module "@onyx-ignition/forge" {
 	    treeShaking: boolean;
 	    external: string[];
 	    verbose: Verbosity;
+	    minify: boolean;
+	    write: boolean;
 	    constructor(options: Partial<BuildOptions>);
 	    $validate(): $IResult<Error>;
 	}
 	
 		
-	
 	
 	
 	
@@ -1357,14 +1412,13 @@ declare module "@onyx-ignition/forge" {
 	    private _entry;
 	    private _options;
 	    private _watcher;
-	    private _$context;
 	    private _iResult;
 	    readonly loaders: Record<string, string>;
 	    readonly iPlugins: IForgeBuildPlugin[];
 	    readonly cache: Map<string, string>;
 	    constructor(entry: string, options: BuildOptions);
 	    constructor(entry: string, options: BuildOptions, iPlugins: IForgeBuildPlugin[]);
-	    protected _setupPlugins(build: PluginBuild): void;
+	    protected _setupPlugins(build: any): void;
 	    get iResult(): IResult<Attributes>;
 	    $start(): Promise<void>;
 	    $complete(): Promise<void>;
@@ -2438,7 +2492,7 @@ declare module "@onyx-ignition/forge" {
 	    static $DirectoryExists(path: string): Promise<boolean>;
 	    static $MakeDirectory(path: string): Promise<boolean>;
 	    static Read(path: string, options?: Record<string, unknown>): ArrayBuffer;
-	    static $ReadString(path: string, encoding?: 'utf8' | string): Promise<string>;
+	    static $ReadDecoded(path: string, encoding?: 'utf8' | string): Promise<string>;
 	    static $Read(path: string): Promise<ArrayBuffer>;
 	    static Write(path: string, contents: string | Buffer | ArrayBuffer, options?: {}): void;
 	    static $Write(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
@@ -2814,6 +2868,7 @@ declare module "@onyx-ignition/forge" {
 		
 	
 	export class DummySocket extends AbstractForgeSocket {
+	    constructor(name: string);
 	    write(header: Record<string, unknown>, data: Serialize): void;
 	}
 	
