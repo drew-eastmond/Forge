@@ -2,7 +2,6 @@
 .vs
 node_modules
 .git
-build.js
 Force-Source
 .vs
 .gitmodules

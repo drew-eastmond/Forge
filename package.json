@@ -6,32 +6,32 @@
         "@onyx-ignition/forge": "bin.js",
         "build": "node ./build.js"
     },
-        "main": "./index.js",
-        "exports": {
-            ".": {
-                "require": "./index.js",
-                "import": "./index.mjs",
-                "types": "./index.d.ts"
-            }
-        },
-        "scripts": {
-            "test": "echo \"Warning: no test specified\" && exit 0"
-        },
-        "repository": {
-            "type": "git",
-            "url": "git+https://github.com/drew-eastmond/Forge.git"
-        },
-        "author": "Drew Eastmond",
-        "moduleResolution": "nodenext",
-        "devDependencies": {
-            "@types/node": "^20.7.2",
-            "react": "^18.2.0",
-            "react-dom": "^18.2.0"
-        },
-        "dependencies": {
-            "compression": "^1.7.4",
-            "express": "^4.18.2",
-            "esbuild": "^0.24.0"
+    "main": "./index.js",
+    "exports": {
+        ".": {
+            "require": "./index.js",
+            "import": "./index.mjs",
+            "types": "./index.d.ts"
         }
-
+    },
+    "scripts": {
+        "test": "echo \"Warning: no test specified\" && exit 0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/drew-eastmond/Forge.git"
+    },
+    "author": "Drew Eastmond",
+    "moduleResolution": "nodenext",
+    "devDependencies": {
+        "@types/node": "^20.7.2",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    },
+    "dependencies": {
+        "compression": "^1.7.4",
+        "cookie-parser": "^1.4.7",
+        "express": "^4.18.2",
+        "ws": "^8.18.3"
     }
+}

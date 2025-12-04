@@ -1,10 +1,11 @@
 // @ts-nocheck
 
 declare module "@onyx-ignition/forge" {
+	
 	export class Accessor {
 	    private _source;
 	    private _entries;
-	    constructor(source: Record<string, unknown>, seperator?: string);
+	    constructor(source: Attributes);
 	    /**
 	     * Iterates via Object.entries(...) on the internal _args property
 	     *
@@ -16,6 +17,7 @@ declare module "@onyx-ignition/forge" {
 	        value: unknown;
 	    }>;
 	    has(accessor: string[]): boolean;
+	    intersect(intersect: unknown, source: unknown): Attributes;
 	    fetch(accessor: string[]): unknown;
 	    parse(query: string, seperator: string): unknown;
 	    inject(input: string, regExp: RegExp, options?: {
@@ -24,7 +26,12 @@ declare module "@onyx-ignition/forge" {
 	    }): string;
 	}
 	
-		/**
+		export class FileArguments {
+	}
+	
+		
+	type ArgumentQuery = string | RegExp;
+	/**
 	 * Use to store data about how to parse an argument
 	 *
 	 * @typedef {Object} ValidationEntry
@@ -40,16 +47,37 @@ declare module "@onyx-ignition/forge" {
 	    default?: unknown;
 	    required?: boolean;
 	    error?: string;
-	    sanitize?: (value: unknown, args: Record<string, unknown>) => unknown;
-	    validate?: (value: unknown, args: Record<string, unknown>) => boolean;
+	    help?: string;
+	    sanitize?: (value: unknown, args: [string, unknown][]) => unknown;
+	    validate?: (value: unknown, args: [string, unknown][]) => boolean;
+	    prompt?: {
+	        message: string;
+	        required?: boolean;
+	    };
 	};
 	export interface IForgeArguments {
-	    get(): unknown;
-	    get(key?: string | RegExp): unknown;
-	    get(key?: string | RegExp): unknown;
+	    [Symbol.iterator](): Iterator<[string, unknown]>;
+	    import(args: [string, unknown][]): void;
+	    last<T = unknown>(query: ArgumentQuery): T;
 	    parse(input: string): void;
-	    add(key: string | RegExp, config: ValidationEntry): this;
-	    compile(): void;
+	    add(query: ArgumentQuery, config: ValidationEntry): this;
+	    $fetch<T = unknown>(query: ArgumentQuery, config: ValidationEntry): Promise<T>;
+	    compile(...rest: unknown[]): [string, unknown][];
+	    string(query: ArgumentQuery): string;
+	    number(query: ArgumentQuery): number;
+	    attributes(query: ArgumentQuery): Attributes;
+	    collect<T = unknown>(query: ArgumentQuery): T[];
+	    collect<T = unknown>(query: ArgumentQuery, options: {
+	        resolve?: boolean;
+	        split?: string | RegExp;
+	        glob?: boolean;
+	    }): T[];
+	    $prompt(message: string): Promise<string>;
+	    $walk(query: ArgumentQuery): Promise<string[]>;
+	    $walk(query: ArgumentQuery, options: {
+	        ignores: string[];
+	    }): Promise<string[]>;
+	    $json(query: ArgumentQuery, intersect: Attributes): Promise<Attributes>;
 	}
 	/**
 	 * Provides a base to store validation data and arguments formatted as a Record.
@@ -58,8 +86,8 @@ declare module "@onyx-ignition/forge" {
 	 *
 	 */
 	class AbstractArguments implements IForgeArguments {
-	    protected readonly _args: Record<string, unknown>;
-	    protected readonly _validationMap: Map<string | RegExp, ValidationEntry>;
+	    protected readonly _args: [string, unknown][];
+	    protected readonly _validationMap: Map<ArgumentQuery, ValidationEntry>;
 	    protected readonly _errors: string[];
 	    constructor();
 	    /**
@@ -69,6 +97,7 @@ declare module "@onyx-ignition/forge" {
 	     * @yields {[string, unknown]}
 	     */
 	    [Symbol.iterator](): Iterator<[string, unknown]>;
+	    protected _query(query: ArgumentQuery, name: string): boolean;
 	    /**
 	     * This function will
 	     *      1. Inject a default if no value is provided
@@ -80,52 +109,96 @@ declare module "@onyx-ignition/forge" {
 	     * @param validation {ValidationEntry} Provides info for default, is required, and a validator to sanitize the
 	     * @returns {unknown} If the `validation` param has a delegate then it will sanitize value.
 	     */
-	    protected _validate(key: string | RegExp, value: unknown, validation: ValidationEntry): unknown;
+	    protected _validate(key: ArgumentQuery, value: unknown, validation: ValidationEntry): unknown;
+	    import(args: [string, unknown][], options?: {}): void;
 	    /**
 	     * Find the requested key in the internal args members. Can evaluate using `String` or `RegExp`
 	     *
-	     * @param key {string|RegExp} Optional
+	     * @param query {string|RegExp} Optional
 	     * @returns {boolean}
 	     */
-	    has(key: string | RegExp): boolean;
+	    has(query: ArgumentQuery): boolean;
 	    /**
 	     * Getter that will return the value associated with the key, or the arguments collection {Record<string, unknown>)
 	     * if a RegExp the is passed then this function will returnt he first value that matches.
 	     * if a string is pass then the value of the indexed value will be returned.
 	     * if no value is passed then the whole arg object is returned.
 	     *
-	     * @param key {string|RegExp|undefined} Optional
+	     * @param query {string|RegExp|undefined} Optional
 	     * @returns {unknown} DO l really need to explain this
 	     */
-	    get<T = unknown>(): T;
-	    get<T = unknown>(key: string | RegExp): T;
+	    last<T = unknown>(query: ArgumentQuery): T;
+	    $prompt(message: string): Promise<string>;
+	    $prompt(message: string, options: {
+	        race: number;
+	    }): Promise<string>;
 	    /**
 	     * Assigns a validation check to specific arguments via the key provided
 	     *
-	     * @param key {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
+	     * @param query {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
+	     * @param validation {ValidationEntry}
+	     * @returns {this} return this so you can daisy chain calls
+	     */
+	    add(query: ArgumentQuery, validation: ValidationEntry): this;
+	    /**
+	     * Assigns a validation check to specific arguments via the key provided
+	     *
+	     * @param query {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
 	     * @param validationEntry {ValidationEntry}
 	     * @returns {this} return this so you can daisy chain calls
 	     */
-	    add(key: string | RegExp, validationEntry: ValidationEntry): this;
+	    $fetch<T = unknown>(query: ArgumentQuery, validation: ValidationEntry): Promise<T>;
 	    /**
 	     * Subclasses are responsible for assigning a data source (CLI, .Env, Remote/Server) into a arguments {Record<string, unknown>}
 	     *      1. After using `add` member to set all the validation entries.
 	     *      2. `compile` will validate/sanitize each entry. If there any errors then join all errors messages into a single Error and throw it!
 	     */
-	    compile(): Record<string, unknown>;
+	    compile(): [string, unknown][];
 	    parse(input: string): void;
+	    attributes(query: ArgumentQuery, splitter?: string): Attributes;
+	    split(query: ArgumentQuery, splitter: ArgumentQuery): string[];
+	    string(query: ArgumentQuery): string;
+	    number(query: ArgumentQuery): number;
+	    collect<T = string>(query: ArgumentQuery): T[];
+	    collect<T = string>(query: ArgumentQuery, options: {
+	        resolve?: boolean;
+	        split?: string | RegExp;
+	    }): T[];
+	    $walk(query: ArgumentQuery): Promise<string[]>;
+	    $walk(query: ArgumentQuery, options: {
+	        ignores: string[];
+	    }): Promise<string[]>;
+	    $json(query: ArgumentQuery, intersect: Record<string, unknown>): Promise<Record<string, unknown>>;
 	}
 	/**
 	 * Populates the arguments store based on values parsed from the CommandLine Interface.
 	 * Parses the `process.argv` using the follwoing formats
 	 *      1. {{KEY}} BASE_64_JSON : the second parameter will be auto encoded to a base64 encoded JSON
-	 *      2. --KEY : will resolve to a true value if present
-	 *      3. --KEY-- VALUE : second paramter resolve into a string. Probably needs to be sanitized in `compile`
+	 *      2. --KEY, [[KEY : will resolve to a true value if present
+	 *      3. --KEY-- VALUE, [[KEY]] VALUE : second paramter resolve into a string. Probably needs to be sanitized in `compile`
 	 *
 	 * @class
 	 */
 	export class CLIArguments extends AbstractArguments {
-	    compile(): Record<string, unknown>;
+	    static Defaults: {
+	        Key: {
+	            pair: RegExp[];
+	            flag: RegExp[];
+	        };
+	        Partial: {
+	            pair: RegExp[];
+	            flag: RegExp[];
+	        };
+	    };
+	    protected _keys: {
+	        pair: RegExp[];
+	        flag: RegExp[];
+	    };
+	    protected _partials: {
+	        pair: RegExp[];
+	        flag: RegExp[];
+	    };
+	    compile(): [string, unknown][];
 	}
 	/**
 	 * Populates the arguments store based on values parsed from the a .env file
@@ -135,17 +208,11 @@ declare module "@onyx-ignition/forge" {
 	 */
 	export class EnvArguments extends AbstractArguments {
 	    /**
-	     * Override the base `get` member to fetch values from a combination of the internal argument store and `process.env`
-	     * @params key {string} I
-	     */
-	    get(): unknown;
-	    get(key?: string): unknown;
-	    /**
 	     * Simple split alorithm to populate the arguemnt store
 	     * @param contents {string} Content pulled from a .env or similiar formatted content; or you know... DIY if your a smart ass!
 	     * @returns {this} Daisy chain this bad boi!
 	     */
-	    parse(contents: string): this;
+	    parse(contents: unknown): this;
 	}
 	/**
 	 * Combines the `CLIArgument` and `EnvArgument` into a composite so development becomes easier. The priority is
@@ -155,7 +222,7 @@ declare module "@onyx-ignition/forge" {
 	export class CompositeArguments extends AbstractArguments {
 	    private readonly _cliArguments;
 	    private readonly _envArguments;
-	    compile(): Record<string, unknown>;
+	    compile(): [string, unknown][];
 	    /**
 	     * Invokes the `EnvArgument.parse ( ... )`
 	     *
@@ -472,12 +539,18 @@ declare module "@onyx-ignition/forge" {
 	export function EmptyFunction(): void;
 	export function EncodeBase64(json: Record<string, unknown>): string;
 	export function DecodeBase64(value: string): any;
-	export function FlattenObject<T = unknown>(entries: Record<string, T>, accessor?: string): {
-	    access: string;
+	export function FlattenObject<T = unknown>(entries: Record<string, T>, accessor?: string[]): {
+	    access: string[];
 	    value: T;
 	}[];
+	export function InflateAttributes(accessor: string[], value: unknown, attributes: Attributes, options?: {
+	    overwrite: boolean;
+	}): Attributes;
 	export function QuickHash(): string;
-	export function QuickHash(seperator: string): string;
+	export function QuickHash(options: {
+	    join?: string;
+	    repeat?: number | [number, number];
+	}): string;
 	export type $Promise<Resolve = unknown, Reject = unknown> = [Promise<Resolve>, Function | ((resolve?: Resolve) => unknown), Function | ((resolve?: Reject) => unknown)];
 	export function $UsePromise<Resolve = unknown, Reject = unknown>(): $Promise<Resolve, Reject>;
 	export function $UsePromise<Resolve = unknown, Reject = unknown>(options: {
@@ -498,7 +571,7 @@ declare module "@onyx-ignition/forge" {
 	    readonly $promise: $Promise<T>;
 	    protected _timeout: TimeoutClear;
 	    constructor(options?: {
-	        delay?: number;
+	        race?: number;
 	        capture?: Capture;
 	    });
 	    renew(delay: number): this;
@@ -549,8 +622,8 @@ declare module "@onyx-ignition/forge" {
 	export function DecodeString(buffer: ArrayBuffer): string;
 	export function DecodeAttributes(buffer: ArrayBuffer): Attributes;
 	export function DecodeAttributes(buffer: ArrayBuffer, reviver: (this: any, key: string, value: unknown) => any): Attributes;
-	export function EncodeAttributes(attributes: Attributes): ArrayBuffer;
-	export function EncodeAttributes(attributes: Attributes, replacer: (this: any, key: string, value: unknown) => any): ArrayBuffer;
+	export function EncodeAttributes(attributes: Attributes | unknown[]): ArrayBuffer;
+	export function EncodeAttributes(attributes: Attributes | unknown[], replacer: (this: any, key: string, value: unknown) => any): ArrayBuffer;
 	export class Base64 {
 	    static ArrayBuffer(input: string): ArrayBuffer;
 	    static String(input: string): string;
@@ -1055,6 +1128,31 @@ declare module "@onyx-ignition/forge" {
 	    $listen(notify: unknown, callback: Function, race: number): Promise<unknown>;
 	}
 	
+		
+	export class DebounceHandle {
+	    $race: $Promise<this>;
+	    constructor(options: {
+	        race: number;
+	    });
+	    release(): void;
+	}
+	export class Debounce {
+	    private readonly _max;
+	    private readonly _handles;
+	    private readonly _$waits;
+	    constructor(options: {
+	        max: number;
+	    });
+	    private _thenHandleResolve;
+	    authorize(options: {
+	        race: number;
+	    }): DebounceHandle;
+	    $wait(options: {
+	        race: number;
+	    }): Promise<DebounceHandle>;
+	    clear(): void;
+	}
+	
 		export interface IThottle<T> {
 	    $queue($callback: Function, ...params: unknown[]): Promise<T | Error>;
 	}
@@ -1077,19 +1175,21 @@ declare module "@onyx-ignition/forge" {
 	
 		
 	
+	
 	export class CallbackAction extends AbstractForgeAction {
-	    static Parse(callback: (signal: string, data: Serialize, race?: number) => Promise<Serialize>, actionData: ActionData, data: Record<string, unknown>): IAction;
-	    protected _callback: (signal: string, data: Serialize, race?: number) => Promise<Serialize>;
-	    constructor(callback: (signal: string, data: Serialize, race?: number) => Promise<Serialize>, config: ActionConfig, data: Record<string, unknown>);
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
+	    static Parse(callback: (signal: string, data: Serialize, race?: number) => Promise<SessionResult>, actionData: ActionData, data: Record<string, unknown>): IAction;
+	    protected _callback: (signal: string, data: Serialize, race?: number) => Promise<SessionResult>;
+	    constructor(callback: (signal: string, data: Serialize, race?: number) => Promise<SessionResult>, config: ActionConfig, data: Record<string, unknown>);
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options?: {
 	        race?: number;
 	        capture?: Capture;
-	    }): Promise<Serialize>;
+	    }): Promise<SessionResult>;
 	    write(header: Record<string, unknown>, data: Serialize): void;
 	}
 	
 		
+	
 	
 	
 	
@@ -1133,13 +1233,13 @@ declare module "@onyx-ignition/forge" {
 	    name: string;
 	    task: ForgeTask;
 	    route: IForgeRoute;
-	    $reset(data: Serialize): Promise<Serialize>;
+	    $reset(data: Serialize): Promise<SessionResult>;
 	    $trigger(controller: ForgeController): Promise<boolean>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options?: {
 	        race?: number;
 	        capture?: Capture;
-	    }): Promise<Serialize>;
+	    }): Promise<SessionResult>;
 	    $stream(stdoutCallback: (message: string | string[]) => void, stderrCallback?: (error: string | string[]) => void): Promise<void>;
 	    write(...rest: Serialize[]): void;
 	    add(overload: IForgeTrigger): this;
@@ -1165,12 +1265,12 @@ declare module "@onyx-ignition/forge" {
 	    protected _subscribeMessage(notify: string, header: Record<string, unknown>, ...data: Serialize[]): void;
 	    add(overload: IForgeTrigger): this;
 	    $trigger(controller: ForgeController): Promise<boolean>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options: {
 	        race?: number;
 	        capture?: Capture;
-	    }): Promise<Serialize>;
-	    $reset(data: Serialize): Promise<Serialize>;
+	    }): Promise<SessionResult>;
+	    $reset(data: Serialize): Promise<SessionResult>;
 	    $stream(stdoutCallback: (message: string | string[]) => void, stderrCallback?: (error: string | string[]) => void): Promise<void>;
 	    write(header: Record<string, unknown>, data: Serialize): void;
 	}
@@ -1247,8 +1347,8 @@ declare module "@onyx-ignition/forge" {
 	    $signal(signal: string, data: Serialize, options?: {
 	        race?: number;
 	        capture?: Capture;
-	    }): Promise<Serialize>;
-	    $reset(data: Serialize): Promise<Serialize>;
+	    }): Promise<SessionResult>;
+	    $reset(data: Serialize): Promise<SessionResult>;
 	    write(header: Record<string, unknown>, data: Serialize): void;
 	}
 	
@@ -1277,126 +1377,74 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 		
+	type TokenPair = Record<string, string>;
+	export class ForgeAuthSession {
+	    private _tokens;
+	    private _refresh;
+	    private _options;
+	    revoked: boolean;
+	    private readonly _match;
+	    readonly attributes: Attributes;
+	    readonly expiry: number;
+	    constructor(attributes: Attributes, expiry: number, options: any);
+	    get tokens(): Record<string, string>;
+	    authorize(header: TokenPair): boolean;
+	    refresh(refresh: any): boolean;
+	}
+	
 	
 		
-	
-		export class ForgeUser {
-	    private _groups;
-	    private: any;
+	export class ForgeUser {
+	    private _permit;
+	    private _session;
+	    constructor();
+	    $login(): Promise<ForgeAuthSession>;
+	    $logout(): Promise<void>;
 	}
 	
 		
+	
 	export type Platform = "browser" | "node" | "neutral";
 	export type Format = "iife" | "cjs" | "esm";
-	export type EsbuildResult = {
-	    outputFiles: {
-	        text: string;
-	    }[];
-	    metafile: {
-	        inputs: unknown;
-	    };
-	    errors: unknown[];
-	};
-	export type BuildOptions = {
-	    bundled: boolean;
-	    platform: Platform;
-	    format: Format;
-	    metafile: boolean;
-	    treeShaking?: boolean;
-	    external: string[];
-	    target?: string;
-	    verbose?: Verbosity;
-	    root?: string;
-	};
-	export type ImportEntrty = {
-	    path: string;
-	    kind: "require-call" | "import-statement";
-	    original?: string;
-	    external?: boolean;
-	};
-	export type BuildEntry = {
-	    bytes: number;
-	    imports: ImportEntrty[];
-	    format: "cjs" | "esm";
-	};
-	export type SectionEntry = {
-	    file: string;
-	    code: string;
-	    bytes: number;
-	    imports: ImportEntrty[];
-	    format: Format;
-	};
-	export enum Verbosity {
-	    All = 0,
-	    Log = 1,
-	    Warn = 2,
-	    Error = 3
-	}
-	export interface TransformOptions {
-	    /** Documentation: https://esbuild.github.io/api/#sourcefile */
-	    sourcefile?: string;
-	    /** Documentation: https://esbuild.github.io/api/#loader */
-	    loader?: any;
-	    /** Documentation: https://esbuild.github.io/api/#banner */
-	    banner?: string;
-	    /** Documentation: https://esbuild.github.io/api/#footer */
-	    footer?: string;
-	}
-	export interface Note {
-	    text: string;
-	    location: Location | null;
-	}
-	export interface Location {
-	    file: string;
-	    namespace: string;
-	    /** 1-based */
-	    line: number;
-	    /** 0-based, in bytes */
-	    column: number;
-	    /** in bytes */
-	    length: number;
-	    lineText: string;
-	    suggestion: string;
-	}
-	export interface Message {
-	    id: string;
-	    pluginName: string;
-	    text: string;
-	    location: Location | null;
-	    notes: Note[];
-	    /**
-	     * Optional user-specified data that is passed through unmodified. You can
-	     * use this to stash the original error, for example.
-	     */
-	    detail: any;
-	}
-	export interface TransformResult<ProvidedOptions extends TransformOptions = TransformOptions> {
-	    code: string;
-	    map: string;
-	    warnings: Message[];
-	    /** Only when "mangleCache" is present */
-	    mangleCache: any;
-	    /** Only when "legalComments" is "external" */
-	    legalComments: any;
-	}
-	export interface OnLoadArgs {
-	    path: string;
-	    namespace: string;
-	    suffix: string;
-	    pluginData: any;
-	    with: Record<string, string>;
-	}
-	export class BuildConfig {
-	    bundled: boolean;
+	export type Bundle = "preserve" | "mangle" | "merge";
+	export type Verbosity = "all" | "log" | "warn" | "error" | "silent";
+	export type Write = "memory" | "file" | "stdout";
+	export type ReadTranform = "gzip" | "brotli" | "zip" | "base64";
+	export type WriteTransform = "obfuscate" | "minify" | "gzip" | "brotli" | "zip" | "base64";
+	export type ForgeBuilderOptions = Partial<{
+	    bundled: Bundle;
 	    platform: Platform;
 	    format: Format;
 	    metafile: boolean;
 	    treeShaking: boolean;
 	    external: string[];
 	    verbose: Verbosity;
-	    minify: boolean;
-	    write: boolean;
-	    constructor(options: Partial<BuildOptions>);
+	    root: string;
+	    ignores: string[];
+	    transform: {
+	        read?: ReadTranform[];
+	        write?: WriteTransform[];
+	    };
+	    write: Write;
+	}>;
+	export class BuilderConfig {
+	    static $From(options: {
+	        args: IForgeArguments;
+	    }): Promise<BuilderConfig>;
+	    bundled: Bundle;
+	    platform: Platform;
+	    format: Format;
+	    metafile: boolean;
+	    external: string[];
+	    verbose: Verbosity;
+	    treeShaking: boolean;
+	    ignores: string[];
+	    write: Write;
+	    transform: {
+	        read: ReadTranform[];
+	        write: WriteTransform[];
+	    };
+	    constructor(options: ForgeBuilderOptions);
 	    $validate(): $IResult<Error>;
 	}
 	
@@ -1404,33 +1452,16 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	
 	export class ESBuildBundler extends Subscription {
-	    static $Transform(code: string, options: Partial<BuildOptions>): Promise<string>;
-	    static $Build(entry: string, options: BuildOptions): $IResult<Attributes>;
-	    static $Build(entry: string, options: BuildOptions, iPlugins: IForgeBuildPlugin[]): $IResult<Attributes>;
-	    private _entry;
-	    private _options;
-	    private _watcher;
 	    private _iResult;
 	    readonly loaders: Record<string, string>;
-	    readonly iPlugins: IForgeBuildPlugin[];
-	    readonly cache: Map<string, string>;
-	    constructor(entry: string, options: BuildOptions);
-	    constructor(entry: string, options: BuildOptions, iPlugins: IForgeBuildPlugin[]);
-	    protected _setupPlugins(build: any): void;
-	    get iResult(): IResult<Attributes>;
-	    $start(): Promise<void>;
-	    $complete(): Promise<void>;
-	    $fetch(file: string): Promise<{
-	        contents: string;
-	        loader: string;
-	    }>;
+	    constructor();
 	    $watch(roots: string[], filter: RegExp): Promise<void>;
 	    unwatch(): void;
-	    $build(): $IResult<Attributes>;
-	    $library(format: "object" | "flat"): $IResult<Attributes>;
+	    $build(entry: string, options: ForgeBuilderOptions): $IResult<Attributes>;
+	    $library(root: string): $IResult<Attributes>;
 	}
+	export function $Transform(entry: string, options: ForgeBuilderOptions): $IResult<Attributes>;
 	
 		
 	
@@ -1448,8 +1479,8 @@ declare module "@onyx-ignition/forge" {
 	    add(file: string, attributes: Attributes, parent: string): this;
 	}
 	export class ForgeBuilder extends Subscription {
-	    static $Build(entry: string, options: BuildOptions): $IResult<Attributes>;
-	    static $Build(entry: string, options: BuildOptions, iPlugins: IForgeBuildPlugin[]): $IResult<Attributes>;
+	    static $Build(entry: string, options: ForgeBuilderOptions): $IResult<Attributes>;
+	    static $Build(entry: string, options: ForgeBuilderOptions, iPlugins: IForgeBuildPlugin[]): $IResult<Attributes>;
 	    private _entry;
 	    private _options;
 	    private _$packages;
@@ -1460,8 +1491,8 @@ declare module "@onyx-ignition/forge" {
 	    readonly iPlugins: IForgeBuildPlugin[];
 	    readonly root: string;
 	    readonly reorder: ReorderManager;
-	    constructor(entry: string, options: BuildOptions);
-	    constructor(entry: string, options: BuildOptions, iPlugins: IForgeBuildPlugin[]);
+	    constructor(entry: string, options: ForgeBuilderOptions);
+	    constructor(entry: string, options: ForgeBuilderOptions, iPlugins: IForgeBuildPlugin[]);
 	    protected _$resolve(file: string): Promise<string>;
 	    protected _$fetch(file: string): Promise<{
 	        contents: string | Uint8Array;
@@ -1491,75 +1522,6 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 		
-	type SectionEntry = any;
-	export class BrowserExtension extends AcbstractExtension {
-	    $section(content: string, sectionEntry: SectionEntry): Promise<string>;
-	}
-	
-	
-		
-	
-	type SectionEntry = any;
-	export class ExportExtension implements IForgeBuildExtension {
-	    private _mode;
-	    private _base;
-	    private _namespace;
-	    private _buildOptions;
-	    private _transformExports;
-	    private _exports;
-	    constructor(mode: "flat" | "object");
-	    $fetch(entry: string, content: string): Promise<string>;
-	    $start(entry: string, inputs: Record<string, unknown>, buildOptions: BuildOptions): Promise<void>;
-	    $header(content: string): Promise<string>;
-	    $section(content: string, sectionData: SectionEntry): Promise<string>;
-	    $footer(content: string): Promise<string>;
-	    $complete(output: string): Promise<string>;
-	}
-	
-	
-		type SectionEntry = any;
-	export type ExtensionSource = {
-	    $start?: (entry: string, manifest: Record<string, unknown>, BuildOptions: Record<string, unknown>) => Promise<void>;
-	    $header?: (content: string) => Promise<string>;
-	    $section?: (content: string, sectionEntry: SectionEntry) => Promise<string>;
-	    $footer?: (content: string) => Promise<string>;
-	    $complete: (content: string) => Promise<string>;
-	};
-	export interface IForgeBuildExtension {
-	    $fetch(entry: string, content: string): Promise<string>;
-	    $start(entry: string, manifest: Record<string, unknown>, BuildOptions: Record<string, unknown>): Promise<void>;
-	    $header(content: string): Promise<string>;
-	    $section(content: string, sectionEntry: SectionEntry): Promise<string>;
-	    $footer(content: string): Promise<string>;
-	    $complete(content: string): Promise<string>;
-	}
-	export class AcbstractExtension implements IForgeBuildExtension {
-	    $fetch(entry: string, content: string): Promise<string>;
-	    $start(entry: string, manifest: Record<string, unknown>, BuildOptions: Record<string, unknown>): Promise<void>;
-	    $header(content: string): Promise<string>;
-	    $section(content: string, sectionEntry: SectionEntry): Promise<string>;
-	    $footer(content: string): Promise<string>;
-	    $complete(content: string): Promise<string>;
-	}
-	export class ForgeBuildExtension extends AcbstractExtension {
-	    private _source;
-	    constructor(source: string);
-	    constructor(source: ExtensionSource);
-	    $start(entry: string, inputs: Record<string, unknown>, buildOptions: Record<string, unknown>): Promise<void>;
-	    $header(content: string): Promise<string>;
-	    $section(content: string, sectionEntry: SectionEntry): Promise<string>;
-	    $footer(content: string): Promise<string>;
-	    $complete(content: string): Promise<string>;
-	    toString(): string;
-	}
-	
-	
-		
-	export class NodeExtension extends AcbstractExtension {
-	    $complete(content: string): Promise<string>;
-	}
-	
-		
 	
 	export interface IForgeBuildPlugin {
 	    atrributes: Attributes;
@@ -1584,7 +1546,6 @@ declare module "@onyx-ignition/forge" {
 	    static $Library(root: string, options?: {
 	        ignore: string[];
 	    }): Promise<string>;
-	    static $RegenerateBuilder(source: string, target: string): Promise<boolean>;
 	    static StripImports(code: string): string;
 	    private _entry;
 	    private _root;
@@ -1592,7 +1553,7 @@ declare module "@onyx-ignition/forge" {
 	    private _$packages;
 	    private _options;
 	    private _iPlugins;
-	    constructor(entry: string, options: BuildOptions, iPlugins?: IForgeBuildPlugin[]);
+	    constructor(entry: string, options: ForgeBuilderOptions, iPlugins?: IForgeBuildPlugin[]);
 	    $fetch(file: string): Promise<string>;
 	    $bundle(): $IResult<Attributes>;
 	    $library(): $IResult<Attributes>;
@@ -1641,12 +1602,13 @@ declare module "@onyx-ignition/forge" {
 	    $traverse(traversal?: TypescriptFileTraversal): Promise<Map<string, TypescriptFile>>;
 	    $load(file: string): Promise<this>;
 	    $inline(callback?: (type: string, script: this, file: string, values: string | Set<string>) => string): Promise<string>;
-	    $bundle(options: BuildOptions, iPlugins?: IForgeBuildPlugin): $IResult<Attributes>;
+	    $bundle(options: ForgeBuilderOptions, iPlugins?: IForgeBuildPlugin): $IResult<Attributes>;
 	    $library(): $IResult<Attributes>;
 	}
 	
 	
 		
+	
 	
 	
 	
@@ -1665,7 +1627,7 @@ declare module "@onyx-ignition/forge" {
 	export class SignalSession extends GenericSession<unknown> {
 	    private readonly _header;
 	    private readonly _socket;
-	    constructor(delay: number, header: Record<string, unknown>, socket: IForgeSocket);
+	    constructor(race: number, header: Record<string, unknown>, socket?: IForgeSocket);
 	    renew(delay: number): this;
 	    toString(): string;
 	}
@@ -1690,6 +1652,7 @@ declare module "@onyx-ignition/forge" {
 	    protected _queue: [];
 	    protected _socket: IForgeSocket;
 	    protected _model: IForgeModel;
+	    protected _server: ForgeWebSocketServer;
 	    protected readonly _race: ForgeRace;
 	    protected readonly _routing: ForgeClientRouting;
 	    readonly routes: Set<IForgeRoute>;
@@ -1700,18 +1663,21 @@ declare module "@onyx-ignition/forge" {
 	        race?: Record<string, number>;
 	    });
 	    private _$raceDispatch;
-	    protected _$subscribeMessage(notify: string, source: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
+	    protected _$subscribeMessage(notify: string, socket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
 	    get $ready(): Promise<Serialize>;
 	    $connect(data: Serialize): Promise<Serialize>;
-	    protected $reset(data: Serialize, session: SignalSession): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
+	    $reset(data: Serialize, session: SignalSession): Promise<Serialize>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options: {
 	        race?: number;
 	        capture: Capture;
-	    }): Promise<Serialize>;
+	    }): Promise<SessionResult>;
 	    $execute(signal: string, data: Serialize, session: SignalSession): Promise<Serialize>;
 	    $watch(data: Serialize, session: SignalSession): Promise<Serialize>;
 	    $model(attributes: Attributes): Promise<IForgeModel>;
+	    $listen(): Promise<ForgeWebSocketServer>;
+	    $listen(port: number): Promise<ForgeWebSocketServer>;
+	    $read(header: Attributes, data: Serialize): Promise<Serialize>;
 	}
 	
 	
@@ -1730,16 +1696,23 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
 	export class Forge {
-	    private _forgeServer;
+	    private _HTMLServer;
+	    private _websocketServer;
 	    private _model;
+	    private readonly _serve;
 	    private readonly _tasks;
 	    private readonly _controller;
 	    readonly sockets: Map<string, IForgeSocket>;
 	    constructor();
 	    private _addSocket;
-	    private _buildSocket;
-	    parse(input: string, options?: {}): Record<string, unknown>;
+	    private _serveHTTP;
+	    private _serveWebsocket;
+	    get serve(): {
+	        http: (port?: number) => ForgeHTTPServer;
+	        websocket: (port?: number) => ForgeWebSocketServer;
+	    };
 	    get model(): IForgeModel;
 	    tasks(): Map<string, ForgeTask>;
 	    add(forgeTask: ForgeTask): this;
@@ -1747,7 +1720,6 @@ declare module "@onyx-ignition/forge" {
 	    fork(name: string, config: SocketConfig): IForgeSocket;
 	    worker(name: string, config: SocketConfig): IForgeSocket;
 	    exec(name: string, config: SocketConfig): IForgeSocket;
-	    plugin(name: string, config: SocketConfig): IForgeSocket;
 	    $watch(roots: string[], options: {
 	        threshold?: number;
 	        ignore?: RegExp[];
@@ -1760,7 +1732,6 @@ declare module "@onyx-ignition/forge" {
 	        capture?: Capture;
 	    }): Promise<Serialize>;
 	    abort(): void;
-	    $serve(port: number): Promise<ForgeServer>;
 	}
 	
 		
@@ -2079,13 +2050,13 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	export class ClientSocketModelProxy extends AbstractForgeModelProxy {
-	    private _iSocket;
+	    private _socket;
 	    private _rootHash;
 	    private _state;
 	    private _iStoreRemap;
 	    private _$ready;
 	    private readonly _queue;
-	    constructor(iModel: IForgeModel, iSocket: IForgeSocket);
+	    constructor(model: IForgeModel, socket: IForgeSocket);
 	    private _$thenISocketReady;
 	    protected _$queue(header: Record<string, unknown>, data: Serialize): Promise<Serialize>;
 	    get $ready(): Promise<IForgeModel>;
@@ -2453,6 +2424,7 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 		
+	
 	export interface ForgeFileStats {
 	    isFile(): boolean;
 	    isDirectory(): boolean;
@@ -2494,15 +2466,27 @@ declare module "@onyx-ignition/forge" {
 	    static Read(path: string, options?: Record<string, unknown>): ArrayBuffer;
 	    static $ReadDecoded(path: string, encoding?: 'utf8' | string): Promise<string>;
 	    static $Read(path: string): Promise<ArrayBuffer>;
-	    static Write(path: string, contents: string | Buffer | ArrayBuffer, options?: {}): void;
+	    static Write(path: string, contents: string | Buffer | ArrayBuffer): void;
+	    static Write(path: string, contents: string | Buffer | ArrayBuffer, options: {
+	        recursive?: boolean;
+	    }): void;
 	    static $Write(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
-	    static $Write(path: string, contents: string | Buffer | ArrayBuffer, options: {}): Promise<void>;
+	    static $Write(path: string, contents: string | Buffer | ArrayBuffer, options: {
+	        recursive?: boolean;
+	    }): Promise<void>;
 	    static $Append(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
 	    static $Append(path: string, contents: string | Buffer | ArrayBuffer, options: {}): Promise<void>;
 	    static $Copy(source: string, target: string): Promise<void>;
+	    static $Glob(paths: string[], options?: {
+	        resolve: boolean;
+	    }): Promise<string[]>;
 	    static $Walk(root: string): Promise<string[]>;
-	    static $Walk(root: string, recursive: false): Promise<string[]>;
-	    static $Walk(root: string, fileList: string[]): Promise<string[]>;
+	    static $Walk(root: string, options: {
+	        recursive?: boolean;
+	        file?: boolean;
+	        directory?: boolean;
+	        resolve?: boolean;
+	    }): Promise<string[]>;
 	    static $WalkStats(root: string): Promise<Map<string, ForgeFileStats>>;
 	    static $WalkStats(root: string, recursive: false): Promise<Map<string, ForgeFileStats>>;
 	    static $WalkStats(root: string, files: Map<string, ForgeFileStats>): Promise<Map<string, ForgeFileStats>>;
@@ -2531,6 +2515,10 @@ declare module "@onyx-ignition/forge" {
 	    static readonly File: typeof ForgeFile;
 	    static readonly Web: typeof ForgeWeb;
 	    static $Fetch(source: string): Promise<ArrayBuffer>;
+	    static $Fetch(source: string, options: {
+	        request?: RequestInit;
+	        capture?: Capture;
+	    }): Promise<ArrayBuffer | Capture>;
 	    static $Download(url: string, file: string): Promise<boolean>;
 	}
 	
@@ -2555,6 +2543,40 @@ declare module "@onyx-ignition/forge" {
 	    static Contains(source: string, target: string): boolean;
 	    static $Status(root: string, target: string): Promise<ForgePathStatus>;
 	    static Sanitize(...rest: string[]): string;
+	    static Join(...rest: string[]): string;
+	}
+	
+		export class ForgeZip {
+	    static $GUnzip(data: string | ArrayBuffer): Promise<ArrayBuffer>;
+	    static $GZip(data: string | ArrayBuffer, options?: {}): Promise<ArrayBuffer>;
+	}
+	
+		
+	
+	
+	export function $ParseRequestBody(request: any): Promise<[ArrayBuffer, string]>;
+	export class RequestBodyParser {
+	    private _buffers;
+	    private _request;
+	    private _$buffer;
+	    private _onData;
+	    constructor(request: any);
+	    private _onEnd;
+	    $resolve(): Promise<{
+	        mime: string;
+	        buffer: Buffer;
+	    }>;
+	}
+	export class ForgeHTTPServer {
+	    private _app;
+	    protected _$catchRoute: (error: unknown) => false;
+	    readonly routes: Set<IForgeRoute>;
+	    constructor(port: number);
+	    protected _buildRequest(request: any): ForgeRequest;
+	    protected _buildResponse(response: any): ForgeResponse;
+	    private _$setupServer;
+	    use(delegate: Function): void;
+	    protected _$all(request: any, response: any, next: Function): Promise<void>;
 	}
 	
 		
@@ -2573,10 +2595,10 @@ declare module "@onyx-ignition/forge" {
 	    href: string;
 	    method: string;
 	    headers: string;
+	    cookies: Record<string, string>;
 	    body: ArrayBuffer;
 	};
 	export class ForgeRequest {
-	    static DecodeAttributes(buffer: ArrayBuffer): Record<string, unknown>;
 	    private _parseBody;
 	    private _$body;
 	    source: IForgeRequestAdapter;
@@ -2587,7 +2609,6 @@ declare module "@onyx-ignition/forge" {
 	    headers: ForgeHTTPHeaders;
 	    cookies: ForgeHTTPCookies;
 	    routes: string[];
-	    search: Record<string, string>;
 	    constructor();
 	    constructor(source: IForgeRequestAdapter);
 	    $body(race: number): Promise<ArrayBuffer>;
@@ -2658,34 +2679,6 @@ declare module "@onyx-ignition/forge" {
 	    $export(includeWrites?: boolean): Promise<ForgeResponseExport>;
 	}
 	
-		
-	
-	
-	export function $ParseRequestBody(request: any): Promise<[ArrayBuffer, string]>;
-	export class RequestBodyParser {
-	    private _buffers;
-	    private _request;
-	    private _$buffer;
-	    private _onData;
-	    constructor(request: any);
-	    private _onEnd;
-	    $resolve(): Promise<{
-	        mime: string;
-	        buffer: Buffer;
-	    }>;
-	}
-	export class ForgeServer {
-	    private _app;
-	    protected _$catchRoute: (error: unknown) => false;
-	    readonly routes: Set<IForgeRoute>;
-	    constructor(port: number);
-	    protected _buildRequest(request: any): ForgeRequest;
-	    protected _buildResponse(response: any): ForgeResponse;
-	    private _$setupServer;
-	    use(delegate: Function): void;
-	    protected _$all(request: any, response: any, next: Function): Promise<void>;
-	}
-	
 		export class ForgeHTTPCookies {
 	    private _raw;
 	    private _cookies;
@@ -2716,6 +2709,28 @@ declare module "@onyx-ignition/forge" {
 	    all(regExp: RegExp): Record<string, string>;
 	    import(raw: string): this;
 	    export(): string;
+	}
+	
+		
+	
+	
+	
+	
+	export class ForgeWebSocketServer {
+	    private _key;
+	    private _server;
+	    private readonly _sockets;
+	    private _router;
+	    readonly port: number;
+	    [Reactivity]: IReactor<[IForgeSocket, Attributes, Serialize]>;
+	    constructor(port: number, key?: string);
+	    protected _$connect(socket: WebSocket): Promise<void>;
+	    _$read(notify: Notification, socket: ForgeWebSocket, header: Attributes, data: Serialize): Promise<void | typeof Unsubscribe>;
+	    get key(): string;
+	    $signal(signal: string, data: Serialize, options?: {
+	        race?: number;
+	        capture?: Capture;
+	    }): Promise<void>;
 	}
 	
 		
@@ -2880,8 +2895,8 @@ declare module "@onyx-ignition/forge" {
 	    constructor(name: string, config: SocketConfig);
 	    private _injectCommand;
 	    write(header: Serialize, data: Serialize): void;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize, race: number): Promise<Serialize>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
+	    $signal(signal: string, data: Serialize, race: number): Promise<SessionResult>;
 	}
 	
 		
@@ -2904,6 +2919,7 @@ declare module "@onyx-ignition/forge" {
 	    key?: string;
 	    reboot?: boolean;
 	};
+	export type SessionResult = [Serialize, unknown];
 	export interface IForgeSocket extends ISubscription {
 	    get key(): string;
 	    get name(): string;
@@ -2915,14 +2931,14 @@ declare module "@onyx-ignition/forge" {
 	    write(header: Omit<Record<string, unknown>, "key">, data: Serialize): void;
 	    resolve(header: Record<string, unknown>, data: Serialize): void;
 	    reject(header: Record<string, unknown>, data: Serialize): void;
-	    $reset(data: Serialize): Promise<Serialize>;
+	    $reset(data: Serialize): Promise<SessionResult>;
 	    $connect(data: Serialize): Promise<Serialize>;
-	    $session(header: Record<string, unknown>, data: Serialize, race: number, capture: Capture): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
+	    $session(header: Record<string, unknown>, data: Serialize, race: number, capture: Capture): Promise<SessionResult>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options: {
 	        race?: number;
 	        capture?: Capture;
-	    }): Promise<Serialize>;
+	    }): Promise<SessionResult>;
 	    $reboot(): Promise<void>;
 	}
 	class ForgeSocketRouting {
@@ -2942,6 +2958,14 @@ declare module "@onyx-ignition/forge" {
 	        capture: Capture;
 	    }): Promise<boolean>;
 	}
+	class MultiPartCollector {
+	    private readonly _$race;
+	    private readonly _$complete;
+	    private readonly _$parts;
+	    constructor(header: Attributes, capture: Capture);
+	    get $complete(): Promise<ArrayBuffer>;
+	    add(header: Attributes, data: Serialize): void;
+	}
 	export class AbstractForgeSocket extends Subscription implements IForgeSocket {
 	    protected _name: string;
 	    protected _key: string;
@@ -2953,11 +2977,12 @@ declare module "@onyx-ignition/forge" {
 	    protected readonly _sessions: Map<string, SocketSession>;
 	    protected readonly _bindings: Map<Function, Function>;
 	    protected readonly _routing: ForgeSocketRouting;
+	    protected readonly _collectors: Map<string, MultiPartCollector>;
 	    constructor(name: string, config: SocketConfig);
 	    protected _pipeStdio(message: string): void;
 	    protected _pipeError(message: string): void;
-	    protected _getSession(race: number, capture: Capture): [string, Promise<Serialize>];
-	    protected _$thenStart(data: Serialize): Promise<void>;
+	    protected _getSession(race: number): [string, Promise<SessionResult>];
+	    protected _$thenStart(data: Serialize): Promise<SessionResult>;
 	    get key(): string;
 	    get name(): string;
 	    get routing(): ForgeSocketRouting;
@@ -2968,17 +2993,16 @@ declare module "@onyx-ignition/forge" {
 	        remote: Serialize;
 	    }>;
 	    $connect(data: Serialize): Promise<Serialize>;
-	    read(message: [string, Record<string, unknown>, Serialize]): boolean;
+	    read(message: [string, Attributes, Serialize]): boolean;
 	    write(header: Record<string, unknown>, data: Serialize): void;
 	    resolve(header: Record<string, unknown>, data: Serialize): void;
 	    reject(header: Record<string, unknown>, data: Serialize): void;
-	    $reset(data: Serialize): Promise<Serialize>;
-	    $session(header: Record<string, unknown>, data: Serialize, race: number, capture: Capture): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
+	    $reset(data: Serialize): Promise<SessionResult>;
+	    $session(header: Record<string, unknown>, data: Serialize, race: number): Promise<SessionResult>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options: {
-	        race: number;
-	        capture: Capture;
-	    }): Promise<Serialize>;
+	        race?: number;
+	    }): Promise<SessionResult>;
 	    $broadcast(signal: string, data: Serialize, race?: number): Promise<Serialize>;
 	    $reboot(): Promise<void>;
 	}
@@ -3006,6 +3030,29 @@ declare module "@onyx-ignition/forge" {
 	
 		
 	
+	
+	export class ForgeWebSocket extends AbstractForgeSocket {
+	    static FrameSize: number;
+	    private _socket;
+	    private _abort;
+	    private _$online;
+	    private readonly _frameSize;
+	    constructor(name: string, options: {
+	        key?: string;
+	        race: Record<string, number>;
+	    }, socket: WebSocket);
+	    private _$thenRefreshPermission;
+	    private _onMessage;
+	    private _onOpen;
+	    $connect(data: Serialize): Promise<Serialize>;
+	    private _onExit;
+	    private _$writeMultiPart;
+	    write(header: Omit<Serialize, "key">, data: Serialize): void;
+	    subscribe(notify: "message", delegate: (notify: Notification, socket: ForgeWebSocket, header: Attributes, data: Serialize) => void | typeof Unsubscribe | Promise<void | typeof Unsubscribe>, count?: number): void;
+	}
+	
+		
+	
 	export class ForkSocket extends AbstractForgeSocket {
 	    private _source;
 	    private _commands;
@@ -3022,9 +3069,9 @@ declare module "@onyx-ignition/forge" {
 	    private _commands;
 	    constructor(name: string, config: SocketConfig, source?: any);
 	    write(header: Serialize, data: Serialize): void;
-	    $reset(data: Serialize, race?: number): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize, race: number): Promise<Serialize>;
+	    $reset(data: Serialize, race?: number): Promise<SessionResult>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
+	    $signal(signal: string, data: Serialize, race: number): Promise<SessionResult>;
 	}
 	
 		
@@ -3036,8 +3083,8 @@ declare module "@onyx-ignition/forge" {
 	    protected _headers: HeadersInit[];
 	    constructor(name: string, config: SocketConfig);
 	    write(header: Serialize, data: Serialize): void;
-	    $signal(signal: string, data: Serialize): Promise<Serialize>;
-	    $signal(signal: string, data: Serialize, race: number): Promise<Serialize>;
+	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
+	    $signal(signal: string, data: Serialize, race: number): Promise<SessionResult>;
 	}
 	
 		
@@ -3046,7 +3093,6 @@ declare module "@onyx-ignition/forge" {
 	    private _source;
 	    private _commands;
 	    constructor(name: string, config: SocketConfig, source?: any);
-	    protected _$thenStart(data: Serialize): Promise<void>;
 	    private _onExit;
 	    write(header: Serialize, ...data: Serialize[]): void;
 	}
@@ -3063,6 +3109,25 @@ declare module "@onyx-ignition/forge" {
 	    $connect(data: Serialize): Promise<Serialize>;
 	    private _onExit;
 	    write(header: Omit<Serialize, "key">, data: Serialize): void;
+	}
+	
+		
+	
+	export class ForgeSwarm {
+	    private _command;
+	    private _socket;
+	    private _childOptions;
+	    private _children;
+	    private _bindings;
+	    private _queue;
+	    constructor(command: string, socket: ForgeWebSocket, options: {
+	        min: number;
+	        max: number;
+	        expiry: number;
+	    });
+	    private _consumeQueue;
+	    private _$spawnChild;
+	    $request(signal: string, data: Serialize): Promise<Serialize>;
 	}
 	
 		
@@ -3273,8 +3338,6 @@ declare module "@onyx-ignition/forge" {
 	    constructor(code: string, exposed: Record<string, unknown>);
 	    evaluate(code: string, exposed?: Record<string, unknown>): unknown;
 	}
-	
-		
 	
 	
 }
