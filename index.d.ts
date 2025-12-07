@@ -1417,6 +1417,10 @@ declare module "@onyx-ignition/forge" {
 	    format: Format;
 	    metafile: boolean;
 	    treeShaking: boolean;
+	    aliases: {
+	        files: Record<string, string>;
+	        directories: Record<string, string>;
+	    };
 	    external: string[];
 	    verbose: Verbosity;
 	    root: string;
@@ -1439,6 +1443,10 @@ declare module "@onyx-ignition/forge" {
 	    verbose: Verbosity;
 	    treeShaking: boolean;
 	    ignores: string[];
+	    aliases: {
+	        files: Record<string, string>;
+	        directories: Record<string, string>;
+	    };
 	    write: Write;
 	    transform: {
 	        read: ReadTranform[];
