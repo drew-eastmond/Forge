@@ -2,6 +2,17 @@
 
 declare module "@onyx-ignition/forge" {
 	
+	
+	export type HttpArguments = {
+	    http?: {
+	        port?: number;
+	        root?: string;
+	    };
+	};
+	export function $GetApplicationArguments(): Promise<IArgumentPackage>;
+	export function SetUpNetworking(forge: Forge, args: IArgumentPackage): void;
+	
+		
 	export class Accessor {
 	    private _source;
 	    private _entries;
@@ -26,160 +37,108 @@ declare module "@onyx-ignition/forge" {
 	    }): string;
 	}
 	
-		export class FileArguments {
+		
+	
+	
+	
+	
+	
+	
+	export type ArgumentPackageComponent = Attributes | Promise<Attributes>;
+	export interface IArgumentPackage {
+	    [Symbol.iterator](): Iterator<[ArgumentPackageComponent, Attributes]>;
+	    get size(): number;
+	    add(value: Attributes, attributes: Attributes): this;
+	    remove(value: Attributes): this;
+	    has(sequence: QuerySequence): boolean;
+	    or(attributes: Attributes): ArgumentPackage;
+	    and(attributes: Attributes): ArgumentPackage;
+	    not(attributes: Attributes): ArgumentPackage;
+	    filter(callback: Function, ...rest: unknown[]): ArgumentPackage;
+	    collapse(): Attributes;
+	    collapse(intersect: Attributes): Attributes;
+	    merge(): Attributes;
+	    merge(options: {
+	        intersect?: Record<string, true>;
+	        implode?: ImplodeAttributesOptions;
+	    }): Attributes;
+	    explode<T>(): ArgumentValues<T>;
+	    explode<T>(intersect: Attributes): ArgumentValues<T>;
+	    sanitize(sanitize: IPackageSanitizer): ArgumentPackage;
+	    $sanitize(sanitize: IAsyncPackageSanitizer): Promise<ArgumentPackage>;
+	    validate(validate: IPackageValidator): ArgumentPackage;
+	    $validate(validate: IAsyncPackageValidator): Promise<ArgumentPackage>;
+	}
+	export class ArgumentPackage implements IArgumentPackage {
+	    protected _query: IQuery<ArgumentPackageComponent>;
+	    validations: Map<IArgumentValidationComponent, Attributes>;
+	    constructor();
+	    constructor(query: IQuery<ArgumentPackageComponent>);
+	    [Symbol.iterator](): IterableIterator<[ArgumentPackageComponent, Attributes]>;
+	    get size(): number;
+	    add(value: Attributes, attributes: Attributes): this;
+	    get query(): IQuery<ArgumentPackageComponent>;
+	    $await(): Promise<ArgumentPackage>;
+	    remove(value: Attributes): this;
+	    has(sequence: QuerySequence): boolean;
+	    or(attributes: Attributes): ArgumentPackage;
+	    and(attributes: Attributes): ArgumentPackage;
+	    not(attributes: Attributes): ArgumentPackage;
+	    filter(callback: QueryDelegate, ...rest: unknown[]): ArgumentPackage;
+	    collapse(): Attributes;
+	    collapse(intersect: Attributes): Attributes;
+	    merge(): Attributes;
+	    merge(options: {
+	        intersect?: Record<string, true>;
+	        implode?: ImplodeAttributesOptions;
+	    }): Attributes;
+	    explode<T = unknown>(): ArgumentValues<T>;
+	    explode<T = unknown>(intersect: Attributes): ArgumentValues<T>;
+	    sanitize(sanitizer: IPackageSanitizer): ArgumentPackage;
+	    $sanitize(sanitizer: IAsyncPackageSanitizer): Promise<ArgumentPackage>;
+	    validate(validator: IPackageValidator): this;
+	    $validate(validator: IAsyncPackageValidator): Promise<this>;
 	}
 	
 		
-	type ArgumentQuery = string | RegExp;
-	/**
-	 * Use to store data about how to parse an argument
-	 *
-	 * @typedef {Object} ValidationEntry
-	 *
-	 * @property {(unknown|undefined)}  default - The default value if none is provided.
-	 * @property {(boolean|undefined)}  required - Is this argument required. Provide an error if `undefined`.
-	 * @property {(error|undefined)}  error - Overrides the default error message.
-	 * @property {(Function|undefined)}  sanitize - (optional) A callback to transform the supplied value for an aurgument.
-	 * @property {(Function|undefined)}  validate - (optional) A callback to evaluate if the value if valid otherwise it will provide a error.
-	 *
-	 */
-	type ValidationEntry = {
-	    default?: unknown;
-	    required?: boolean;
-	    error?: string;
-	    help?: string;
-	    sanitize?: (value: unknown, args: [string, unknown][]) => unknown;
-	    validate?: (value: unknown, args: [string, unknown][]) => boolean;
-	    prompt?: {
-	        message: string;
+	
+	
+	
+	export class ArgumentValues<T = unknown> {
+	    static From(query: IQuery<Attributes>, intersect?: Attributes): ArgumentValues;
+	    protected _values: T[];
+	    validations: Map<IArgumentValidationComponent, Attributes>;
+	    constructor(values: T[]);
+	    [Symbol.iterator](): IterableIterator<T>;
+	    get first(): T;
+	    get last(): T;
+	    get(index: number): unknown;
+	    $glob(ignores?: string[]): Promise<string[]>;
+	    $glob(ignores?: string[]): Promise<string[]>;
+	    split(splitter?: string | RegExp): this;
+	    sanitize(sanitizer: IValueSanitizer): this;
+	    $sanitize(sanitizer: IAsyncValueSanitizer): Promise<this>;
+	}
+	
+		
+	
+	export class CLIPromptArgument {
+	    $validate: (answer: string) => Promise<boolean>;
+	    private _messageCursor;
+	    messages: string[];
+	    attributes: Attributes;
+	    race: number;
+	    answer: unknown;
+	    defaultValue: string;
+	    constructor(attributes: Attributes, messages: string[], options?: {
 	        required?: boolean;
-	    };
-	};
-	export interface IForgeArguments {
-	    [Symbol.iterator](): Iterator<[string, unknown]>;
-	    import(args: [string, unknown][]): void;
-	    last<T = unknown>(query: ArgumentQuery): T;
-	    parse(input: string): void;
-	    add(query: ArgumentQuery, config: ValidationEntry): this;
-	    $fetch<T = unknown>(query: ArgumentQuery, config: ValidationEntry): Promise<T>;
-	    compile(...rest: unknown[]): [string, unknown][];
-	    string(query: ArgumentQuery): string;
-	    number(query: ArgumentQuery): number;
-	    attributes(query: ArgumentQuery): Attributes;
-	    collect<T = unknown>(query: ArgumentQuery): T[];
-	    collect<T = unknown>(query: ArgumentQuery, options: {
-	        resolve?: boolean;
-	        split?: string | RegExp;
-	        glob?: boolean;
-	    }): T[];
-	    $prompt(message: string): Promise<string>;
-	    $walk(query: ArgumentQuery): Promise<string[]>;
-	    $walk(query: ArgumentQuery, options: {
-	        ignores: string[];
-	    }): Promise<string[]>;
-	    $json(query: ArgumentQuery, intersect: Attributes): Promise<Attributes>;
+	        defaultValue?: string;
+	        race?: number;
+	        $validate?: (answer: string) => Promise<boolean>;
+	    });
+	    $prompt(): Promise<unknown>;
 	}
-	/**
-	 * Provides a base to store validation data and arguments formatted as a Record.
-	 * After the subclass populates the arguments store, and add validation for each key.
-	 * The `compile` member will test each key, and throw an error before resolving all validation queries.
-	 *
-	 */
-	class AbstractArguments implements IForgeArguments {
-	    protected readonly _args: [string, unknown][];
-	    protected readonly _validationMap: Map<ArgumentQuery, ValidationEntry>;
-	    protected readonly _errors: string[];
-	    constructor();
-	    /**
-	     * Iterates via Object.entries(...) on the internal _args property
-	     *
-	     * @generator
-	     * @yields {[string, unknown]}
-	     */
-	    [Symbol.iterator](): Iterator<[string, unknown]>;
-	    protected _query(query: ArgumentQuery, name: string): boolean;
-	    /**
-	     * This function will
-	     *      1. Inject a default if no value is provided
-	     *      2. Test if it is a required parameter, or add to internal errors
-	     *      3. Sanitize the value via the `validation.validator` delegate
-	     *
-	     * @param key {string} The key extracted from parsing
-	     * @param value {unknown} The value extracted from parsing
-	     * @param validation {ValidationEntry} Provides info for default, is required, and a validator to sanitize the
-	     * @returns {unknown} If the `validation` param has a delegate then it will sanitize value.
-	     */
-	    protected _validate(key: ArgumentQuery, value: unknown, validation: ValidationEntry): unknown;
-	    import(args: [string, unknown][], options?: {}): void;
-	    /**
-	     * Find the requested key in the internal args members. Can evaluate using `String` or `RegExp`
-	     *
-	     * @param query {string|RegExp} Optional
-	     * @returns {boolean}
-	     */
-	    has(query: ArgumentQuery): boolean;
-	    /**
-	     * Getter that will return the value associated with the key, or the arguments collection {Record<string, unknown>)
-	     * if a RegExp the is passed then this function will returnt he first value that matches.
-	     * if a string is pass then the value of the indexed value will be returned.
-	     * if no value is passed then the whole arg object is returned.
-	     *
-	     * @param query {string|RegExp|undefined} Optional
-	     * @returns {unknown} DO l really need to explain this
-	     */
-	    last<T = unknown>(query: ArgumentQuery): T;
-	    $prompt(message: string): Promise<string>;
-	    $prompt(message: string, options: {
-	        race: number;
-	    }): Promise<string>;
-	    /**
-	     * Assigns a validation check to specific arguments via the key provided
-	     *
-	     * @param query {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
-	     * @param validation {ValidationEntry}
-	     * @returns {this} return this so you can daisy chain calls
-	     */
-	    add(query: ArgumentQuery, validation: ValidationEntry): this;
-	    /**
-	     * Assigns a validation check to specific arguments via the key provided
-	     *
-	     * @param query {string|RegExp} A string or RegExp to match the Arguments and dispatch delegate
-	     * @param validationEntry {ValidationEntry}
-	     * @returns {this} return this so you can daisy chain calls
-	     */
-	    $fetch<T = unknown>(query: ArgumentQuery, validation: ValidationEntry): Promise<T>;
-	    /**
-	     * Subclasses are responsible for assigning a data source (CLI, .Env, Remote/Server) into a arguments {Record<string, unknown>}
-	     *      1. After using `add` member to set all the validation entries.
-	     *      2. `compile` will validate/sanitize each entry. If there any errors then join all errors messages into a single Error and throw it!
-	     */
-	    compile(): [string, unknown][];
-	    parse(input: string): void;
-	    attributes(query: ArgumentQuery, splitter?: string): Attributes;
-	    split(query: ArgumentQuery, splitter: ArgumentQuery): string[];
-	    string(query: ArgumentQuery): string;
-	    number(query: ArgumentQuery): number;
-	    collect<T = string>(query: ArgumentQuery): T[];
-	    collect<T = string>(query: ArgumentQuery, options: {
-	        resolve?: boolean;
-	        split?: string | RegExp;
-	    }): T[];
-	    $walk(query: ArgumentQuery): Promise<string[]>;
-	    $walk(query: ArgumentQuery, options: {
-	        ignores: string[];
-	    }): Promise<string[]>;
-	    $json(query: ArgumentQuery, intersect: Record<string, unknown>): Promise<Record<string, unknown>>;
-	}
-	/**
-	 * Populates the arguments store based on values parsed from the CommandLine Interface.
-	 * Parses the `process.argv` using the follwoing formats
-	 *      1. {{KEY}} BASE_64_JSON : the second parameter will be auto encoded to a base64 encoded JSON
-	 *      2. --KEY, [[KEY : will resolve to a true value if present
-	 *      3. --KEY-- VALUE, [[KEY]] VALUE : second paramter resolve into a string. Probably needs to be sanitized in `compile`
-	 *
-	 * @class
-	 */
-	export class CLIArguments extends AbstractArguments {
+	export class CLIArgumentPackage extends ArgumentPackage {
 	    static Defaults: {
 	        Key: {
 	            pair: RegExp[];
@@ -198,59 +157,310 @@ declare module "@onyx-ignition/forge" {
 	        pair: RegExp[];
 	        flag: RegExp[];
 	    };
-	    compile(): [string, unknown][];
-	}
-	/**
-	 * Populates the arguments store based on values parsed from the a .env file
-	 * Parses the .env file based on the a simple splitting algorithm
-	 *
-	 * @class
-	 */
-	export class EnvArguments extends AbstractArguments {
-	    /**
-	     * Simple split alorithm to populate the arguemnt store
-	     * @param contents {string} Content pulled from a .env or similiar formatted content; or you know... DIY if your a smart ass!
-	     * @returns {this} Daisy chain this bad boi!
-	     */
-	    parse(contents: unknown): this;
-	}
-	/**
-	 * Combines the `CLIArgument` and `EnvArgument` into a composite so development becomes easier. The priority is
-	 * CLIArguments then EnvArguments. It's important to call the `parse` memeber for `EnvArgument`
-	 * @class
-	 */
-	export class CompositeArguments extends AbstractArguments {
-	    private readonly _cliArguments;
-	    private readonly _envArguments;
-	    compile(): [string, unknown][];
-	    /**
-	     * Invokes the `EnvArgument.parse ( ... )`
-	     *
-	     * @param contents
-	     * @returns {this}
-	     */
-	    parse(contents: string): this;
+	    protected _errors: string[];
+	    constructor(args?: string[]);
+	    $prompt(name: string, attributes: Attributes, promptOptions: {
+	        messages: string[];
+	        race?: number;
+	        defaultValue?: string;
+	        $validate?: (answer: string) => Promise<boolean>;
+	    }): Promise<this>;
 	}
 	
+		
 	
-		enum AsyncResultState {
+	
+	export interface IArgumentValidationComponent {
+	    message: string;
+	    cause: unknown;
+	}
+	export type ArgumentValidationResults = Map<IArgumentValidationComponent, Attributes>;
+	export class AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	    message: string;
+	    cause: unknown;
+	    constructor(message: string, options?: {
+	        cause: unknown;
+	    });
+	}
+	export class ArgumentValidationFail extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	}
+	export class ArgumentValidationWarning extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	}
+	export class ArgumentValidationSuccess extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	}
+	export class ArgumentValidationError extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	    error: unknown;
+	    constructor(message: string, options?: {
+	        cause: unknown;
+	        error: unknown;
+	    });
+	}
+	export class AbstractPackageQuerySequence {
+	    protected _intersect: Attributes;
+	    queries: QuerySequence;
+	    protected _intersectComponent(component: Attributes): Attributes;
+	    or(attributes: Attributes): this;
+	    and(attributes: Attributes): this;
+	    not(attributes: Attributes): this;
+	    filter(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): this;
+	}
+	
+		
+	
+	
+	
+	export interface IPackageSanitizer {
+	    frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => void;
+	    sanitize?: (component: Attributes, attributes: Attributes) => Attributes;
+	    flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => void;
+	}
+	export interface IAsyncPackageSanitizer {
+	    $frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<void>;
+	    $sanitize?: (component: Attributes, attributes: Attributes) => Promise<Attributes>;
+	    $flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<void>;
+	}
+	export type PackageSanitizeOptions = {
+	    default?: Attributes;
+	    sanitizers?: IPackageSanitizer[];
+	};
+	export type AsyncPackageSanitizeOptions = {
+	    default?: Attributes;
+	    sanitizers?: IAsyncPackageSanitizer[];
+	};
+	export class ArgumentPackageSanitize extends AbstractPackageQuerySequence implements IPackageSanitizer {
+	    readonly options: PackageSanitizeOptions;
+	    constructor(options: PackageSanitizeOptions);
+	    frame(query: IQuery<ArgumentPackageComponent>): void;
+	    flush(query: IQuery<ArgumentPackageComponent>): void;
+	    /**
+	     * Iterate through all components, attributes passed from the Argument package.
+	     * @param {Attributes} value this value is processed in the following order:
+	     * 1. matched against a `QuerySequence` before proceeding
+	     * 2. cloned and possibly intersected against `SanitationOptions`
+	     * 3. merged with default values
+	     * 4. passed through a delegate( ... )
+	     * @param {Attributes} attributes used to identify the current component
+	     * @return {SanitizedPackageValue} returns a  {
+	     * value: the new value to replace
+	     * errors: any errors encountered during sanitation
+	     * warnings: any warnings encounters during sanitation
+	     */
+	    santize(value: Attributes, attributes: Attributes): Attributes;
+	}
+	export class AsyncArgumentPackageSanitize extends AbstractPackageQuerySequence implements IAsyncPackageSanitizer {
+	    readonly options: AsyncPackageSanitizeOptions;
+	    constructor(options?: AsyncPackageSanitizeOptions);
+	    $frame(query: IQuery<Attributes>): Promise<void>;
+	    $flush(query: IQuery<Attributes>): Promise<void>;
+	    /**
+	     * Iterate through all components, attributes passed from the Argument package.
+	     * @param {Attributes} value this value is processed in the following order:
+	     * 1. matched against a `QuerySequence` before proceeding
+	     * 2. cloned and possibly intersected against `SanitationOptions`
+	     * 3. merged with default values
+	     * 4. passed through a delegate( ... )
+	     * @param {Attributes} attributes used to identify the current component
+	     * @return {SanitizedPackageValue} returns a  {
+	     * value: the new value to replace
+	     * errors: any errors encountered during sanitation
+	     * warnings: any warnings encounters during sanitation
+	     */
+	    $santize(value: Attributes, attributes: Attributes): Promise<Attributes>;
+	}
+	
+		
+	export class NumberArgumentSanitize extends ArgumentValueSanitize {
+	    sanitize(value: unknown): unknown;
+	}
+	export class GlobArgumentSanitize extends AsyncArgumentValueSanitize {
+	    private readonly _$ignores;
+	    private split;
+	    constructor();
+	    constructor(options: AsyncValueSanitizeOptions & {
+	        ignores?: string[];
+	        resolve?: boolean;
+	        split?: string | RegExp;
+	    });
+	    /**
+	     * Splits each value and applies a ForgeFile.$Glob( ... ) to each of the new values
+	     * @param {unknown} value sdf
+	     * @returns {Promise<SanitizedArgumentValue>}
+	     */
+	    $sanitize(value: unknown): Promise<unknown>;
+	}
+	export class JSONEntriesArgumentSanitizer extends AsyncArgumentValueSanitize {
+	    private split;
+	    constructor();
+	    constructor(options: AsyncValueSanitizeOptions & {
+	        split?: string | RegExp;
+	    });
+	    /**
+	     * Splits each value using String.split( ... ), then each entry is loaded and parsed in JSON. Next we traverse to the entry using <traversal>.
+	     * Finally a internal protocol is used to extract data using the foolowing options:
+	     * - json://<target_file> or json(<traversal>)://<target_file> : return the root or the traversed entry
+	     * - json.keys://<target_file> or json.keys(<traversal>)://<target_file> : returns all keys iterated from the root or the traversed entry
+	     * - json.values://<target_file> or json.values(<traversal>)://<target_file> : loads the <target_file> then return the root or the traversed entry
+	     * @param {unknown} value to be
+	     * @returns {Promise<SanitizedArgumentValue>}
+	     */
+	    $sanitize(value: unknown): Promise<unknown>;
+	}
+	
+		export interface IValueSanitizer {
+	    frame: (values: unknown[]) => void;
+	    sanitize?: (value: unknown) => unknown;
+	    flush?: (values: unknown[]) => void;
+	}
+	export interface IAsyncValueSanitizer {
+	    $frame?: (values: unknown[]) => Promise<void>;
+	    $sanitize?: (value: unknown) => Promise<unknown>;
+	    $flush?: (values: unknown[]) => Promise<void>;
+	}
+	export type ValueSanitizeOptions = {
+	    help?: string;
+	    default?: unknown;
+	    sanitizers?: IValueSanitizer[];
+	};
+	export type AsyncValueSanitizeOptions = {
+	    help?: string;
+	    default?: unknown;
+	    sanitizers?: IAsyncValueSanitizer[];
+	};
+	export class ArgumentValueSanitize {
+	    readonly options: ValueSanitizeOptions;
+	    constructor(options?: ValueSanitizeOptions);
+	    /**
+	     * Iterate through all components, attributes passed from the Argument package.
+	     * @param {Attributes} value this value is processed in the following order:
+	     * 1. matched against a `QuerySequence` before proceeding
+	     * 2. cloned and possibly intersected against `SanitationOptions`
+	     * 3. merged with default values
+	     * 4. passed through a delegate( ... )
+	     * @param {Attributes} attributes used to identify the current component
+	     * @return {SanitizedPackageValue} returns a  {
+	     * value: the new value to replace
+	     * errors: any errors encountered during sanitation
+	     * warnings: any warnings encounters during sanitation
+	     */
+	    frame(values: unknown[]): void;
+	    flush(values: unknown[]): void;
+	    santize(value: unknown): unknown;
+	}
+	export class AsyncArgumentValueSanitize {
+	    readonly options: AsyncValueSanitizeOptions;
+	    constructor(options: AsyncValueSanitizeOptions);
+	    $frame(values: unknown[]): Promise<void>;
+	    $flush(values: unknown[]): Promise<void>;
+	    $sanitize(value: unknown): Promise<unknown>;
+	}
+	
+		
+	
+	
+	
+	export interface IPackageValidator {
+	    frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => ArgumentValidationResults;
+	    validate?: (component: ArgumentPackageComponent, attributes: Attributes) => ArgumentValidationResults;
+	    flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => ArgumentValidationResults;
+	}
+	export interface IAsyncPackageValidator {
+	    $frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<ArgumentValidationResults>;
+	    $validate?: (component: ArgumentPackageComponent, attributes: Attributes) => Promise<ArgumentValidationResults>;
+	    $flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<ArgumentValidationResults>;
+	}
+	export type PackageValidateOptions = {
+	    help?: string;
+	    error?: string;
+	    required?: Error;
+	    validators?: IPackageValidator[];
+	};
+	export type AsyncPackageValidateOptions = {
+	    help?: string;
+	    error?: string;
+	    required?: Error;
+	    validators?: IAsyncPackageValidator[];
+	};
+	export class ArgumentPackageValidate extends AbstractPackageQuerySequence implements IPackageValidator {
+	    options: PackageValidateOptions;
+	    constructor(options: PackageValidateOptions);
+	    frame(query: IQuery<Attributes>): ArgumentValidationResults;
+	    flush(query: IQuery<Attributes>): ArgumentValidationResults;
+	    validate(component: Attributes, attributes: Attributes): ArgumentValidationResults;
+	}
+	export class AsyncArgumentPackageValidate extends AbstractPackageQuerySequence implements IAsyncPackageValidator {
+	    options: AsyncPackageValidateOptions;
+	    constructor(options: AsyncPackageValidateOptions);
+	    $frame(query: IQuery<Attributes>): Promise<ArgumentValidationResults>;
+	    $flush(query: IQuery<Attributes>): Promise<ArgumentValidationResults>;
+	    $validate(component: Attributes, attributes: Attributes): Promise<ArgumentValidationResults>;
+	}
+	
+		
+	
+	export class FileExistsArgumentValidate extends AsyncArgumentValueValidate {
+	    fatal: string[];
+	    constructor();
+	    constructor(options: AsyncValueValidateOptions);
+	    $validate(value: unknown): Promise<ArgumentValidationResults>;
+	}
+	
+		
+	export interface IValidateValueDelegates {
+	    frame: (values: unknown[]) => ArgumentValidationResults;
+	    validate?: (value: unknown) => ArgumentValidationResults;
+	    flush?: (values: unknown[]) => ArgumentValidationResults;
+	}
+	export interface IAsyncValidateValueDelegates {
+	    $frame?: (values: unknown[]) => Promise<ArgumentValidationResults>;
+	    $validate?: (value: unknown) => Promise<ArgumentValidationResults>;
+	    $flush?: (values: unknown[]) => Promise<ArgumentValidationResults>;
+	}
+	export type ValueValidateOptions = {
+	    help?: string;
+	    error?: Error;
+	    required?: boolean;
+	    validators?: IValidateValueDelegates[];
+	};
+	export type AsyncValueValidateOptions = {
+	    help?: string;
+	    error?: Error;
+	    required?: boolean;
+	    validators?: IAsyncValidateValueDelegates[];
+	};
+	export class ArgumentValueValidate extends AbstractPackageQuerySequence implements IValidateValueDelegates {
+	    options: ValueValidateOptions;
+	    constructor(options: ValueValidateOptions);
+	    frame(values: unknown[]): ArgumentValidationResults;
+	    flush(values: unknown[]): ArgumentValidationResults;
+	    validate(value: unknown): ArgumentValidationResults;
+	}
+	export class AsyncArgumentValueValidate extends AbstractPackageQuerySequence implements IAsyncValidateValueDelegates {
+	    options: AsyncValueValidateOptions;
+	    constructor(options: AsyncValueValidateOptions);
+	    $frame(values: unknown[]): Promise<ArgumentValidationResults>;
+	    $flush(values: unknown[]): Promise<ArgumentValidationResults>;
+	    $validate(value: unknown): Promise<ArgumentValidationResults>;
+	}
+	
+		
+	enum AsyncResultState {
 	    PENDING = 0,
-	    SUCCESS = 1,
-	    FAIL = 2,
+	    RESOLVE = 1,
+	    REJECT = 2,
 	    RECLAIM = 3
 	}
 	export interface IAsyncable<T = unknown> {
-	    resolve$(value: T): this;
-	    reject$(value: unknown): this;
-	    then$(resolve: Function): this;
-	    then$(resolve: Function, reject: Function): IAsyncable<T>;
-	    catch$(callback: Function): IAsyncable<T>;
-	    finally$(callback: Function): void;
+	    resolve(value: T): this;
+	    reject(value: unknown): this;
+	    then(resolve: Function): this;
+	    then(resolve: Function, reject: Function): IAsyncable<T>;
+	    catch(callback: Function): IAsyncable<T>;
+	    finally(callback: Function): void;
 	    $async(): Promise<T>;
 	}
 	export class AsyncUnknown<T = unknown> implements IAsyncable<T> {
-	    static Succeed<T = unknown>(value: T | Promise<T>): IAsyncable<T>;
-	    static Failure<T>(value: unknown | Promise<unknown>): IAsyncable<T>;
+	    static Resolve<T = unknown>(value: T | Promise<T>): IAsyncable<T>;
+	    static Reject<T>(value: unknown | Promise<unknown>): IAsyncable<T>;
 	    static Capture: (error?: any) => unknown;
 	    protected _$callback: Function;
 	    protected _iAsyncableSet: Set<AsyncUnknown>;
@@ -263,15 +473,14 @@ declare module "@onyx-ignition/forge" {
 	    protected _$thenReject(value: unknown): Promise<void>;
 	    constructor();
 	    constructor($callback: Function);
-	    resolve$(value?: T | Promise<T>): this;
-	    reject$(value?: T | Promise<T> | unknown): this;
+	    resolve(value?: T | Promise<T>): this;
+	    reject(value?: T | Promise<T> | unknown): this;
 	    $async(): Promise<T>;
-	    $async(capture: boolean): Promise<T>;
-	    $async(capture: ((error?: unknown) => unknown)): Promise<T>;
-	    then$(resolve: Function): this;
-	    then$(resolve: Function, reject: Function): this;
-	    catch$(callback: Function): IAsyncable<T>;
-	    finally$(callback: Function): void;
+	    $async(capture: Capture<T>): Promise<T>;
+	    then(resolve: Function): this;
+	    then(resolve: Function, reject: Function): this;
+	    catch(callback: Function): IAsyncable<T>;
+	    finally(callback: Function): void;
 	}
 	export class AsyncCaught<T> extends AsyncUnknown<T> {
 	    protected _$thenResolve(value: T): Promise<void>;
@@ -456,11 +665,13 @@ declare module "@onyx-ignition/forge" {
 		
 	
 	
-	export interface ICommand extends IAsyncable<ICommand> {
+	export interface ICommand {
 	    attributes: Attributes;
 	    nonBlocking: boolean;
 	    get commandState(): CommandState;
-	    trigger(queryManager: QueryManager): CommandState;
+	    get $async(): Promise<this>;
+	    trigger(queryManager: QueryManager): void;
+	    $cancel(): Promise<this>;
 	}
 	export enum CommandState {
 	    Resolved = 0,
@@ -468,13 +679,18 @@ declare module "@onyx-ignition/forge" {
 	    Rejected = 2,
 	    Pending = 3
 	}
-	export class AbstractCommand extends AsyncUnknown<ICommand> implements ICommand {
+	export class AbstractCommand implements ICommand {
 	    protected _commandState: CommandState;
 	    attributes: Attributes;
 	    nonBlocking: boolean;
-	    constructor();
+	    protected _async: AsyncUnknown<this>;
+	    protected _$async: Promise<this>;
+	    get $async(): Promise<this>;
+	    protected _resolve(): void;
+	    protected _reject(): void;
 	    get commandState(): CommandState;
-	    trigger(queryManager: QueryManager): CommandState;
+	    trigger(queryManager: QueryManager): void;
+	    $cancel(): Promise<this>;
 	}
 	
 		
@@ -487,7 +703,7 @@ declare module "@onyx-ignition/forge" {
 	    private _asyncArr;
 	    private _isConsuming;
 	    private _queryManager;
-	    private _bindings;
+	    private readonly _bindings;
 	    constructor();
 	    get query(): QueryManager;
 	    private _consumeAndResolve;
@@ -499,37 +715,59 @@ declare module "@onyx-ignition/forge" {
 	    start(): void;
 	    stop(): void;
 	    cancel: () => void;
-	    reclaim(): void;
 	}
 	
 		
+	
+	
+	
 	export class CommandSequence {
 	    private _sequence;
 	    [Symbol.iterator](): IterableIterator<ICommand>;
-	    wait(delay: number): ICommand;
-	    callback(callback: Function, options?: {
-	        conxtext?: unknown;
-	        params?: unknown[];
-	    }): ICommand;
-	    promise(promise: Promise<unknown>): ICommand;
+	    get length(): number;
+	    unshift(command: ICommand): this;
+	    push(command: ICommand): this;
+	    tweenTo(intersection: Attributes, time: number, tweenProperties: Attributes): void;
+	    delegate({ $callback, race }: {
+	        $callback: Function;
+	        race?: number;
+	    }, ...rest: unknown[]): DelegateCommand;
+	    lock(): LockCommand;
+	    lock(race: number): LockCommand;
 	}
 	
 		
 	
-	export class WaitCommand extends AbstractCommand {
-	    private _delay;
-	    constructor(delay: number);
-	    private _thenWait;
-	    trigger(query: QueryManager): CommandState;
-	    reject$(value: unknown): this;
-	    resolve$(command: ICommand | Promise<ICommand>): this;
+	export class DelegateCommand extends AbstractCommand {
+	    private _delegate;
+	    private _rest;
+	    constructor(delegate: Function, rest: unknown[], options?: {
+	        race: number;
+	    });
+	    trigger(query: QueryManager): void;
 	}
 	
-		export type Attributes = Record<string, unknown>;
+		
+	
+	export class LockCommand extends AbstractCommand {
+	    private _race;
+	    constructor(race: number);
+	    trigger(query: QueryManager): void;
+	    unlock(): void;
+	}
+	
+		
+	/** A nested Record<string, unknown> to store values */
+	export type Attributes = Record<string, unknown>;
+	export type AttributeFragment = {
+	    access: string[];
+	    value: unknown;
+	};
 	export type IntervalClear = ReturnType<typeof setInterval>;
 	export type TimeoutClear = ReturnType<typeof setTimeout>;
 	export type Serialize = Record<string, unknown>;
 	export type Capture<T = unknown> = boolean | string | Error | ((error: unknown) => unknown) | Promise<T>;
+	export type ImplodeAttributesOptions = "overwrite" | "unique" | "array";
 	export const EmptyAttributes: Attributes;
 	export const EmptyData: ArrayBuffer;
 	export function GetRange(start: number, end: number): number;
@@ -539,13 +777,37 @@ declare module "@onyx-ignition/forge" {
 	export function EmptyFunction(): void;
 	export function EncodeBase64(json: Record<string, unknown>): string;
 	export function DecodeBase64(value: string): any;
-	export function FlattenObject<T = unknown>(entries: Record<string, T>, accessor?: string[]): {
-	    access: string[];
-	    value: T;
-	}[];
-	export function InflateAttributes(accessor: string[], value: unknown, attributes: Attributes, options?: {
-	    overwrite: boolean;
+	export function ExplodeAttributes<T = unknown>(entries: Attributes, accessor?: string[]): AttributeFragment[];
+	export function IntersectAttributes(intersect: Attributes, source: Attributes): Attributes;
+	/**
+	 *
+	 * Combines multiple nested objects where overlapping values are instead converted into array.
+	 * For example [{ value: "forge" }, { value: 777 }] will become { value: ["forge", 777 ] }
+	 *
+	 * @param sources {Attributes[]} Array of objects to merge
+	 * @param options {?{ intersect: Attributes }} object with an `intersect` property. strip
+	 *
+	 * @returns { Attributes }
+	 *
+	 */
+	export function MergeAttributes(sources: Attributes[]): any;
+	export function MergeAttributes(sources: Attributes[], options: {
+	    intersect?: Attributes;
+	    implode?: ImplodeAttributesOptions;
+	}): any;
+	/**
+	 *
+	 * @param accessor
+	 * @param value
+	 * @param input
+	 * @param options
+	 * @returns
+	 */
+	export function ImplodeAttributes(accessor: string[], value: unknown, input: Attributes, options?: {
+	    implode?: ImplodeAttributesOptions;
+	    clone?: boolean;
 	}): Attributes;
+	export function TransformAttributes(attributes: Attributes, callback: (fragment: AttributeFragment) => unknown): Attributes;
 	export function QuickHash(): string;
 	export function QuickHash(options: {
 	    join?: string;
@@ -808,134 +1070,150 @@ declare module "@onyx-ignition/forge" {
 		
 	
 	
+	
+	
+	export const Intersects: Symbol;
 	export type QueryDelegate = (objectA: Attributes, objectB: Attributes, ...rest: unknown[]) => boolean;
 	export type $QueryDelegate = (objectA: Attributes, objectB: Attributes, ...rest: unknown[]) => Promise<boolean>;
 	export class AttributesQuery {
-	    static Intersect(objectA: Attributes, objectB: Attributes): boolean;
+	    static readonly Intersects: Symbol;
 	    static And(objectA: Attributes, objectB: Attributes): boolean;
 	    static Or(objectA: Attributes, objectB: Attributes): boolean;
 	    static Not(objectA: Attributes, objectB: Attributes): boolean;
-	    static All(objectA: Attributes, objectB: Attributes): boolean;
+	    static All(objectA: Attributes, objectB: Attributes, delegate: QueryDelegate, ...rest: unknown[]): boolean;
 	    static Composite(objectA: Attributes, objectB: Attributes, ...rest: unknown[]): boolean;
 	    static Greater(objectA: Attributes, objectB: Attributes): boolean;
 	    static Less(objectA: Attributes, objectB: Attributes): boolean;
 	}
-	export type QueryCallback<T = unknown> = (component: T, attributes: Attributes, ...rest: unknown[]) => boolean;
 	export interface IQuery<T = unknown> {
 	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
 	    get size(): number;
-	    get iCollection(): ICollection<T>;
-	    get sources(): T[];
+	    get collection(): ICollection<T>;
+	    get all(): T[];
 	    get last(): T;
 	    get first(): T;
 	    get(index: number): T;
 	    slice(start: Number, end?: Number): T[];
 	    slice(start: Number, end?: Number): T[];
+	    /**
+	     * Finds at least one component that matches the parameters passed using QuerySequence.match
+	     * @param {QuerySequence} sequence An instance of QuerySequence that will match against each attributes
+	     * @returns {boolean}
+	     */
+	    has(sequence: QuerySequence): boolean;
+	    /**
+	     * Attempts Finds at least one component that matches the delegate passed
+	     * @param {(component: T, attributes: Attributes, ...rest: unknown[]) => boolean} callback Called each iteration with following signature (component: T, attributes: Attributes, ...rest: unknown[]) => boolean
+	     * @param {...unknown[]} [rest]
+	     * @returns {boolean}
+	     */
 	    has(callback: Function, ...rest: unknown[]): boolean;
-	    add(component: T, attribute: Attributes): T;
-	    remove(component: T): T;
-	    clear(): void;
 	    attributes(component: T): Attributes;
+	    add(component: T, attribute: Attributes): this;
+	    remove(component: T): this;
+	    clear(): this;
 	    merge(...iQueries: IQuery<T>[]): this;
-	    intersect(attributes: Attributes): IQuery<T>;
 	    or(attributes: Attributes): IQuery<T>;
 	    and(attributes: Attributes): IQuery<T>;
 	    not(attributes: Attributes): IQuery<T>;
 	    greater(attributes: Attributes): IQuery<T>;
 	    less(attributes: Attributes): IQuery<T>;
+	    filter(delegate: QueryDelegate): IQuery<T>;
+	    filter(delegate: QueryDelegate, atttibutes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate, atttibutes: Attributes, ...rest: unknown[]): IQuery<T>;
+	    $filter(delegate: QueryDelegate, atttibutes: Attributes, ...rest: unknown[]): Promise<IQuery<T>>;
+	    $filter(delegate: QueryDelegate): Promise<IQuery<T>>;
+	    $filter(delegate: QueryDelegate, atttibutes: Attributes): Promise<IQuery<T>>;
 	    group(key: unknown): Map<unknown, IQuery<T>>;
-	    all(callback: Function, ...rest: unknown[]): IQuery<T>;
-	    $all(callback: Function, ...rest: unknown[]): Promise<IQuery<T>>;
-	    wait(): IWaitingQuery<T>;
-	    subscription(): ISubscription;
-	}
-	export type WaitConfirmation<T> = (networkModelComponent: T, attributes: Attributes, iQuery: IQuery, ...rest: unknown[]) => boolean;
-	export type WaitFilter = (attributesA: Attributes, attributesB: Attributes, ...rest: unknown[]) => boolean;
-	export interface IWaitingQuery<T = unknown> {
-	    root(): IQuery<T>;
-	    root(root?: IQuery<T>): IQuery<T>;
-	    $async(): Promise<IQuery<T>>;
-	    race(value: number): this;
-	    confirmation(callback: WaitConfirmation<T>, ...rest: unknown[]): this;
-	    intersect(attributes: Attributes): IWaitingQuery<T>;
-	    or(attributes: Attributes): IWaitingQuery<T>;
-	    and(attributes: Attributes): IWaitingQuery<T>;
-	    not(attributes: Attributes): IWaitingQuery<T>;
-	    all(calback: WaitFilter, ...rest: unknown[]): IWaitingQuery<T>;
-	    $all(calback: Function, ...rest: unknown[]): Promise<IWaitingQuery<T>>;
+	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>): Promise<this>;
+	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>, options: {
+	        race: number;
+	    }): Promise<this>;
 	}
 	export class QueryManager<T = unknown> implements IQuery<T> {
 	    static From<T = unknown>(overload: Iterable<[T, Attributes]>): QueryManager<T>;
-	    protected _iCollection: ICollection<T>;
-	    protected _entries: [T, Attributes][];
-	    protected readonly _subscription: Subscription;
+	    protected _collection: ICollection<T>;
+	    protected _listeners: Map<((query: IQuery<T>) => boolean | Promise<boolean>), $Promise<this>>;
+	    protected _reactor: QueryManagerReactor<T>;
 	    constructor();
-	    constructor(iCollection: ICollection<T>);
-	    subscription(): ISubscription;
+	    constructor(collection: ICollection<T>);
+	    [Reactivity](): IReactor<[T, Attributes][]>;
 	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
 	    get size(): number;
-	    get iCollection(): ICollection<T>;
-	    get sources(): T[];
+	    get collection(): ICollection<T>;
+	    get all(): T[];
 	    get last(): T;
 	    get first(): T;
 	    get(index: number): T;
 	    slice(start: number): T[];
 	    slice(start: number, end: number): T[];
-	    has(callback: Function, ...rest: unknown[]): boolean;
-	    add(component: T, attributes: Attributes): T;
-	    remove(component: T): T;
-	    clear(): void;
+	    /**
+	     * Finds at least one component that matches the parameters passed using QuerySequence.match
+	     * @param {QuerySequence} sequence an instance of QuerySequence that will match against each attributes
+	     * @returns {boolean}
+	     */
+	    has(sequence: QuerySequence): boolean;
+	    /**
+	     * Attempts Finds at least one component that matches the delegate passed
+	     * @param {(component: T, attributes: Attributes, ...rest: unknown[]) => boolean} callback called each iteration with following signature (component: T, attributes: Attributes, ...rest: unknown[]) => boolean
+	     * @param {...unknown[]} [rest]
+	     * @returns {boolean}
+	     */
+	    has(callback: (component: T, attributes: Attributes, ...rest: unknown[]) => boolean, ...rest: unknown[]): boolean;
+	    add(component: T, attributes: Attributes): this;
+	    remove(component: T): this;
+	    mutate(source: T, target: T): this;
+	    clear(): this;
 	    attributes(component: T): Attributes;
-	    merge(...iQueries: IQuery<T>[]): this;
+	    merge(...queries: IQuery<T>[]): this;
 	    greater(attributes: Attributes): IQuery<T>;
 	    less(attributes: Attributes): IQuery<T>;
-	    intersect(attributes: Attributes): IQuery<T>;
 	    or(attributes: Attributes): IQuery<T>;
 	    and(attributes: Attributes): IQuery<T>;
 	    not(attributes: Attributes): IQuery<T>;
+	    filter(delegate: QueryDelegate): IQuery<T>;
+	    filter(delegate: QueryDelegate, attributes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): IQuery<T>;
+	    $filter(delegate: QueryDelegate): Promise<IQuery<T>>;
+	    $filter(delegate: QueryDelegate, attributes: Attributes): Promise<IQuery<T>>;
+	    $filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): Promise<IQuery<T>>;
 	    composite(attributes: Attributes): IQuery<T>;
-	    all(): IQuery<T>;
-	    all(callback: Function): IQuery<T>;
-	    all(callback: Function, ...rest: unknown[]): IQuery<T>;
-	    $all(callback: Function): Promise<IQuery<T>>;
-	    $all(callback: Function, ...rest: unknown[]): Promise<IQuery<T>>;
-	    wait(): IWaitingQuery<T>;
+	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>, options?: {
+	        race?: number;
+	    }): Promise<this>;
 	    group(key: any): Map<unknown, IQuery<T>>;
 	    transform(callback: (component: T, attributes: Attributes, ...rest: unknown[]) => [T, Attributes], ...rest: unknown[]): IQuery<T>;
 	}
-	export class WaitingQueryManager<T> implements IWaitingQuery<T> {
-	    protected _root: IQuery<T>;
-	    protected _parent: {
-	        [Symbol.iterator](): IterableIterator<[T, Attributes]>;
-	    };
-	    protected _filter: {
-	        callback: WaitFilter;
-	        attributes: Attributes;
-	    };
-	    protected _$async: $Promise<IQuery<T>>;
-	    protected _callback: WaitConfirmation<T>;
-	    protected _rest: unknown[];
-	    protected _queryManager: IQuery<[T, Attributes]>;
-	    constructor(parent: {
-	        [Symbol.iterator](): IterableIterator<[T, Attributes]>;
-	    }, attributes?: Attributes, filter?: WaitFilter);
-	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
-	    protected _finally$Expired: any;
-	    protected readonly _onSynchronize: any;
-	    root(root?: IQuery<T>): IQuery<T>;
-	    $async(): Promise<IQuery<T>>;
-	    race(value: number): this;
-	    confirmation(callback: WaitConfirmation<T>, ...rest: unknown[]): this;
-	    intersect(attributes: Attributes): IWaitingQuery<T>;
-	    or(attributes: Attributes): IWaitingQuery<T>;
-	    and(attributes: Attributes): IWaitingQuery<T>;
-	    not(attributes: Attributes): IWaitingQuery<T>;
-	    all(): IWaitingQuery<T>;
-	    all(callback: WaitFilter, ...rest: unknown[]): IWaitingQuery<T>;
-	    $all($callback: Function): Promise<IWaitingQuery<T>>;
-	    $all($callback: Function, ...rest: unknown[]): Promise<IWaitingQuery<T>>;
+	
+		
+	
+	
+	export class QueryManagerReactor<T> extends Reactor<[T, Attributes][]> {
+	    private _query;
+	    constructor(query: IQuery<T>);
+	}
+	
+		
+	
+	export class QuerySequence {
+	    static And(attributes: Attributes): QuerySequence;
+	    static Or(attributes: Attributes): QuerySequence;
+	    static Not(attributes: Attributes): QuerySequence;
+	    static All(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): QuerySequence;
+	    static Composite(attributes: Attributes, ...rest: unknown[]): QuerySequence;
+	    static Greater(attributes: Attributes): QuerySequence;
+	    static Less(attributes: Attributes): QuerySequence;
+	    private _sequence;
+	    constructor(iterable?: Iterable<[QueryDelegate, Attributes] | [QueryDelegate, Attributes, unknown]>);
+	    and(attributes: Attributes): this;
+	    or(attributes: Attributes): this;
+	    not(attributes: Attributes): this;
+	    all(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): this;
+	    composite(attributes: Attributes, ...rest: unknown[]): this;
+	    greater(attributes: Attributes): this;
+	    less(attributes: Attributes): this;
+	    query<T>(query: IQuery<T>): IQuery<T>;
+	    match(attributes: Attributes): boolean;
 	}
 	
 		export const AsyncReactivity: unique symbol;
@@ -969,12 +1247,16 @@ declare module "@onyx-ignition/forge" {
 	const NullState: unique symbol;
 	type ReactorMap<T> = Map<IReactor<T>, T | typeof NullState>;
 	export class CircuitReactor<T> implements IReactor<IReactor<T>, IReactor<T>[]> {
+	    protected _abortController: AbortController;
+	    protected _signal: AbortSignal;
 	    protected _states: ReactorMap<T>;
 	    protected _activeStates: Set<IReactor<T>>;
 	    private _clearTimeout;
 	    protected readonly _delegates: Set<ReactiveDelegate<IReactor<T>[]>>;
 	    protected readonly _frameBinded: any;
 	    constructor(iReactors: IReactor<T>[]);
+	    [Symbol.asyncIterator](): AsyncIterableIterator<IReactor<T>[]>;
+	    abort(): void;
 	    get activeStates(): IReactor<T>[];
 	    protected _operate(states: ReactorMap<T>, iReactor?: IReactor<T>): boolean;
 	    setter(iReactor: IReactor<T>): IReactor<T>[];
@@ -1005,6 +1287,8 @@ declare module "@onyx-ignition/forge" {
 	export const HaltReactivity: unique symbol;
 	export type ReactiveDelegate<T> = (value?: T, previous?: T) => unknown;
 	export interface IReactor<I, O = I> {
+	    [Symbol.asyncIterator](): AsyncIterableIterator<O>;
+	    abort(): void;
 	    setter(value: I): O;
 	    getter(): O;
 	    subscribe(delegate: ReactiveDelegate<O>): unknown;
@@ -1021,12 +1305,16 @@ declare module "@onyx-ignition/forge" {
 	    protected _setter: (state: S, previous: S) => S;
 	    protected _getter: (state: S) => T;
 	    protected readonly _delegates: Set<ReactiveDelegate<T>>;
+	    protected _abortController: AbortController;
+	    protected _signal: AbortSignal;
 	    constructor();
 	    constructor(state: S);
 	    constructor(state: S, transform: {
 	        getter?: (state: S) => T;
 	        setter?: (newState: S, oldState: S) => S;
 	    });
+	    [Symbol.asyncIterator](): AsyncIterableIterator<T>;
+	    [Symbol.dispose](): void;
 	    protected _transformSet(state: S, previous: S): S;
 	    protected _transformGet(state: S): T;
 	    protected _equals(state: S, previous: S): boolean;
@@ -1034,10 +1322,12 @@ declare module "@onyx-ignition/forge" {
 	    setter(value: S): T;
 	    subscribe(delegate: ReactiveDelegate<T>): this;
 	    unsubscribe(delegate: ReactiveDelegate<T>): this;
+	    once(delegate: ReactiveDelegate<T>): this;
 	    clear(): void;
 	    frame(): void;
 	    frame(...rest: unknown[]): void;
 	    flush(): void;
+	    abort(): void;
 	}
 	export function reactive<T = unknown>(value: T): IReactor<T>;
 	
@@ -1128,28 +1418,19 @@ declare module "@onyx-ignition/forge" {
 	    $listen(notify: unknown, callback: Function, race: number): Promise<unknown>;
 	}
 	
-		
-	export class DebounceHandle {
-	    $race: $Promise<this>;
-	    constructor(options: {
-	        race: number;
-	    });
-	    release(): void;
-	}
+		export type DebounceDelegate = (caller: unknown, ...rest: unknown[]) => unknown;
 	export class Debounce {
-	    private readonly _max;
-	    private readonly _handles;
-	    private readonly _$waits;
-	    constructor(options: {
-	        max: number;
-	    });
-	    private _thenHandleResolve;
-	    authorize(options: {
-	        race: number;
-	    }): DebounceHandle;
-	    $wait(options: {
-	        race: number;
-	    }): Promise<DebounceHandle>;
+	    private _timeout;
+	    private readonly _refresh;
+	    private readonly _timeoutCompleteBinded;
+	    race: number;
+	    constructor(race: number);
+	    private _onTimeoutComplete;
+	    refresh(callback: DebounceDelegate): void;
+	    refresh(callback: DebounceDelegate, options: {
+	        context?: unknown;
+	        rest?: unknown[];
+	    }): void;
 	    clear(): void;
 	}
 	
@@ -1401,219 +1682,6 @@ declare module "@onyx-ignition/forge" {
 	    $login(): Promise<ForgeAuthSession>;
 	    $logout(): Promise<void>;
 	}
-	
-		
-	
-	export type Platform = "browser" | "node" | "neutral";
-	export type Format = "iife" | "cjs" | "esm";
-	export type Bundle = "preserve" | "mangle" | "merge";
-	export type Verbosity = "all" | "log" | "warn" | "error" | "silent";
-	export type Write = "memory" | "file" | "stdout";
-	export type ReadTranform = "gzip" | "brotli" | "zip" | "base64";
-	export type WriteTransform = "obfuscate" | "minify" | "gzip" | "brotli" | "zip" | "base64";
-	export type ForgeBuilderOptions = Partial<{
-	    bundled: Bundle;
-	    platform: Platform;
-	    format: Format;
-	    metafile: boolean;
-	    treeShaking: boolean;
-	    aliases: {
-	        files: Record<string, string>;
-	        directories: Record<string, string>;
-	    };
-	    external: string[];
-	    verbose: Verbosity;
-	    root: string;
-	    ignores: string[];
-	    transform: {
-	        read?: ReadTranform[];
-	        write?: WriteTransform[];
-	    };
-	    write: Write;
-	}>;
-	export class BuilderConfig {
-	    static $From(options: {
-	        args: IForgeArguments;
-	    }): Promise<BuilderConfig>;
-	    bundled: Bundle;
-	    platform: Platform;
-	    format: Format;
-	    metafile: boolean;
-	    external: string[];
-	    verbose: Verbosity;
-	    treeShaking: boolean;
-	    ignores: string[];
-	    aliases: {
-	        files: Record<string, string>;
-	        directories: Record<string, string>;
-	    };
-	    write: Write;
-	    transform: {
-	        read: ReadTranform[];
-	        write: WriteTransform[];
-	    };
-	    constructor(options: ForgeBuilderOptions);
-	    $validate(): $IResult<Error>;
-	}
-	
-		
-	
-	
-	
-	export class ESBuildBundler extends Subscription {
-	    private _iResult;
-	    readonly loaders: Record<string, string>;
-	    constructor();
-	    $watch(roots: string[], filter: RegExp): Promise<void>;
-	    unwatch(): void;
-	    $build(entry: string, options: ForgeBuilderOptions): $IResult<Attributes>;
-	    $library(root: string): $IResult<Attributes>;
-	}
-	export function $Transform(entry: string, options: ForgeBuilderOptions): $IResult<Attributes>;
-	
-		
-	
-	
-	
-	
-	
-	class ReorderManager {
-	    private _root;
-	    readonly topology: Topology<string>;
-	    constructor(root: string);
-	    import(input: string): this;
-	    $load(file: string, spaces: number): Promise<this>;
-	    add(file: string, attributes: Attributes): this;
-	    add(file: string, attributes: Attributes, parent: string): this;
-	}
-	export class ForgeBuilder extends Subscription {
-	    static $Build(entry: string, options: ForgeBuilderOptions): $IResult<Attributes>;
-	    static $Build(entry: string, options: ForgeBuilderOptions, iPlugins: IForgeBuildPlugin[]): $IResult<Attributes>;
-	    private _entry;
-	    private _options;
-	    private _$packages;
-	    readonly cache: Map<string, {
-	        contents: string | Uint8Array;
-	        loader: string;
-	    }>;
-	    readonly iPlugins: IForgeBuildPlugin[];
-	    readonly root: string;
-	    readonly reorder: ReorderManager;
-	    constructor(entry: string, options: ForgeBuilderOptions);
-	    constructor(entry: string, options: ForgeBuilderOptions, iPlugins: IForgeBuildPlugin[]);
-	    protected _$resolve(file: string): Promise<string>;
-	    protected _$fetch(file: string): Promise<{
-	        contents: string | Uint8Array;
-	        loader: string;
-	    }>;
-	    protected _$fetchTypescript(file: string): Promise<string>;
-	    private _reorderManifest;
-	    $bundle(): $IResult<Attributes>;
-	    set manifest(value: string[]);
-	}
-	
-	
-		
-	
-	export class TSCBundler {
-	    private _entry;
-	    private _ignoreList;
-	    private _target;
-	    constructor(options: {
-	        ignore?: string[];
-	        target: string | {
-	            random: string;
-	        };
-	    });
-	    private get _$target();
-	    $types(): $IResult<Attributes>;
-	}
-	
-		
-	
-	export interface IForgeBuildPlugin {
-	    atrributes: Attributes;
-	    $start(iResult: IResult<Attributes>): Promise<void>;
-	    $complete(iResult: IResult<Attributes>): Promise<void>;
-	    $fetch(file: string, results: IResult<Attributes>): Promise<void>;
-	    $resolve(file: string, results: any): Promise<void>;
-	}
-	export class ForgeBuildPlugin implements IForgeBuildPlugin {
-	    atrributes: Attributes;
-	    $start(iResult: IResult<Attributes>): Promise<void>;
-	    $complete(iResult: IResult<Attributes>): Promise<void>;
-	    $fetch(file: string, iResults: IResult<Attributes>): Promise<void>;
-	    $resolve(file: string, results: any): Promise<void>;
-	}
-	
-		
-	
-	
-	
-	export class TypescriptBuilder {
-	    static $Library(root: string, options?: {
-	        ignore: string[];
-	    }): Promise<string>;
-	    static StripImports(code: string): string;
-	    private _entry;
-	    private _root;
-	    private readonly _$package;
-	    private _$packages;
-	    private _options;
-	    private _iPlugins;
-	    constructor(entry: string, options: ForgeBuilderOptions, iPlugins?: IForgeBuildPlugin[]);
-	    $fetch(file: string): Promise<string>;
-	    $bundle(): $IResult<Attributes>;
-	    $library(): $IResult<Attributes>;
-	}
-	
-		
-	
-	
-	
-	class TypescriptFileTraversal {
-	    private _root;
-	    private _$packages;
-	    private _$fetch;
-	    private readonly _imports;
-	    readonly files: Map<string, TypescriptFile>;
-	    constructor(root: string, options: {
-	        $fetch: (file: string) => Promise<string>;
-	        $package: Promise<Set<string>>;
-	    });
-	    private _dependencies;
-	    private hasDependency;
-	    $add(file: string): Promise<boolean>;
-	    sort(): void;
-	}
-	export class TypescriptFile {
-	    static $Fetch(file: string): Promise<string>;
-	    private _path;
-	    private _code;
-	    private _root;
-	    private _$fetch;
-	    private readonly _$packages;
-	    readonly imports: Map<string, Set<string>>;
-	    readonly exports: Set<string>;
-	    hash: string;
-	    constructor(root: string, options?: {
-	        $fetch?: (file: string) => Promise<string>;
-	        $package?: Promise<Set<string>>;
-	    });
-	    get path(): {
-	        relative: string;
-	        sanitized: string;
-	        dir: string;
-	    };
-	    set code(value: string);
-	    reset(): void;
-	    $traverse(traversal?: TypescriptFileTraversal): Promise<Map<string, TypescriptFile>>;
-	    $load(file: string): Promise<this>;
-	    $inline(callback?: (type: string, script: this, file: string, values: string | Set<string>) => string): Promise<string>;
-	    $bundle(options: ForgeBuilderOptions, iPlugins?: IForgeBuildPlugin): $IResult<Attributes>;
-	    $library(): $IResult<Attributes>;
-	}
-	
 	
 		
 	
@@ -2406,6 +2474,8 @@ declare module "@onyx-ignition/forge" {
 	    PNPM = "pnpm"
 	}
 	export class ForgeNPM {
+	    static $QueryLocalPackages(file: string): Promise<boolean>;
+	    static IsInternalPackage(file: string): boolean;
 	    private _packageManager;
 	    private _$package;
 	    constructor(packageManager: PackageOptions);
@@ -2432,7 +2502,6 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 		
-	
 	export interface ForgeFileStats {
 	    isFile(): boolean;
 	    isDirectory(): boolean;
@@ -2486,7 +2555,8 @@ declare module "@onyx-ignition/forge" {
 	    static $Append(path: string, contents: string | Buffer | ArrayBuffer, options: {}): Promise<void>;
 	    static $Copy(source: string, target: string): Promise<void>;
 	    static $Glob(paths: string[], options?: {
-	        resolve: boolean;
+	        resolve?: boolean;
+	        ignores?: string[];
 	    }): Promise<string[]>;
 	    static $Walk(root: string): Promise<string[]>;
 	    static $Walk(root: string, options: {
@@ -2498,23 +2568,6 @@ declare module "@onyx-ignition/forge" {
 	    static $WalkStats(root: string): Promise<Map<string, ForgeFileStats>>;
 	    static $WalkStats(root: string, recursive: false): Promise<Map<string, ForgeFileStats>>;
 	    static $WalkStats(root: string, files: Map<string, ForgeFileStats>): Promise<Map<string, ForgeFileStats>>;
-	}
-	export class ForgeFileWatcher extends Subscription {
-	    static Default: {
-	        Threshold: number;
-	    };
-	    private _$watchers;
-	    private _abortController;
-	    enabled: boolean;
-	    constructor(roots: string[], options: {
-	        threshold?: number;
-	        ignore?: RegExp[];
-	    });
-	    [Symbol.asyncIterator](): AsyncIterableIterator<{
-	        event: string;
-	        file: string;
-	    }>;
-	    abort(): void;
 	}
 	class ForgeWeb {
 	    static $Fetch(url: string, options: Record<string, unknown>): Promise<Response>;
@@ -2557,6 +2610,37 @@ declare module "@onyx-ignition/forge" {
 		export class ForgeZip {
 	    static $GUnzip(data: string | ArrayBuffer): Promise<ArrayBuffer>;
 	    static $GZip(data: string | ArrayBuffer, options?: {}): Promise<ArrayBuffer>;
+	}
+	
+		
+	
+	export class ForgeFileWatcher extends Subscription {
+	    static Default: {
+	        Threshold: number;
+	    };
+	    threshold: number;
+	    private _abortController;
+	    private _targets;
+	    private _ignores;
+	    private readonly _reactor;
+	    private readonly _fileStats;
+	    private readonly _debounce;
+	    constructor(targets: string[], options: {
+	        threshold?: number;
+	        ignores?: string[];
+	    });
+	    private _onDebounceFileChangeUnbinded;
+	    [Symbol.dispose](): void;
+	    [Reactivity](): IReactor<{
+	        file: string;
+	        event: string;
+	    }>;
+	    [Symbol.asyncIterator](): AsyncIterableIterator<{
+	        event: string;
+	        file: string;
+	    }>;
+	    protected _$watchFiles(event: string, file: string): Promise<void>;
+	    abort(): void;
 	}
 	
 		
