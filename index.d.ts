@@ -47,6 +47,7 @@ declare module "@onyx-ignition/forge" {
 	export type ArgumentPackageComponent = Attributes | Promise<Attributes>;
 	export interface IArgumentPackage {
 	    [Symbol.iterator](): Iterator<[ArgumentPackageComponent, Attributes]>;
+	    validations: ArgumentValidationResults;
 	    get size(): number;
 	    add(value: Attributes, attributes: Attributes): this;
 	    remove(value: Attributes): this;
@@ -71,7 +72,7 @@ declare module "@onyx-ignition/forge" {
 	}
 	export class ArgumentPackage implements IArgumentPackage {
 	    protected _query: IQuery<ArgumentPackageComponent>;
-	    validations: Map<IArgumentValidationComponent, Attributes>;
+	    validations: ArgumentValidationResults;
 	    constructor();
 	    constructor(query: IQuery<ArgumentPackageComponent>);
 	    [Symbol.iterator](): IterableIterator<[ArgumentPackageComponent, Attributes]>;
@@ -87,11 +88,11 @@ declare module "@onyx-ignition/forge" {
 	    filter(callback: QueryDelegate, ...rest: unknown[]): ArgumentPackage;
 	    collapse(): Attributes;
 	    collapse(intersect: Attributes): Attributes;
-	    merge(): Attributes;
-	    merge(options: {
+	    merge<T = Attributes>(): T;
+	    merge<T = Attributes>(options: {
 	        intersect?: Record<string, true>;
 	        implode?: ImplodeAttributesOptions;
-	    }): Attributes;
+	    }): T;
 	    explode<T = unknown>(): ArgumentValues<T>;
 	    explode<T = unknown>(intersect: Attributes): ArgumentValues<T>;
 	    sanitize(sanitizer: IPackageSanitizer): ArgumentPackage;
@@ -112,6 +113,7 @@ declare module "@onyx-ignition/forge" {
 	    [Symbol.iterator](): IterableIterator<T>;
 	    get first(): T;
 	    get last(): T;
+	    get all(): T[];
 	    get(index: number): unknown;
 	    $glob(ignores?: string[]): Promise<string[]>;
 	    $glob(ignores?: string[]): Promise<string[]>;
@@ -795,6 +797,7 @@ declare module "@onyx-ignition/forge" {
 	    intersect?: Attributes;
 	    implode?: ImplodeAttributesOptions;
 	}): any;
+	export function CollapseAttributes(attributes: Attributes[]): Attributes;
 	/**
 	 *
 	 * @param accessor
@@ -1113,6 +1116,7 @@ declare module "@onyx-ignition/forge" {
 	    remove(component: T): this;
 	    clear(): this;
 	    merge(...iQueries: IQuery<T>[]): this;
+	    mutate(source: T, target: T): this;
 	    or(attributes: Attributes): IQuery<T>;
 	    and(attributes: Attributes): IQuery<T>;
 	    not(attributes: Attributes): IQuery<T>;
@@ -1129,6 +1133,7 @@ declare module "@onyx-ignition/forge" {
 	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>, options: {
 	        race: number;
 	    }): Promise<this>;
+	    clone(): IQuery<T>;
 	}
 	export class QueryManager<T = unknown> implements IQuery<T> {
 	    static From<T = unknown>(overload: Iterable<[T, Attributes]>): QueryManager<T>;
@@ -1183,6 +1188,7 @@ declare module "@onyx-ignition/forge" {
 	    }): Promise<this>;
 	    group(key: any): Map<unknown, IQuery<T>>;
 	    transform(callback: (component: T, attributes: Attributes, ...rest: unknown[]) => [T, Attributes], ...rest: unknown[]): IQuery<T>;
+	    clone(): IQuery<T>;
 	}
 	
 		
