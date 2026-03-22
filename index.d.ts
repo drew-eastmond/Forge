@@ -14,6 +14,12 @@ declare module "@onyx-ignition/forge" {
 	
 		
 	export class Accessor {
+	    static Fetch(accessor: string[], attributes: Attributes): Attributes;
+	    static Mount(accessor: string[], attributes: Attributes): Attributes;
+	    static Mount(accessor: string[], attributes: Attributes, options: {
+	        root?: Attributes;
+	        implode?: ImplodeAttributesOptions;
+	    }): Attributes;
 	    private _source;
 	    private _entries;
 	    constructor(source: Attributes);
@@ -44,6 +50,7 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
 	export type ArgumentPackageComponent = Attributes | Promise<Attributes>;
 	export interface IArgumentPackage {
 	    [Symbol.iterator](): Iterator<[ArgumentPackageComponent, Attributes]>;
@@ -52,29 +59,47 @@ declare module "@onyx-ignition/forge" {
 	    add(value: Attributes, attributes: Attributes): this;
 	    remove(value: Attributes): this;
 	    has(sequence: QuerySequence): boolean;
-	    or(attributes: Attributes): ArgumentPackage;
-	    and(attributes: Attributes): ArgumentPackage;
-	    not(attributes: Attributes): ArgumentPackage;
-	    filter(callback: Function, ...rest: unknown[]): ArgumentPackage;
-	    collapse(): Attributes;
-	    collapse(intersect: Attributes): Attributes;
-	    merge(): Attributes;
-	    merge(options: {
+	    or(attributes: Attributes): IArgumentPackage;
+	    and(attributes: Attributes): IArgumentPackage;
+	    not(attributes: Attributes): IArgumentPackage;
+	    traverse(attributes: Attributes): IArgumentPackage;
+	    filter(callback: Function, ...rest: unknown[]): IArgumentPackage;
+	    collapse<T extends Attributes>(): T;
+	    collapse<T extends Attributes>(intersect: Attributes): T;
+	    implode<T extends Attributes>(): T;
+	    implode<T extends Attributes>(options: {
 	        intersect?: Record<string, true>;
 	        implode?: ImplodeAttributesOptions;
-	    }): Attributes;
+	    }): T;
 	    explode<T>(): ArgumentValues<T>;
 	    explode<T>(intersect: Attributes): ArgumentValues<T>;
-	    sanitize(sanitize: IPackageSanitizer): ArgumentPackage;
-	    $sanitize(sanitize: IAsyncPackageSanitizer): Promise<ArgumentPackage>;
-	    validate(validate: IPackageValidator): ArgumentPackage;
-	    $validate(validate: IAsyncPackageValidator): Promise<ArgumentPackage>;
+	    sanitize(): IArgumentPackage;
+	    sanitize(sanitize: IPackageSanitizer): IArgumentPackage;
+	    $sanitize(): Promise<IArgumentPackage>;
+	    $sanitize(sanitize: IAsyncPackageSanitizer): Promise<IArgumentPackage>;
+	    validate(): IArgumentPackage;
+	    validate(validate: IPackageValidator): IArgumentPackage;
+	    $validate(): Promise<IArgumentPackage>;
+	    $validate(validate: IAsyncPackageValidator): Promise<IArgumentPackage>;
+	    $mutate($callback: (component: Attributes) => ArgumentPackageComponent): Promise<IArgumentPackage>;
+	    mount(mount: IArgumentPackageMount): IArgumentPackage;
+	    $mount(mount: IArgumentPackageMount): Promise<IArgumentPackage>;
+	    collect<T = Attributes>(sequence: QuerySequence): T;
+	    $collect<T = Attributes>(sequence: QuerySequence): Promise<T>;
+	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
+	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
+	    $help(): Promise<string>;
 	}
+	export function MergePackages<T = Attributes>(packages: IArgumentPackage[], sequence: QuerySequence): T;
+	export function MergeValidations(packages: IArgumentPackage[]): ArgumentValidationResults;
 	export class ArgumentPackage implements IArgumentPackage {
 	    protected _query: IQuery<ArgumentPackageComponent>;
 	    validations: ArgumentValidationResults;
 	    constructor();
-	    constructor(query: IQuery<ArgumentPackageComponent>);
+	    constructor(options: {
+	        query?: IQuery<ArgumentPackageComponent>;
+	        validations?: ArgumentValidationResults;
+	    });
 	    [Symbol.iterator](): IterableIterator<[ArgumentPackageComponent, Attributes]>;
 	    get size(): number;
 	    add(value: Attributes, attributes: Attributes): this;
@@ -82,23 +107,58 @@ declare module "@onyx-ignition/forge" {
 	    $await(): Promise<ArgumentPackage>;
 	    remove(value: Attributes): this;
 	    has(sequence: QuerySequence): boolean;
-	    or(attributes: Attributes): ArgumentPackage;
-	    and(attributes: Attributes): ArgumentPackage;
-	    not(attributes: Attributes): ArgumentPackage;
-	    filter(callback: QueryDelegate, ...rest: unknown[]): ArgumentPackage;
-	    collapse(): Attributes;
-	    collapse(intersect: Attributes): Attributes;
-	    merge<T = Attributes>(): T;
-	    merge<T = Attributes>(options: {
+	    or(attributes: Attributes): IArgumentPackage;
+	    and(attributes: Attributes): IArgumentPackage;
+	    not(attributes: Attributes): IArgumentPackage;
+	    filter(callback: QueryDelegate, ...rest: unknown[]): IArgumentPackage;
+	    traverse(attributes: Attributes): IArgumentPackage;
+	    collapse<T extends Attributes>(): T;
+	    collapse<T extends Attributes>(intersect: Attributes): T;
+	    implode<T = Attributes>(): T;
+	    implode<T = Attributes>(options: {
 	        intersect?: Record<string, true>;
 	        implode?: ImplodeAttributesOptions;
+	        mount?: Attributes;
 	    }): T;
 	    explode<T = unknown>(): ArgumentValues<T>;
 	    explode<T = unknown>(intersect: Attributes): ArgumentValues<T>;
+	    sanitize(): ArgumentPackage;
 	    sanitize(sanitizer: IPackageSanitizer): ArgumentPackage;
+	    $sanitize(): Promise<ArgumentPackage>;
 	    $sanitize(sanitizer: IAsyncPackageSanitizer): Promise<ArgumentPackage>;
+	    validate(): this;
 	    validate(validator: IPackageValidator): this;
+	    $validate(): Promise<this>;
 	    $validate(validator: IAsyncPackageValidator): Promise<this>;
+	    $mutate($callback: (component: Attributes) => ArgumentPackageComponent): Promise<ArgumentPackage>;
+	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
+	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
+	    mount(mount: IArgumentPackageMount): IArgumentPackage;
+	    $mount(mount: IArgumentPackageMount): Promise<IArgumentPackage>;
+	    collect<T = Attributes>(sequence: QuerySequence): T;
+	    $collect<T = Attributes>(sequence: QuerySequence): Promise<T>;
+	    $help(): Promise<string>;
+	}
+	
+		
+	export interface IArgumentPackageMount {
+	    mount(component: Attributes, attributes: Attributes): [Attributes, Attributes];
+	}
+	export class AttributesArgumentPackageMount {
+	    private _componentMounts;
+	    private _attributesMounts;
+	    constructor(component: Attributes);
+	    constructor(component: Attributes, attributes: Attributes);
+	    _mountAttributes(accessors: string[][], target: Attributes): Attributes;
+	    mount(component: Attributes, attributes: Attributes): [Attributes, Attributes];
+	}
+	export class DelegateArgumentPackageMount {
+	    private _componentDelegate;
+	    private _attributesDelegate;
+	    constructor(component: (attributes: Attributes) => Attributes);
+	    constructor(component: (attributes: Attributes) => Attributes, attributes: (attributes: Attributes) => Attributes);
+	    _mountAttributes(delegate: (attributes: Attributes) => Attributes, target: Attributes): Attributes;
+	    mount(component: Attributes, attributes: Attributes): [Attributes, Attributes];
 	}
 	
 		
@@ -108,7 +168,7 @@ declare module "@onyx-ignition/forge" {
 	export class ArgumentValues<T = unknown> {
 	    static From(query: IQuery<Attributes>, intersect?: Attributes): ArgumentValues;
 	    protected _values: T[];
-	    validations: Map<IArgumentValidationComponent, Attributes>;
+	    validations: Map<ArgumentValidation, Attributes>;
 	    constructor(values: T[]);
 	    [Symbol.iterator](): IterableIterator<T>;
 	    get first(): T;
@@ -160,7 +220,9 @@ declare module "@onyx-ignition/forge" {
 	        flag: RegExp[];
 	    };
 	    protected _errors: string[];
-	    constructor(args?: string[]);
+	    constructor();
+	    constructor(tokens: string[]);
+	    parse(tokens: string[]): this;
 	    $prompt(name: string, attributes: Attributes, promptOptions: {
 	        messages: string[];
 	        race?: number;
@@ -172,39 +234,67 @@ declare module "@onyx-ignition/forge" {
 		
 	
 	
-	export interface IArgumentValidationComponent {
+	export const ArgumentValidationErrorAttributes: Readonly<{
+	    package: true;
+	    error: true;
+	}>;
+	export const ArgumentValidationWarningAttributes: Readonly<{
+	    package: true;
+	    warning: true;
+	}>;
+	export type ArgumentValidation = {
 	    message: string;
 	    cause: unknown;
+	};
+	export class ArgumentValidationResults {
+	    private _results;
+	    [Symbol.iterator](): IterableIterator<[ArgumentValidation, Attributes]>;
+	    get size(): number;
+	    get successes(): ArgumentValidation[];
+	    get warnings(): ArgumentValidation[];
+	    get errors(): ArgumentValidation[];
+	    has(sequence: QuerySequence): boolean;
+	    all(sequence: QuerySequence): ArgumentValidation[];
+	    first(sequence: QuerySequence): ArgumentValidation;
+	    last(sequence: QuerySequence): ArgumentValidation;
+	    purge(sequence: QuerySequence): ArgumentValidation[];
+	    add(validation: ArgumentValidation, attributes: Attributes): this;
+	    remove(validation: ArgumentValidation): this;
+	    clear(): this;
 	}
-	export type ArgumentValidationResults = Map<IArgumentValidationComponent, Attributes>;
-	export class AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	export class AbstractArgumentValidationComponent implements ArgumentValidation {
 	    message: string;
 	    cause: unknown;
-	    constructor(message: string, options?: {
-	        cause: unknown;
+	    constructor(message: string);
+	    constructor(message: string, options: {
+	        cause?: unknown;
 	    });
 	}
-	export class ArgumentValidationFail extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	export class ArgumentValidationWarning extends AbstractArgumentValidationComponent {
 	}
-	export class ArgumentValidationWarning extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	export class ArgumentValidationSuccess extends AbstractArgumentValidationComponent {
 	}
-	export class ArgumentValidationSuccess extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
-	}
-	export class ArgumentValidationError extends AbstractArgumentValidationComponent implements IArgumentValidationComponent {
+	export class ArgumentValidationError extends AbstractArgumentValidationComponent {
 	    error: unknown;
 	    constructor(message: string, options?: {
-	        cause: unknown;
-	        error: unknown;
+	        cause?: unknown;
+	        error?: unknown;
 	    });
 	}
 	export class AbstractPackageQuerySequence {
 	    protected _intersect: Attributes;
+	    protected _mounts: string[][];
+	    protected _remounts: string[][];
 	    queries: QuerySequence;
-	    protected _intersectComponent(component: Attributes): Attributes;
 	    or(attributes: Attributes): this;
 	    and(attributes: Attributes): this;
 	    not(attributes: Attributes): this;
 	    filter(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): this;
+	    intersect(intersection: Attributes): this;
+	    mount(attributes: Attributes): this;
+	    mount(attributes: Attributes, remount: Attributes): this;
+	    localize(component: Attributes): Attributes;
+	    globalize(attributes: Attributes): Attributes;
 	}
 	
 		
@@ -212,21 +302,35 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	export interface IPackageSanitizer {
+	    options?: PackageSanitizeOptions;
+	    localize?: (component: Attributes) => Attributes;
+	    globalize?: (component: Attributes) => Attributes;
 	    frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => void;
 	    sanitize?: (component: Attributes, attributes: Attributes) => Attributes;
 	    flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => void;
+	    validate?: (packaging: IArgumentPackage) => void;
 	}
 	export interface IAsyncPackageSanitizer {
+	    options?: PackageSanitizeOptions;
+	    localize?: (component: Attributes) => Attributes;
+	    globalize?: (component: Attributes) => Attributes;
 	    $frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<void>;
-	    $sanitize?: (component: Attributes, attributes: Attributes) => Promise<Attributes>;
+	    $sanitize?: (component: ArgumentPackageComponent, attributes: Attributes) => Promise<Attributes>;
 	    $flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<void>;
+	    validate?: (packaging: IArgumentPackage) => void;
 	}
 	export type PackageSanitizeOptions = {
-	    default?: Attributes;
+	    default?: {
+	        component: Attributes;
+	        attributes: Attributes;
+	    };
 	    sanitizers?: IPackageSanitizer[];
 	};
 	export type AsyncPackageSanitizeOptions = {
-	    default?: Attributes;
+	    default?: {
+	        component: Attributes;
+	        attributes: Attributes;
+	    };
 	    sanitizers?: IAsyncPackageSanitizer[];
 	};
 	export class ArgumentPackageSanitize extends AbstractPackageQuerySequence implements IPackageSanitizer {
@@ -236,7 +340,7 @@ declare module "@onyx-ignition/forge" {
 	    flush(query: IQuery<ArgumentPackageComponent>): void;
 	    /**
 	     * Iterate through all components, attributes passed from the Argument package.
-	     * @param {Attributes} value this value is processed in the following order:
+	     * @param {Attributes} component this value is processed in the following order:
 	     * 1. matched against a `QuerySequence` before proceeding
 	     * 2. cloned and possibly intersected against `SanitationOptions`
 	     * 3. merged with default values
@@ -247,16 +351,17 @@ declare module "@onyx-ignition/forge" {
 	     * errors: any errors encountered during sanitation
 	     * warnings: any warnings encounters during sanitation
 	     */
-	    santize(value: Attributes, attributes: Attributes): Attributes;
+	    sanitize(component: Attributes, attributes: Attributes): Attributes;
+	    validate(packaging: IArgumentPackage): void;
 	}
 	export class AsyncArgumentPackageSanitize extends AbstractPackageQuerySequence implements IAsyncPackageSanitizer {
 	    readonly options: AsyncPackageSanitizeOptions;
 	    constructor(options?: AsyncPackageSanitizeOptions);
-	    $frame(query: IQuery<Attributes>): Promise<void>;
-	    $flush(query: IQuery<Attributes>): Promise<void>;
+	    $frame(query: IQuery<ArgumentPackageComponent>): Promise<void>;
+	    $flush(query: IQuery<ArgumentPackageComponent>): Promise<void>;
 	    /**
 	     * Iterate through all components, attributes passed from the Argument package.
-	     * @param {Attributes} value this value is processed in the following order:
+	     * @param {Attributes} component this value is processed in the following order:
 	     * 1. matched against a `QuerySequence` before proceeding
 	     * 2. cloned and possibly intersected against `SanitationOptions`
 	     * 3. merged with default values
@@ -267,7 +372,8 @@ declare module "@onyx-ignition/forge" {
 	     * errors: any errors encountered during sanitation
 	     * warnings: any warnings encounters during sanitation
 	     */
-	    $santize(value: Attributes, attributes: Attributes): Promise<Attributes>;
+	    $sanitize(component: ArgumentPackageComponent, attributes: Attributes): Promise<Attributes>;
+	    validate(packaging: IArgumentPackage): void;
 	}
 	
 		
@@ -359,42 +465,71 @@ declare module "@onyx-ignition/forge" {
 		
 	
 	
+	export class StdinArgumentPackage extends ArgumentPackage {
+	    static Race: number;
+	    race: number;
+	    constructor();
+	    constructor(options: {
+	        race?: number;
+	        query?: IQuery<ArgumentPackageComponent>;
+	        validations?: ArgumentValidationResults;
+	    });
+	    $parse(): Promise<void>;
+	}
+	
+		
+	
+	
 	
 	export interface IPackageValidator {
-	    frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => ArgumentValidationResults;
-	    validate?: (component: ArgumentPackageComponent, attributes: Attributes) => ArgumentValidationResults;
-	    flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => ArgumentValidationResults;
+	    localize?: (component: Attributes) => Attributes;
+	    frame?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidationResults) => void;
+	    validate?: (component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidationResults) => void;
+	    flush?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidationResults) => void;
 	}
 	export interface IAsyncPackageValidator {
-	    $frame?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<ArgumentValidationResults>;
-	    $validate?: (component: ArgumentPackageComponent, attributes: Attributes) => Promise<ArgumentValidationResults>;
-	    $flush?: (query: IQuery<ArgumentPackageComponent>, intersect?: Attributes) => Promise<ArgumentValidationResults>;
+	    localize?: (component: Attributes) => Attributes;
+	    $frame?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidationResults) => Promise<void>;
+	    $validate?: (component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidationResults) => Promise<void>;
+	    $flush?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidationResults) => Promise<void>;
 	}
 	export type PackageValidateOptions = {
 	    help?: string;
 	    error?: string;
-	    required?: Error;
+	    required?: boolean;
 	    validators?: IPackageValidator[];
 	};
 	export type AsyncPackageValidateOptions = {
 	    help?: string;
 	    error?: string;
-	    required?: Error;
+	    required?: boolean;
 	    validators?: IAsyncPackageValidator[];
 	};
-	export class ArgumentPackageValidate extends AbstractPackageQuerySequence implements IPackageValidator {
-	    options: PackageValidateOptions;
-	    constructor(options: PackageValidateOptions);
-	    frame(query: IQuery<Attributes>): ArgumentValidationResults;
-	    flush(query: IQuery<Attributes>): ArgumentValidationResults;
-	    validate(component: Attributes, attributes: Attributes): ArgumentValidationResults;
+	export class AbstractPackageValidate extends AbstractPackageQuerySequence {
+	    help: string;
+	    error: Error;
+	    required: boolean;
+	    constructor(options?: {
+	        help?: string;
+	        error?: string;
+	        required?: boolean;
+	    });
 	}
-	export class AsyncArgumentPackageValidate extends AbstractPackageQuerySequence implements IAsyncPackageValidator {
-	    options: AsyncPackageValidateOptions;
+	export class ArgumentPackageValidate extends AbstractPackageValidate implements IPackageValidator {
+	    protected _validators: IPackageValidator[];
+	    constructor();
+	    constructor(options: PackageValidateOptions);
+	    frame(query: IQuery<Attributes>, results: ArgumentValidationResults): void;
+	    flush(query: IQuery<Attributes>, results: ArgumentValidationResults): void;
+	    validate(component: Attributes, attributes: Attributes, results: ArgumentValidationResults): void;
+	}
+	export class AsyncArgumentPackageValidate extends AbstractPackageValidate implements IAsyncPackageValidator {
+	    protected _validators: IAsyncPackageValidator[];
+	    constructor();
 	    constructor(options: AsyncPackageValidateOptions);
-	    $frame(query: IQuery<Attributes>): Promise<ArgumentValidationResults>;
-	    $flush(query: IQuery<Attributes>): Promise<ArgumentValidationResults>;
-	    $validate(component: Attributes, attributes: Attributes): Promise<ArgumentValidationResults>;
+	    $frame(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidationResults): Promise<void>;
+	    $flush(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidationResults): Promise<void>;
+	    $validate(component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidationResults): Promise<void>;
 	}
 	
 		
@@ -403,46 +538,59 @@ declare module "@onyx-ignition/forge" {
 	    fatal: string[];
 	    constructor();
 	    constructor(options: AsyncValueValidateOptions);
-	    $validate(value: unknown): Promise<ArgumentValidationResults>;
+	    $validate(value: unknown, results: ArgumentValidationResults): Promise<void>;
 	}
 	
 		
 	export interface IValidateValueDelegates {
-	    frame: (values: unknown[]) => ArgumentValidationResults;
-	    validate?: (value: unknown) => ArgumentValidationResults;
-	    flush?: (values: unknown[]) => ArgumentValidationResults;
+	    frame?: (values: unknown[], results: ArgumentValidationResults) => void;
+	    validate?: (value: unknown, results: ArgumentValidationResults) => void;
+	    flush?: (values: unknown[], results: ArgumentValidationResults) => void;
 	}
 	export interface IAsyncValidateValueDelegates {
-	    $frame?: (values: unknown[]) => Promise<ArgumentValidationResults>;
-	    $validate?: (value: unknown) => Promise<ArgumentValidationResults>;
-	    $flush?: (values: unknown[]) => Promise<ArgumentValidationResults>;
+	    $frame?: (values: unknown[], results: ArgumentValidationResults) => Promise<void>;
+	    $validate?: (value: unknown, results: ArgumentValidationResults) => Promise<void>;
+	    $flush?: (values: unknown[], results: ArgumentValidationResults) => Promise<void>;
 	}
 	export type ValueValidateOptions = {
 	    help?: string;
-	    error?: Error;
+	    error?: string;
 	    required?: boolean;
 	    validators?: IValidateValueDelegates[];
 	};
 	export type AsyncValueValidateOptions = {
 	    help?: string;
-	    error?: Error;
+	    error?: string;
 	    required?: boolean;
 	    validators?: IAsyncValidateValueDelegates[];
 	};
-	export class ArgumentValueValidate extends AbstractPackageQuerySequence implements IValidateValueDelegates {
-	    options: ValueValidateOptions;
+	class AbstractArgumentValidate {
+	    help: string;
+	    error: Error;
+	    required: boolean;
+	    constructor(options?: {
+	        help?: string;
+	        error?: string;
+	        required?: boolean;
+	    });
+	}
+	export class ArgumentValueValidate extends AbstractArgumentValidate implements IValidateValueDelegates {
+	    protected _validators: IValidateValueDelegates[];
+	    constructor();
 	    constructor(options: ValueValidateOptions);
-	    frame(values: unknown[]): ArgumentValidationResults;
-	    flush(values: unknown[]): ArgumentValidationResults;
-	    validate(value: unknown): ArgumentValidationResults;
+	    frame(values: unknown[], results: ArgumentValidationResults): void;
+	    flush(values: unknown[], results: ArgumentValidationResults): void;
+	    validate(value: unknown, results: ArgumentValidationResults): void;
 	}
-	export class AsyncArgumentValueValidate extends AbstractPackageQuerySequence implements IAsyncValidateValueDelegates {
-	    options: AsyncValueValidateOptions;
+	export class AsyncArgumentValueValidate extends AbstractArgumentValidate implements IAsyncValidateValueDelegates {
+	    protected _validators: IAsyncValidateValueDelegates[];
+	    constructor();
 	    constructor(options: AsyncValueValidateOptions);
-	    $frame(values: unknown[]): Promise<ArgumentValidationResults>;
-	    $flush(values: unknown[]): Promise<ArgumentValidationResults>;
-	    $validate(value: unknown): Promise<ArgumentValidationResults>;
+	    $frame(values: unknown[], results: ArgumentValidationResults): Promise<void>;
+	    $flush(values: unknown[], results: ArgumentValidationResults): Promise<void>;
+	    $validate(value: unknown, results: ArgumentValidationResults): Promise<void>;
 	}
+	
 	
 		
 	enum AsyncResultState {
@@ -454,7 +602,7 @@ declare module "@onyx-ignition/forge" {
 	export interface IAsyncable<T = unknown> {
 	    resolve(value: T): this;
 	    reject(value: unknown): this;
-	    then(resolve: Function): this;
+	    then(resolve: Function): IAsyncable<T>;
 	    then(resolve: Function, reject: Function): IAsyncable<T>;
 	    catch(callback: Function): IAsyncable<T>;
 	    finally(callback: Function): void;
@@ -479,8 +627,8 @@ declare module "@onyx-ignition/forge" {
 	    reject(value?: T | Promise<T> | unknown): this;
 	    $async(): Promise<T>;
 	    $async(capture: Capture<T>): Promise<T>;
-	    then(resolve: Function): this;
-	    then(resolve: Function, reject: Function): this;
+	    then(resolve: Function): IAsyncable<T>;
+	    then(resolve: Function, reject: Function): IAsyncable<T>;
 	    catch(callback: Function): IAsyncable<T>;
 	    finally(callback: Function): void;
 	}
@@ -760,16 +908,18 @@ declare module "@onyx-ignition/forge" {
 	
 		
 	/** A nested Record<string, unknown> to store values */
-	export type Attributes = Record<string, unknown>;
+	export type Attributes = {
+	    [name: string]: unknown | Attributes;
+	};
 	export type AttributeFragment = {
-	    access: string[];
+	    accessor: string[];
 	    value: unknown;
 	};
 	export type IntervalClear = ReturnType<typeof setInterval>;
 	export type TimeoutClear = ReturnType<typeof setTimeout>;
 	export type Serialize = Record<string, unknown>;
 	export type Capture<T = unknown> = boolean | string | Error | ((error: unknown) => unknown) | Promise<T>;
-	export type ImplodeAttributesOptions = "overwrite" | "unique" | "array";
+	export type ImplodeAttributesOptions = "last" | "first" | "collect";
 	export const EmptyAttributes: Attributes;
 	export const EmptyData: ArrayBuffer;
 	export function GetRange(start: number, end: number): number;
@@ -779,7 +929,7 @@ declare module "@onyx-ignition/forge" {
 	export function EmptyFunction(): void;
 	export function EncodeBase64(json: Record<string, unknown>): string;
 	export function DecodeBase64(value: string): any;
-	export function ExplodeAttributes<T = unknown>(entries: Attributes, accessor?: string[]): AttributeFragment[];
+	export function ExplodeAttributes<T = unknown>(entries: Attributes): AttributeFragment[];
 	export function IntersectAttributes(intersect: Attributes, source: Attributes): Attributes;
 	/**
 	 *
@@ -792,11 +942,11 @@ declare module "@onyx-ignition/forge" {
 	 * @returns { Attributes }
 	 *
 	 */
-	export function MergeAttributes(sources: Attributes[]): any;
+	export function MergeAttributes(sources: Attributes[]): Attributes;
 	export function MergeAttributes(sources: Attributes[], options: {
 	    intersect?: Attributes;
 	    implode?: ImplodeAttributesOptions;
-	}): any;
+	}): Attributes;
 	export function CollapseAttributes(attributes: Attributes[]): Attributes;
 	/**
 	 *
@@ -1087,6 +1237,7 @@ declare module "@onyx-ignition/forge" {
 	    static Composite(objectA: Attributes, objectB: Attributes, ...rest: unknown[]): boolean;
 	    static Greater(objectA: Attributes, objectB: Attributes): boolean;
 	    static Less(objectA: Attributes, objectB: Attributes): boolean;
+	    static Traverse(objectA: Attributes, objectB: Attributes): boolean;
 	}
 	export interface IQuery<T = unknown> {
 	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
@@ -1122,6 +1273,7 @@ declare module "@onyx-ignition/forge" {
 	    not(attributes: Attributes): IQuery<T>;
 	    greater(attributes: Attributes): IQuery<T>;
 	    less(attributes: Attributes): IQuery<T>;
+	    traverse(attributes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate): IQuery<T>;
 	    filter(delegate: QueryDelegate, atttibutes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate, atttibutes: Attributes, ...rest: unknown[]): IQuery<T>;
@@ -1176,6 +1328,7 @@ declare module "@onyx-ignition/forge" {
 	    or(attributes: Attributes): IQuery<T>;
 	    and(attributes: Attributes): IQuery<T>;
 	    not(attributes: Attributes): IQuery<T>;
+	    traverse(attributes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate): IQuery<T>;
 	    filter(delegate: QueryDelegate, attributes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): IQuery<T>;
@@ -1209,6 +1362,7 @@ declare module "@onyx-ignition/forge" {
 	    static Composite(attributes: Attributes, ...rest: unknown[]): QuerySequence;
 	    static Greater(attributes: Attributes): QuerySequence;
 	    static Less(attributes: Attributes): QuerySequence;
+	    static Traverse(attributes: Attributes): QuerySequence;
 	    private _sequence;
 	    constructor(iterable?: Iterable<[QueryDelegate, Attributes] | [QueryDelegate, Attributes, unknown]>);
 	    and(attributes: Attributes): this;
@@ -1220,6 +1374,7 @@ declare module "@onyx-ignition/forge" {
 	    less(attributes: Attributes): this;
 	    query<T>(query: IQuery<T>): IQuery<T>;
 	    match(attributes: Attributes): boolean;
+	    toString(): string;
 	}
 	
 		export const AsyncReactivity: unique symbol;
@@ -2546,9 +2701,9 @@ declare module "@onyx-ignition/forge" {
 	    static $FileExist(file: string): Promise<boolean>;
 	    static $DirectoryExists(path: string): Promise<boolean>;
 	    static $MakeDirectory(path: string): Promise<boolean>;
-	    static Read(path: string, options?: Record<string, unknown>): ArrayBuffer;
+	    static Read(path: string, options?: Record<string, unknown>): ArrayBufferLike;
 	    static $ReadDecoded(path: string, encoding?: 'utf8' | string): Promise<string>;
-	    static $Read(path: string): Promise<ArrayBuffer>;
+	    static $Read(path: string): Promise<ArrayBufferLike>;
 	    static Write(path: string, contents: string | Buffer | ArrayBuffer): void;
 	    static Write(path: string, contents: string | Buffer | ArrayBuffer, options: {
 	        recursive?: boolean;
@@ -2564,6 +2719,7 @@ declare module "@onyx-ignition/forge" {
 	        resolve?: boolean;
 	        ignores?: string[];
 	    }): Promise<string[]>;
+	    static $GlobExist(paths: string[]): Promise<boolean>;
 	    static $Walk(root: string): Promise<string[]>;
 	    static $Walk(root: string, options: {
 	        recursive?: boolean;
@@ -3280,6 +3436,10 @@ declare module "@onyx-ignition/forge" {
 	    private _matcher;
 	    private _cursor;
 	    private readonly _components;
+	    /**
+	     * Matches a sequence in sequential order
+	     * @param attributes use as descriptor attributes when the expression is parsed
+	     */
 	    constructor(attributes: Attributes);
 	    private _initialMatch;
 	    private _consumeMatch;
@@ -3297,16 +3457,18 @@ declare module "@onyx-ignition/forge" {
 		
 	
 	
+	
 	export function ParseAttributes(query: ParsedToken[]): Attributes;
 	export function ParseAttributes(query: ParsedToken[], revivor: (this: any, key: string, value: any) => any): Attributes;
 	export class ForgeSyntaxParser {
 	    private _stream;
 	    private readonly _statement;
 	    private readonly _tokenizer;
-	    readonly result: Result<ParsedToken[] | string>;
+	    readonly result: Result<ParsedToken[]>;
 	    constructor(statement: ForgeSyntaxStatement);
+	    constructor(statement: ForgeSyntaxStatement, tokenizer: ForgeTokenizer);
 	    private _isOnlyWhitespace;
-	    consume(content: string): IResult<ParsedToken[] | string>;
+	    consume(content: string): IResult<ParsedToken[]>;
 	}
 	
 		
@@ -3365,13 +3527,19 @@ declare module "@onyx-ignition/forge" {
 	    private _whitespaces;
 	    private _ready;
 	    private _state;
-	    private readonly _iExpressions;
+	    private readonly _expressions;
 	    private readonly _activeExpressions;
 	    private _queryWhitespace;
 	    constructor(options?: {
 	        whitespace: RegExp | Function;
 	    });
 	    private _whitespaceConsume;
+	    /**
+	     * The first token needs to be consumed and matched.
+	     *
+	     * @param token
+	     * @returns {boolean}
+	     */
 	    private _firstConsume;
 	    private _defaultConsume;
 	    private _allReady;
@@ -3396,7 +3564,7 @@ declare module "@onyx-ignition/forge" {
 	    fail(): false;
 	    frame(): void;
 	    clone(): ForgeSyntaxStatement;
-	    add(iExpression: IForgeSyntaxExpression): this;
+	    add(expression: IForgeSyntaxExpression): this;
 	    query(): IQuery<string>;
 	}
 	
