@@ -2711,10 +2711,12 @@ declare module "@onyx-ignition/forge" {
 	    static $Write(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
 	    static $Write(path: string, contents: string | Buffer | ArrayBuffer, options: {
 	        recursive?: boolean;
+	        encoding?: string;
 	    }): Promise<void>;
 	    static $Append(path: string, contents: string | Buffer | ArrayBuffer): Promise<void>;
 	    static $Append(path: string, contents: string | Buffer | ArrayBuffer, options: {}): Promise<void>;
 	    static $Copy(source: string, target: string): Promise<void>;
+	    static $CopyGlob(sources: string[], target: string): Promise<void>;
 	    static $Glob(paths: string[], options?: {
 	        resolve?: boolean;
 	        ignores?: string[];
