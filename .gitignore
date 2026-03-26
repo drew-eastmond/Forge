@@ -2,13 +2,8 @@
 .vs
 node_modules
 .git
-Force-Source
 .vs
 .gitmodules
-test.js
-.graveyard
 /pnpm-lock.yaml
-
-/Forge-Source
 /package-lock.json
 /regen-stdin.json

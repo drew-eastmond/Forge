@@ -1,0 +1,10 @@
+node_modules
+dist
+package-lock.json
+.vs
+node_modules
+.git
+.gitmodules
+/pnpm-lock.yaml
+/package-lock.json
+/regen-stdin.json

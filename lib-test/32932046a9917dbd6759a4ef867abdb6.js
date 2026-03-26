@@ -1,0 +1,3 @@
+#! /usr/bin/env node
+
+var __EmptyArrayBuffer=new ArrayBuffer(0x11*-0x1fd+0x15c2+-0xc0b*-0x1);
