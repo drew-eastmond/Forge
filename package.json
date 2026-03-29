@@ -1,11 +1,8 @@
 {
     "name": "@onyx-ignition/forge",
-    "version": "0.1.1",
+    "version": "0.1.3",
     "description": "NPX entry and Core library used for all Forge Packages",
-    "bin": {
-        "@onyx-ignition/forge": "bin.js",
-        "build": "node ./build.js"
-    },
+    "bin": "./bin.js",
     "license": "MIT",
     "main": "./index.js",
     "exports": {
