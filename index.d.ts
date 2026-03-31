@@ -712,6 +712,8 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
+	
 	export const ArgumentValidationErrorAttributes: Readonly<{
 	    package: true;
 	    error: true;
@@ -724,6 +726,15 @@ declare module "@onyx-ignition/forge" {
 	    message: string;
 	    cause: unknown;
 	};
+	export function ExplodeString(value: string): string[];
+	export function ExplodeString(value: string[]): string[];
+	export function $ExplodeGlob(value: string | string[]): Promise<string[]>;
+	export function $ExplodeGlob(value: string | string[]): Promise<string[]>;
+	export function VerfiyPacakgeWarnignsAndErrors({ args, warnings, errors }: {
+	    args?: (IArgumentPackage | ArgumentValues)[];
+	    warnings?: string[];
+	    errors?: string[];
+	}): void;
 	export class ArgumentValidationResults {
 	    private _results;
 	    [Symbol.iterator](): IterableIterator<[ArgumentValidation, Attributes]>;
@@ -882,6 +893,7 @@ declare module "@onyx-ignition/forge" {
 	};
 	export class ArgumentPackageSanitize extends AbstractPackageQuerySequence implements IPackageSanitizer {
 	    readonly options: PackageSanitizeOptions;
+	    constructor();
 	    constructor(options: PackageSanitizeOptions);
 	    frame(query: IQuery<ArgumentPackageComponent>): void;
 	    flush(query: IQuery<ArgumentPackageComponent>): void;
@@ -903,7 +915,8 @@ declare module "@onyx-ignition/forge" {
 	}
 	export class AsyncArgumentPackageSanitize extends AbstractPackageQuerySequence implements IAsyncPackageSanitizer {
 	    readonly options: AsyncPackageSanitizeOptions;
-	    constructor(options?: AsyncPackageSanitizeOptions);
+	    constructor();
+	    constructor(options: AsyncPackageSanitizeOptions);
 	    $frame(query: IQuery<ArgumentPackageComponent>): Promise<void>;
 	    $flush(query: IQuery<ArgumentPackageComponent>): Promise<void>;
 	    /**
@@ -1227,7 +1240,8 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export type ResponseOutput = string | ArrayBuffer | ArrayBufferView | Buffer;
+	type ForgeBuffer = string | ArrayBuffer | ArrayBufferView | Buffer | ArrayBufferLike;
+	export type ResponseOutput = string | ArrayBuffer | ArrayBufferView | Buffer | ArrayBufferLike;
 	export interface IResponseAdapter {
 	    getHeaders(): Record<string, string>;
 	    setHeader(key: string, value: string): void;
@@ -1262,7 +1276,7 @@ declare module "@onyx-ignition/forge" {
 	    private readonly _headers;
 	    private readonly _cookies;
 	    status: number;
-	    writes: (string | ArrayBuffer | ArrayBufferView | Buffer)[];
+	    writes: ForgeBuffer[];
 	    query: QueryManager<unknown>;
 	    constructor();
 	    constructor(response?: IResponseAdapter);
@@ -1275,7 +1289,7 @@ declare module "@onyx-ignition/forge" {
 	    header(key: string, value?: string): this;
 	    clear(): void;
 	    chunk(attributes: Attributes): void;
-	    write(data: string | ArrayBuffer | ArrayBufferView | Buffer): void;
+	    write(data: ForgeBuffer): void;
 	    stream(buffer: ArrayBuffer): void;
 	    flush(): void;
 	    end(): void;
@@ -1284,6 +1298,7 @@ declare module "@onyx-ignition/forge" {
 	    $import(responseExport: ForgeResponseExport): Promise<this>;
 	    $export(includeWrites?: boolean): Promise<ForgeResponseExport>;
 	}
+	
 	
 	
 	
@@ -1313,13 +1328,13 @@ declare module "@onyx-ignition/forge" {
 	    get routing(): ForgeSocketRouting;
 	    race(): number;
 	    race(value: string): number;
-	    read(message: [string, Record<string, unknown>, Serialize]): void;
-	    write(header: Omit<Record<string, unknown>, "key">, data: Serialize): void;
-	    resolve(header: Record<string, unknown>, data: Serialize): void;
-	    reject(header: Record<string, unknown>, data: Serialize): void;
+	    read(message: [string, Attributes, Serialize]): void;
+	    write(header: Omit<Attributes, "key">, data: Serialize): void;
+	    resolve(header: Attributes, data: Serialize): void;
+	    reject(header: Attributes, data: Serialize): void;
 	    $reset(data: Serialize): Promise<SessionResult>;
 	    $connect(data: Serialize): Promise<Serialize>;
-	    $session(header: Record<string, unknown>, data: Serialize, race: number, capture: Capture): Promise<SessionResult>;
+	    $session(header: Attributes, data: Serialize, race: number, capture: Capture): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize): Promise<SessionResult>;
 	    $signal(signal: string, data: Serialize, options: {
 	        race?: number;
@@ -1460,15 +1475,15 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	export class SocketAction extends AbstractForgeAction {
-	    static Parse(iSocket: IForgeSocket, actionData: ActionData, data: Record<string, unknown>): IAction;
-	    protected _iSocket: IForgeSocket;
-	    constructor(iSocket: IForgeSocket, config: ActionConfig, data: Record<string, unknown>);
+	    static Parse(iSocket: IForgeSocket, actionData: ActionData, data: Attributes): IAction;
+	    protected _socket: IForgeSocket;
+	    constructor(socket: IForgeSocket, config: ActionConfig, data: Attributes);
 	    $signal(signal: string, data: Serialize, options?: {
 	        race?: number;
 	        capture?: Capture;
 	    }): Promise<SessionResult>;
 	    $reset(data: Serialize): Promise<SessionResult>;
-	    write(header: Record<string, unknown>, data: Serialize): void;
+	    write(header: Attributes, data: Serialize): void;
 	}
 	
 	
@@ -1610,7 +1625,7 @@ declare module "@onyx-ignition/forge" {
 	    protected _startTime: number;
 	    protected _cancelable: boolean;
 	    protected readonly _bindings: Map<Function, Function>;
-	    protected _iForgeTriggers: Set<IForgeTrigger>;
+	    protected _triggers: Set<IForgeTrigger>;
 	    stdout: [string, number][];
 	    stderr: [string, number][];
 	    name: string;
@@ -2280,12 +2295,12 @@ declare module "@onyx-ignition/forge" {
 	    fork(name: string, config: SocketConfig): IForgeSocket;
 	    worker(name: string, config: SocketConfig): IForgeSocket;
 	    exec(name: string, config: SocketConfig): IForgeSocket;
-	    $watch(roots: string[], options: {
+	    watch(roots: string[], options: {
 	        threshold?: number;
-	        ignore?: RegExp[];
+	        ignores?: string[];
 	        debounce?: number;
 	        throttle?: number;
-	    }): Promise<ForgeFileWatcher>;
+	    }): ForgeFileWatcher;
 	    $reset(data: Serialize, race?: number): Promise<Serialize>;
 	    $signal(signal: string, data: Serialize, options?: {
 	        race?: number;
@@ -2296,14 +2311,150 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export type HttpArguments = {
-	    http?: {
+	
+	export class ForgePackageSanitize extends AsyncArgumentPackageSanitize {
+	    constructor();
+	    constructor(options: AsyncPackageSanitizeOptions);
+	    $sanitize(component: ArgumentPackageComponent, attributes: Attributes): Promise<Attributes>;
+	}
+	
+	
+	
+	
+	
+	export class ForgePackageValidate extends AsyncArgumentPackageValidate {
+	    $flush(query: IQuery<ArgumentPackageComponent>, validations: ArgumentValidationResults): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	export type ForgeParams = Partial<{
+	    watch: {
+	        roots: string[];
+	        debounce?: number;
+	        threshold?: number;
+	        ignores?: string[];
+	    };
+	    worker: {
+	        name?: string;
+	        script: string;
+	    };
+	    http: {
 	        port?: number;
 	        root?: string;
+	        caching?: boolean;
 	    };
+	    socket: {
+	        port: number;
+	    };
+	    start: Attributes;
+	}>;
+	export class ForgePackage extends ArgumentPackage {
+	    static $From(packages: IArgumentPackage[]): Promise<IArgumentPackage>;
+	    $validate(): Promise<this>;
+	    $validate(validator: IAsyncPackageValidator): Promise<this>;
+	    $sanitize(): Promise<ForgePackage>;
+	    $sanitize(sanitizer: IAsyncPackageSanitizer): Promise<ForgePackage>;
+	}
+	
+	export const Mimes: {
+	    Find: (file: string) => string;
+	    Set: (file: string, mime: string) => void;
+	    $Load: (file: string) => Promise<void>;
+	    $Append: () => Promise<void>;
 	};
+	
+	
+	
+	
+	
+	export type FileRoutePathing = {
+	    relative: string;
+	    absolute: string;
+	    base: string;
+	    ext: string;
+	};
+	export type FileRouteDelegate = (forgeRequest: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute, pathing: FileRoutePathing) => Promise<boolean>;
+	export class FileRoute extends ForgeRoute {
+	    private _file;
+	    private _mime;
+	    private _status;
+	    private _hasCaching;
+	    private _cache;
+	    constructor(config: {
+	        hooks?: IForgeRouteHook[];
+	        file: {
+	            path: string;
+	            mime?: string;
+	            caching?: boolean;
+	            preload?: boolean;
+	        };
+	        race?: number;
+	        status: number;
+	    });
+	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $invalidate(): Promise<void>;
+	}
+	export class FileDirectoryRoute extends ForgeRoute {
+	    static Hooks: {
+	        $Authorize: {
+	            Match: (...matches: string[]) => RouteDelegate;
+	            RegExp: (regExp: RegExp, options?: {
+	                groups?: string;
+	                index?: number;
+	            }) => RouteDelegate;
+	        };
+	    };
+	    private _root;
+	    private _indexes;
+	    private _caching;
+	    private readonly _resolve;
+	    private readonly _reject;
+	    readonly statuses: Map<string, ForgePathStatus>;
+	    readonly cache: Map<string, ArrayBufferLike>;
+	    constructor(config: {
+	        root: string;
+	        indexes?: string[];
+	        hooks?: (IForgeRouteHook & {
+	            $render?: FileRouteDelegate;
+	        })[];
+	        race?: number;
+	        resolve?: {
+	            status?: number;
+	            end?: boolean;
+	        };
+	        reject?: {
+	            status?: number;
+	            end?: boolean;
+	        };
+	        caching?: boolean;
+	    });
+	    get root(): string;
+	    get indexes(): string[];
+	    $status(target: string): Promise<ForgePathStatus>;
+	    $status(target: string, root: string): Promise<ForgePathStatus>;
+	    $exists(target: string): Promise<boolean>;
+	    $pathing(request: ForgeRequest): Promise<FileRoutePathing>;
+	    $fetch(relative: string, absolute: string): Promise<ArrayBufferLike>;
+	    protected _$render(request: ForgeRequest, response: ForgeResponse, pathing: FileRoutePathing): Promise<boolean>;
+	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    add(hook: {
+	        $authorize?: RouteDelegate;
+	        $resolve?: RouteDelegate;
+	        $reject?: RouteDelegate;
+	        $finally?: RouteDelegate;
+	        $render?: FileRouteDelegate;
+	    }): this;
+	    uncache(): any;
+	    uncache(relative: string): any;
+	}
+	
+	
 	export function $GetApplicationArguments(): Promise<IArgumentPackage>;
-	export function SetUpNetworking(forge: Forge, args: IArgumentPackage): void;
 	
 	
 	export class NumberArgumentSanitize extends ArgumentValueSanitize {
@@ -2694,13 +2845,6 @@ declare module "@onyx-ignition/forge" {
 	export function $Enforce<T = unknown[]>($values: EnforceableValue[], $inquiries: EnforcementInquiry[]): Promise<T>;
 	export function Enforce(values: IterableIterator<EnforceableValue>, inquiries: IterableIterator<EnforcementInquiry>): EnforcementResult;
 	
-	
-	export const Mimes: {
-	    Find: (file: string) => string;
-	    Set: (file: string, mime: string) => void;
-	    $Load: (file: string) => Promise<void>;
-	    $Append: () => Promise<void>;
-	};
 	
 	export const AsyncReactivity: unique symbol;
 	export const HaltAsyncReactivity: unique symbol;
@@ -3440,92 +3584,6 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	
-	export type FileRoutePathing = {
-	    relative: string;
-	    absolute: string;
-	    base: string;
-	    ext: string;
-	};
-	export type FileRouteDelegate = (forgeRequest: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute, pathing: FileRoutePathing) => Promise<boolean>;
-	export class FileRoute extends ForgeRoute {
-	    private _file;
-	    private _mime;
-	    private _status;
-	    private _cache;
-	    constructor(config: {
-	        hooks?: IForgeRouteHook[];
-	        file: {
-	            path: string;
-	            mime?: string;
-	            cached?: boolean;
-	            preload?: boolean;
-	        };
-	        race?: number;
-	        status: number;
-	    });
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    invalidate(): this;
-	}
-	export class FileDirectoryRoute extends ForgeRoute {
-	    static Hooks: {
-	        $Authorize: {
-	            Match: (...matches: string[]) => RouteDelegate;
-	            RegExp: (regExp: RegExp, options?: {
-	                groups?: string;
-	                index?: number;
-	            }) => RouteDelegate;
-	        };
-	    };
-	    private _root;
-	    private _indexes;
-	    private _caching;
-	    private readonly _resolve;
-	    private readonly _reject;
-	    readonly statuses: Map<string, ForgePathStatus>;
-	    readonly cache: Map<string, ArrayBuffer>;
-	    constructor(config: {
-	        root: string;
-	        indexes?: string[];
-	        hooks?: (IForgeRouteHook & {
-	            $render?: FileRouteDelegate;
-	        })[];
-	        race?: number;
-	        resolve?: {
-	            status?: number;
-	            end?: boolean;
-	        };
-	        reject?: {
-	            status?: number;
-	            end?: boolean;
-	        };
-	        caching?: boolean;
-	    });
-	    get root(): string;
-	    get indexes(): string[];
-	    $status(target: string): Promise<ForgePathStatus>;
-	    $status(target: string, root: string): Promise<ForgePathStatus>;
-	    $exists(target: string): Promise<boolean>;
-	    $pathing(request: ForgeRequest): Promise<FileRoutePathing>;
-	    $fetch(relative: string, absolute: string): Promise<ArrayBuffer>;
-	    protected _$render(request: ForgeRequest, response: ForgeResponse, pathing: FileRoutePathing): Promise<boolean>;
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    add(hook: {
-	        $authorize?: RouteDelegate;
-	        $resolve?: RouteDelegate;
-	        $reject?: RouteDelegate;
-	        $finally?: RouteDelegate;
-	        $render?: FileRouteDelegate;
-	    }): this;
-	    uncache(): any;
-	    uncache(relative: string): any;
-	}
-	
-	
-	
-	
 	export class HTTPRoute extends ForgeRoute {
 	    private _root;
 	    constructor(route: RegExp, root: string);
@@ -3719,210 +3777,10 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export { HttpArguments, $GetApplicationArguments, SetUpNetworking, Accessor, ArgumentPackageComponent, IArgumentPackage, MergePackages, MergeValidations, ArgumentPackage, IArgumentPackageMount, AttributesArgumentPackageMount, DelegateArgumentPackageMount, ArgumentValues, CLIPromptArgument, CLIArgumentPackage, ArgumentValidationErrorAttributes, ArgumentValidationWarningAttributes, ArgumentValidation, ArgumentValidationResults, AbstractArgumentValidationComponent, ArgumentValidationWarning, ArgumentValidationSuccess, ArgumentValidationError, AbstractPackageQuerySequence, IPackageSanitizer, IAsyncPackageSanitizer, PackageSanitizeOptions, AsyncPackageSanitizeOptions, ArgumentPackageSanitize, AsyncArgumentPackageSanitize, NumberArgumentSanitize, GlobArgumentSanitize, JSONEntriesArgumentSanitizer, IValueSanitizer, IAsyncValueSanitizer, ValueSanitizeOptions, AsyncValueSanitizeOptions, ArgumentValueSanitize, AsyncArgumentValueSanitize, StdinArgumentPackage, IPackageValidator, IAsyncPackageValidator, PackageValidateOptions, AsyncPackageValidateOptions, AbstractPackageValidate, ArgumentPackageValidate, AsyncArgumentPackageValidate, FileExistsArgumentValidate, IValidateValueDelegates, IAsyncValidateValueDelegates, ValueValidateOptions, AsyncValueValidateOptions, ArgumentValueValidate, AsyncArgumentValueValidate, IAsyncable, AsyncUnknown, AsyncCaught, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Sequence, Topology, ITreeNode, TreeNode, TreeCollection, ICommand, CommandState, AbstractCommand, CommandQueue, CommandSequence, DelegateCommand, LockCommand, Attributes, AttributeFragment, IntervalClear, TimeoutClear, Serialize, Capture, ImplodeAttributesOptions, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, ExplodeAttributes, IntersectAttributes, MergeAttributes, CollapseAttributes, ImplodeAttributes, TransformAttributes, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, GenericSession, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, Mimes, IPoolable, PoolManager, Intersects, QueryDelegate, $QueryDelegate, AttributesQuery, IQuery, QueryManager, QueryManagerReactor, QuerySequence, AsyncReactivity, HaltAsyncReactivity, AsyncReactiveDelegate, AsyncReaction, IAsyncReactor, AsyncReactiveTrait, $reactive, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, Reactor, reactive, InstanceOf, IResult, $IResult, Result, Notification, ISubscription, Unsubscribe, Subscription, DebounceDelegate, Debounce, IThottle, SequentialThottle, Debouncer, CallbackAction, ActionData, ActionConfig, IAction, AbstractForgeAction, ResolverValues, TriggerData, IForgeTrigger, ParseTrigger, SignalTrigger, WatchTrigger, ResolveTrigger, RejectTrigger, SettledTrigger, SocketAction, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeUser, SignalSession, ForgeClient, ForgeRace, Forge, ForgeController, TaskConfig, ForgeTask, $CompareModels, ModelReactorState, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, ForgeModelState, ClientModelProxy, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRouteClient, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFile, ForgeIO, ForgeParsedPath, ForgePathStatus, ForgePath, ForgeZip, ForgeFileWatcher, $ParseRequestBody, RequestBodyParser, ForgeHTTPServer, IForgeRequestAdapter, ForgeRequestExport, ForgeRequest, ResponseOutput, IResponseAdapter, ForgeResponseExport, ForgeResponseChunk, ForgeResponse, ForgeHTTPCookies, ForgeHTTPHeaders, ForgeWebSocketServer, FileRoutePathing, FileRouteDelegate, FileRoute, FileDirectoryRoute, RouteDelegate, IForgeRoute, IForgeRouteHook, ForgeRoute, DelegateRoute, HTTPRoute, DummySocket, ExecSocket, SocketConfig, SessionResult, IForgeSocket, AbstractForgeSocket, ForgeSocketRoute, ForgeWebSocket, ForkSocket, PluginSocket, RestSocket, SpawnSocket, WorkerSocket, ForgeSwarm, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ParseAttributes, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer, ForgeVirtualScript };
 	
 	
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	export { $AuthorizePermission, $CompareModels, $CompareStores, $Enforce, $IResult, $ParseRequestBody, $ParseStoreUpgrade, $Promise, $QueryDelegate, $RacePromise, $reactive, $UsePromise, $UseRace, $Wait, AbstractCommand, AbstractForgeAction, AbstractForgeModelProxy, AbstractForgeSocket, Accessor, ActionConfig, ActionData, AndReactor, ArrayCollection, AsyncCaught, AsyncReaction, AsyncReactiveDelegate, AsyncReactiveTrait, AsyncReactivity, AsyncUnknown, Attributes, AttributesQuery, Base64, CallbackAction, Capitalize, Capture, CatchCapture, CatchThrowError, Cipher, CircuitReactor, ClientModelProxy, ClientSocketModelProxy, ColourFormattingReset, CommandQueue, CommandSequence, CommandState, CompositeComponent, DataStreamReader, DataStreamWriter, Debounce, DebounceHandle, Debouncer, DebugBackground, DebugCipher, DebugForeground, DebugFormatter, DecodeAttributes, DecodeBase64, DecodeNumber, DecodeString, DelegateRoute, DummySocket, EmptyAttributes, EmptyData, EmptyFunction, EncodeAttributes, EncodeBase64, EncodedStringSize, EncodeNumber, EncodeString, Enforce, EnforcementInquiry, EnforcementResult, EscapeHTML, ExecSocket, FileDirectoryRoute, FileModelPipe, FileRoute, FileRouteDelegate, FileRoutePathing, Forge, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeClient, ForgeController, ForgeFile, ForgeFileStats, ForgeFileWatcher, ForgeGit, ForgeHTTPCookies, ForgeHTTPHeaders, ForgeHTTPServer, ForgeIO, ForgeModel, ForgeModelProxyManager, ForgeModelRoute, ForgeModelRouteAccess, ForgeModelRouteClient, ForgeModelRouteHook, ForgeModelRoutePermission, ForgeModelRoutePermissionExport, ForgeModelRouteRequest, ForgeModelState, ForgeNPM, ForgeOS, ForgeParsedPath, ForgePath, ForgePathStatus, ForgeRace, ForgeRequest, ForgeRequestExport, ForgeResponse, ForgeResponseChunk, ForgeResponseExport, ForgeRoute, ForgeSocketRoute, ForgeStore, ForgeStoreExport, ForgeStoreMime, ForgeSwarm, ForgeSyntaxExpression, ForgeSyntaxParser, ForgeSyntaxStatement, ForgeTask, ForgeTokenIterator, ForgeTokenizer, ForgeUser, ForgeVirtualScript, ForgeWebSocket, ForgeWebSocketServer, ForgeZip, ForkSocket, GenericExpression, GenericSession, GetRange, HaltAsyncReactivity, HaltReactivity, HTTPRoute, IAction, IAsyncable, IAsyncCollection, IAsyncReactor, ICollection, ICollectionIterator, ICommand, IForgeModel, IForgeModelProxy, IForgeRequestAdapter, IForgeRoute, IForgeRouteHook, IForgeSocket, IForgeStore, IForgeSyntaxExpression, IForgeTrigger, InstanceOf, IntervalClear, IPoolable, IQuery, IReactor, IResponseAdapter, IResult, IsObject, ISubscription, Iterate, IThottle, ITreeNode, JSONStore, MapCollection, MD5, Mimes, ModelReactor, ModelReactorState, Notification, NotReactor, NumberStore, OrReactor, PackageOptions, ParseAttributes, ParsedToken, ParseTrigger, PluginSocket, PoolManager, QueryDelegate, QueryManager, QuickHash, reactive, ReactiveDelegate, Reactivity, Reactor, RejectTrigger, RequestBodyParser, ResolverValues, ResolveTrigger, ResponseOutput, RestSocket, Result, RootSocketModelProxy, RouteDelegate, ScopeExpression, Sequence, SequentialExpression, SequentialThottle, Serialize, SessionResult, SettledTrigger, SignalSession, SignalTrigger, SocketAction, SocketConfig, SpawnSocket, StatementAttributes, StoreUpgradeQuery, StringStore, Subscription, SyntaxParsingState, TaskConfig, TimeoutClear, Topology, TreeCollection, TreeNode, TriggerData, Unsubscribe, UpgradeParams, WatchTrigger, WorkerSocket, XorReactor };
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	export { HttpArguments, $GetApplicationArguments, SetUpNetworking, Accessor, ArgumentPackageComponent, IArgumentPackage, MergePackages, MergeValidations, ArgumentPackage, IArgumentPackageMount, AttributesArgumentPackageMount, DelegateArgumentPackageMount, ArgumentValues, CLIPromptArgument, CLIArgumentPackage, ArgumentValidationErrorAttributes, ArgumentValidationWarningAttributes, ArgumentValidation, ArgumentValidationResults, AbstractArgumentValidationComponent, ArgumentValidationWarning, ArgumentValidationSuccess, ArgumentValidationError, AbstractPackageQuerySequence, IPackageSanitizer, IAsyncPackageSanitizer, PackageSanitizeOptions, AsyncPackageSanitizeOptions, ArgumentPackageSanitize, AsyncArgumentPackageSanitize, NumberArgumentSanitize, GlobArgumentSanitize, JSONEntriesArgumentSanitizer, IValueSanitizer, IAsyncValueSanitizer, ValueSanitizeOptions, AsyncValueSanitizeOptions, ArgumentValueSanitize, AsyncArgumentValueSanitize, StdinArgumentPackage, IPackageValidator, IAsyncPackageValidator, PackageValidateOptions, AsyncPackageValidateOptions, AbstractPackageValidate, ArgumentPackageValidate, AsyncArgumentPackageValidate, FileExistsArgumentValidate, IValidateValueDelegates, IAsyncValidateValueDelegates, ValueValidateOptions, AsyncValueValidateOptions, ArgumentValueValidate, AsyncArgumentValueValidate, IAsyncable, AsyncUnknown, AsyncCaught, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Sequence, Topology, ITreeNode, TreeNode, TreeCollection, ICommand, CommandState, AbstractCommand, CommandQueue, CommandSequence, DelegateCommand, LockCommand, Attributes, AttributeFragment, IntervalClear, TimeoutClear, Serialize, Capture, ImplodeAttributesOptions, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, ExplodeAttributes, IntersectAttributes, MergeAttributes, CollapseAttributes, ImplodeAttributes, TransformAttributes, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, GenericSession, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, Mimes, IPoolable, PoolManager, Intersects, QueryDelegate, $QueryDelegate, AttributesQuery, IQuery, QueryManager, QueryManagerReactor, QuerySequence, AsyncReactivity, HaltAsyncReactivity, AsyncReactiveDelegate, AsyncReaction, IAsyncReactor, AsyncReactiveTrait, $reactive, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, Reactor, reactive, InstanceOf, IResult, $IResult, Result, Notification, ISubscription, Unsubscribe, Subscription, DebounceDelegate, Debounce, IThottle, SequentialThottle, Debouncer, CallbackAction, ActionData, ActionConfig, IAction, AbstractForgeAction, ResolverValues, TriggerData, IForgeTrigger, ParseTrigger, SignalTrigger, WatchTrigger, ResolveTrigger, RejectTrigger, SettledTrigger, SocketAction, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeUser, SignalSession, ForgeClient, ForgeRace, Forge, ForgeController, TaskConfig, ForgeTask, $CompareModels, ModelReactorState, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, ForgeModelState, ClientModelProxy, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRouteClient, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFile, ForgeIO, ForgeParsedPath, ForgePathStatus, ForgePath, ForgeZip, ForgeFileWatcher, $ParseRequestBody, RequestBodyParser, ForgeHTTPServer, IForgeRequestAdapter, ForgeRequestExport, ForgeRequest, ResponseOutput, IResponseAdapter, ForgeResponseExport, ForgeResponseChunk, ForgeResponse, ForgeHTTPCookies, ForgeHTTPHeaders, ForgeWebSocketServer, FileRoutePathing, FileRouteDelegate, FileRoute, FileDirectoryRoute, RouteDelegate, IForgeRoute, IForgeRouteHook, ForgeRoute, DelegateRoute, HTTPRoute, DummySocket, ExecSocket, SocketConfig, SessionResult, IForgeSocket, AbstractForgeSocket, ForgeSocketRoute, ForgeWebSocket, ForkSocket, PluginSocket, RestSocket, SpawnSocket, WorkerSocket, ForgeSwarm, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ParseAttributes, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer, ForgeVirtualScript };
-	function SetUpNetworking(forge: Forge, args: IArgumentPackage): void;
+	export { $GetApplicationArguments, Accessor, ArgumentPackageComponent, IArgumentPackage, MergePackages, MergeValidations, ArgumentPackage, IArgumentPackageMount, AttributesArgumentPackageMount, DelegateArgumentPackageMount, ArgumentValues, CLIPromptArgument, CLIArgumentPackage, ArgumentValidationErrorAttributes, ArgumentValidationWarningAttributes, ArgumentValidation, ExplodeString, $ExplodeGlob, VerfiyPacakgeWarnignsAndErrors, ArgumentValidationResults, AbstractArgumentValidationComponent, ArgumentValidationWarning, ArgumentValidationSuccess, ArgumentValidationError, AbstractPackageQuerySequence, IPackageSanitizer, IAsyncPackageSanitizer, PackageSanitizeOptions, AsyncPackageSanitizeOptions, ArgumentPackageSanitize, AsyncArgumentPackageSanitize, NumberArgumentSanitize, GlobArgumentSanitize, JSONEntriesArgumentSanitizer, IValueSanitizer, IAsyncValueSanitizer, ValueSanitizeOptions, AsyncValueSanitizeOptions, ArgumentValueSanitize, AsyncArgumentValueSanitize, StdinArgumentPackage, IPackageValidator, IAsyncPackageValidator, PackageValidateOptions, AsyncPackageValidateOptions, AbstractPackageValidate, ArgumentPackageValidate, AsyncArgumentPackageValidate, FileExistsArgumentValidate, IValidateValueDelegates, IAsyncValidateValueDelegates, ValueValidateOptions, AsyncValueValidateOptions, ArgumentValueValidate, AsyncArgumentValueValidate, IAsyncable, AsyncUnknown, AsyncCaught, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Sequence, Topology, ITreeNode, TreeNode, TreeCollection, ICommand, CommandState, AbstractCommand, CommandQueue, CommandSequence, DelegateCommand, LockCommand, Attributes, AttributeFragment, IntervalClear, TimeoutClear, Serialize, Capture, ImplodeAttributesOptions, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, ExplodeAttributes, IntersectAttributes, MergeAttributes, CollapseAttributes, ImplodeAttributes, TransformAttributes, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, GenericSession, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, Mimes, IPoolable, PoolManager, Intersects, QueryDelegate, $QueryDelegate, AttributesQuery, IQuery, QueryManager, QueryManagerReactor, QuerySequence, AsyncReactivity, HaltAsyncReactivity, AsyncReactiveDelegate, AsyncReaction, IAsyncReactor, AsyncReactiveTrait, $reactive, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, Reactor, reactive, InstanceOf, IResult, $IResult, Result, Notification, ISubscription, Unsubscribe, Subscription, DebounceDelegate, Debounce, IThottle, SequentialThottle, Debouncer, CallbackAction, ActionData, ActionConfig, IAction, AbstractForgeAction, ResolverValues, TriggerData, IForgeTrigger, ParseTrigger, SignalTrigger, WatchTrigger, ResolveTrigger, RejectTrigger, SettledTrigger, SocketAction, ForgeParams, ForgePackage, ForgePackageSanitize, ForgePackageValidate, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeUser, SignalSession, ForgeClient, ForgeRace, Forge, ForgeController, TaskConfig, ForgeTask, $CompareModels, ModelReactorState, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, ForgeModelState, ClientModelProxy, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRouteClient, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFile, ForgeIO, ForgeParsedPath, ForgePathStatus, ForgePath, ForgeZip, ForgeFileWatcher, $ParseRequestBody, RequestBodyParser, ForgeHTTPServer, IForgeRequestAdapter, ForgeRequestExport, ForgeRequest, ResponseOutput, IResponseAdapter, ForgeResponseExport, ForgeResponseChunk, ForgeResponse, ForgeHTTPCookies, ForgeHTTPHeaders, ForgeWebSocketServer, FileRoutePathing, FileRouteDelegate, FileRoute, FileDirectoryRoute, RouteDelegate, IForgeRoute, IForgeRouteHook, ForgeRoute, DelegateRoute, HTTPRoute, DummySocket, ExecSocket, SocketConfig, SessionResult, IForgeSocket, AbstractForgeSocket, ForgeSocketRoute, ForgeWebSocket, ForkSocket, PluginSocket, RestSocket, SpawnSocket, WorkerSocket, ForgeSwarm, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ParseAttributes, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer, ForgeVirtualScript };
 	
 
 }

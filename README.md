@@ -3,7 +3,7 @@
 ## Getting Started via CLI
 
 ```
-npx @onyx-ignition/Forge --port-- 1234 --www--- ./www --watch-- ./src
+npx @onyx-ignition/Forge [forge] [[root]] ./www [[port]] 1234 [[watch]] ./src
 ```
 
 Opens a file watcher at `./src`. Target files can be bundled to `--www--`, and served immediately to http port http://localhost:1234 serving files from `./www`. Next you can use the integrated esbuild or your parameterized CLI commands to launch workflows based on file filters and "signals". For example here is a simple inline script to build .ts, .tsx, .js, .jsx file to `./www/js/`
