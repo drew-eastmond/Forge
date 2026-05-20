@@ -7,4 +7,7 @@ node_modules
 .gitmodules
 /pnpm-lock.yaml
 /package-lock.json
-/regen-stdin.json
+/bin.js.map
+/test.json
+/worker.js
+/index.py

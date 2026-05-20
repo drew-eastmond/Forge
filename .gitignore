@@ -8,3 +8,7 @@ node_modules
 /package-lock.json
 /regen-stdin.json
 dist
+/bin.js.map
+/index.py
+/test.json
+/worker.js

@@ -1,9 +1,9 @@
 {
   "name": "@onyx-ignition/forge",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "NPX entry and Core library used for all Forge Packages",
   "bin": "./bin.js",
-  "license": "MIT",
+  "license": "GNU",
   "main": "./index.js",
   "exports": {
     ".": {
@@ -13,7 +13,8 @@
     }
   },
   "scripts": {
-    "test": "echo \"Warning: no test specified\" && exit 0"
+    "test": "echo \"Warning: no test specified\" && exit 0",
+    "start": "node ./bin"
   },
   "repository": {
     "type": "git",
