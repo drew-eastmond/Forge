@@ -4,6 +4,19 @@
 
 declare module "@onyx-ignition/forge" {
 
+	export enum Verbosity {
+	    all = "all",
+	    log = "log",
+	    warn = "warn",
+	    error = "error",
+	    silent = "silent"
+	}
+	export const EnviromentVariables: {
+	    DRY_RUN: boolean;
+	    VERBOSITY: Verbosity;
+	    RACE: number;
+	};
+	
 	
 	export class Accessor {
 	    static Fetch(accessor: string[], attributes: Attributes): unknown;
@@ -177,8 +190,8 @@ declare module "@onyx-ignition/forge" {
 	 * @returns { Attributes }
 	 *
 	 */
-	export function MergeAttributes(sources: Attributes[]): Attributes;
-	export function MergeAttributes(sources: Attributes[], options: {
+	export function SquashAttributes(sources: Attributes[]): Attributes;
+	export function SquashAttributes(sources: Attributes[], options: {
 	    intersect?: Attributes;
 	    implode?: ImplodeAttributesOptions;
 	}): Attributes;
@@ -286,6 +299,7 @@ declare module "@onyx-ignition/forge" {
 	    [Symbol.asyncIterator](): AsyncIterableIterator<O>;
 	    abort(): void;
 	    setter(value: I): O;
+	    $setter(value: I): Promise<O>;
 	    getter(): O;
 	    subscribe(delegate: ReactiveDelegate<O>): unknown;
 	    unsubscribe(delegate: ReactiveDelegate<O>): unknown;
@@ -296,36 +310,42 @@ declare module "@onyx-ignition/forge" {
 	    flush(): unknown;
 	    flush(...rest: unknown[]): unknown;
 	}
+	export type ReactorTransform<S, T> = {
+	    getter?: (state: S | undefined) => T;
+	    setter?: (newState: S, oldState: S | undefined) => S;
+	};
 	export class Reactor<S, T = S> implements IReactor<S, T> {
-	    protected _state: S;
-	    protected _setter: (state: S, previous: S) => S;
-	    protected _getter: (state: S) => T;
+	    protected _state: S | undefined;
+	    protected _setter: ((state: S, previous: S | undefined) => S) | undefined;
+	    protected _getter: ((state: S | undefined) => T) | undefined;
 	    protected readonly _delegates: Set<ReactiveDelegate<T>>;
-	    protected _abortController: AbortController;
-	    protected _signal: AbortSignal;
+	    protected _abortController: AbortController | undefined;
+	    protected _signal: AbortSignal | undefined;
 	    constructor();
 	    constructor(state: S);
-	    constructor(state: S, transform: {
-	        getter?: (state: S) => T;
-	        setter?: (newState: S, oldState: S) => S;
-	    });
+	    constructor(state: S, transform: ReactorTransform<S, T>);
 	    [Symbol.asyncIterator](): AsyncIterableIterator<T>;
 	    [Symbol.dispose](): void;
-	    protected _transformSet(state: S, previous: S): S;
-	    protected _transformGet(state: S): T;
-	    protected _equals(state: S, previous: S): boolean;
+	    protected _transformSet(state: S, previous: S | undefined): S;
+	    protected _transformGet(state: S | undefined): T;
+	    protected _equals(state: S, previous: S | undefined): boolean;
 	    getter(): T;
 	    setter(value: S): T;
+	    /**
+	     * Update the current state and returns
+	     */
+	    $setter(value: S): Promise<T>;
 	    subscribe(delegate: ReactiveDelegate<T>): this;
 	    unsubscribe(delegate: ReactiveDelegate<T>): this;
 	    once(delegate: ReactiveDelegate<T>): this;
 	    clear(): void;
 	    frame(): void;
-	    frame(...rest: unknown[]): void;
 	    flush(): void;
 	    abort(): void;
 	}
-	export function reactive<T = unknown>(value: T): IReactor<T>;
+	export function reactive<T = unknown>(value: T & {
+	    [Reactivity]: unknown;
+	}): IReactor<T>;
 	
 	
 	
@@ -528,7 +548,7 @@ declare module "@onyx-ignition/forge" {
 	    private readonly _validations;
 	    private readonly _results;
 	    frame: Map<ArgumentValidationComponent, Attributes>;
-	    constructor(classRef: ValidationConstructor, validations: ArgumentValidation, attributes: Attributes);
+	    constructor(classRef: ValidationConstructor, validations: ArgumentValidations, attributes: Attributes);
 	    [Symbol.iterator](): IterableIterator<[ArgumentValidationComponent, Attributes]>;
 	    get size(): number;
 	    add(message: string): ArgumentValidationComponent;
@@ -537,7 +557,7 @@ declare module "@onyx-ignition/forge" {
 	    clear(): void;
 	    merge(results: ArgumentValidationResults): void;
 	}
-	export class ArgumentValidation {
+	export class ArgumentValidations {
 	    cause: unknown;
 	    attributes: Attributes | undefined;
 	    readonly errors: ArgumentValidationResults;
@@ -557,7 +577,7 @@ declare module "@onyx-ignition/forge" {
 	    first(sequence: QuerySequence): ArgumentValidationComponent | undefined;
 	    last(sequence: QuerySequence): ArgumentValidationComponent | undefined;
 	    purge(sequence: QuerySequence): ArgumentValidationComponent[];
-	    merge(validation: ArgumentValidation): this;
+	    merge(validation: ArgumentValidations): this;
 	}
 	
 	
@@ -821,10 +841,10 @@ declare module "@onyx-ignition/forge" {
 	export class ArgumentValues<T = unknown> {
 	    static From<T = unknown>(query: IQuery<Attributes>, intersect?: Attributes): ArgumentValues<T>;
 	    protected _values: T[];
-	    validations: ArgumentValidation;
+	    validations: ArgumentValidations;
 	    constructor(options: {
 	        values: T[];
-	        validations?: ArgumentValidation;
+	        validations?: ArgumentValidations;
 	    });
 	    [Symbol.iterator](): IterableIterator<T>;
 	    get first(): T;
@@ -841,17 +861,10 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	
-	
 	export function ExplodeString(value: string): string[];
 	export function ExplodeString(value: string[]): string[];
 	export function $ExplodeGlob(value: string | string[]): Promise<string[]>;
 	export function $ExplodeGlob(value: string | string[]): Promise<string[]>;
-	export function VerfiyPacakgeWarnignsAndErrors({ args, warnings, errors }: {
-	    args?: (IArgumentPackage | ArgumentValues)[];
-	    warnings?: string[];
-	    errors?: string[];
-	}): void;
 	export class AbstractPackageQuerySequence {
 	    protected _intersect: Attributes | undefined;
 	    protected _mounts: string[][];
@@ -961,15 +974,15 @@ declare module "@onyx-ignition/forge" {
 	
 	export interface IPackageValidator {
 	    localize?: (component: Attributes) => Attributes | undefined;
-	    frame?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation) => void;
-	    validate?: (component: Attributes, attributes: Attributes, results: ArgumentValidation) => void;
-	    flush?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation) => void;
+	    frame?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations) => void;
+	    validate?: (component: Attributes, attributes: Attributes, results: ArgumentValidations) => void;
+	    flush?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations) => void;
 	}
 	export interface IAsyncPackageValidator {
 	    localize?: (component: Attributes) => Attributes | undefined;
-	    $frame?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation) => Promise<void>;
-	    $validate?: (component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidation) => Promise<void>;
-	    $flush?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation) => Promise<void>;
+	    $frame?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations) => Promise<void>;
+	    $validate?: (component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidations) => Promise<void>;
+	    $flush?: (query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations) => Promise<void>;
 	}
 	export type PackageValidateOptions = {
 	    help?: string;
@@ -996,17 +1009,17 @@ declare module "@onyx-ignition/forge" {
 	    protected _validators: IPackageValidator[];
 	    constructor();
 	    constructor(options: PackageValidateOptions);
-	    frame(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation): void;
-	    flush(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation): void;
-	    validate(component: Attributes, attributes: Attributes, results: ArgumentValidation): void;
+	    frame(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations): void;
+	    flush(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations): void;
+	    validate(component: Attributes, attributes: Attributes, results: ArgumentValidations): void;
 	}
 	export class AsyncArgumentPackageValidate extends AbstractPackageValidate implements IAsyncPackageValidator {
 	    protected _validators: IAsyncPackageValidator[];
 	    constructor();
 	    constructor(options: AsyncPackageValidateOptions);
-	    $frame(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation): Promise<void>;
-	    $flush(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidation): Promise<void>;
-	    $validate(component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidation): Promise<void>;
+	    $frame(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations): Promise<void>;
+	    $flush(query: IQuery<ArgumentPackageComponent>, results: ArgumentValidations): Promise<void>;
+	    $validate(component: ArgumentPackageComponent, attributes: Attributes, results: ArgumentValidations): Promise<void>;
 	}
 	
 	
@@ -1020,7 +1033,7 @@ declare module "@onyx-ignition/forge" {
 	export type ArgumentPackageComponent = Attributes | Promise<Attributes>;
 	export interface IArgumentPackage {
 	    [Symbol.iterator](): Iterator<[ArgumentPackageComponent, Attributes]>;
-	    validations: ArgumentValidation;
+	    validations: ArgumentValidations;
 	    get size(): number;
 	    add(value: Attributes, attributes: Attributes): this;
 	    remove(value: Attributes): this;
@@ -1032,8 +1045,8 @@ declare module "@onyx-ignition/forge" {
 	    filter(callback: Function, ...rest: unknown[]): IArgumentPackage;
 	    collapse<T extends Attributes>(): T;
 	    collapse<T extends Attributes>(intersect: Attributes): T;
-	    implode<T extends Attributes>(): T;
-	    implode<T extends Attributes>(options: {
+	    squash<T extends Attributes>(): T;
+	    squash<T extends Attributes>(options: {
 	        intersect?: Record<string, true>;
 	        implode?: ImplodeAttributesOptions;
 	    }): T;
@@ -1048,22 +1061,31 @@ declare module "@onyx-ignition/forge" {
 	    $mount(mount: IArgumentPackageMount): Promise<IArgumentPackage>;
 	    collect<T = Attributes>(sequence: QuerySequence): T;
 	    $collect<T = Attributes>(sequence: QuerySequence): Promise<T>;
-	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
-	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
+	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]> | IArgumentPackage): this;
+	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]> | IArgumentPackage): this;
 	    $help(): Promise<string>;
 	}
-	export function MergePackages<T = Attributes>(packages: IArgumentPackage[], sequence: QuerySequence): T;
-	export function MergeValidations(packages: IArgumentPackage[]): ArgumentValidation;
+	export function SquashPackages<T = Attributes>(packages: IArgumentPackage[], sequence?: QuerySequence): T;
+	export function MergeValidations(packages: IArgumentPackage[]): ArgumentValidations;
+	export class PackageError extends Error {
+	    errors: string[];
+	    warnings: string[];
+	    constructor(message: string, { errors, warnings }: {
+	        errors: string[];
+	        warnings?: string[];
+	    });
+	    toString(): string;
+	}
 	export class ArgumentPackage implements IArgumentPackage {
 	    protected _query: IQuery<ArgumentPackageComponent>;
-	    validations: ArgumentValidation;
+	    validations: ArgumentValidations;
 	    /**
 	     *
 	     */
 	    constructor();
 	    constructor(options: {
 	        query?: IQuery<ArgumentPackageComponent>;
-	        validations?: ArgumentValidation;
+	        validations?: ArgumentValidations;
 	    });
 	    [Symbol.iterator](): IterableIterator<[ArgumentPackageComponent, Attributes]>;
 	    get size(): number;
@@ -1079,8 +1101,8 @@ declare module "@onyx-ignition/forge" {
 	    traverse(attributes: Attributes): IArgumentPackage;
 	    collapse<T extends Attributes>(): T;
 	    collapse<T extends Attributes>(intersect: Attributes): T;
-	    implode<T = Attributes>(): T;
-	    implode<T = Attributes>(options: {
+	    squash<T = Attributes>(): T;
+	    squash<T = Attributes>(options: {
 	        intersect?: Record<string, true>;
 	        implode?: ImplodeAttributesOptions;
 	        mount?: Attributes;
@@ -1099,14 +1121,20 @@ declare module "@onyx-ignition/forge" {
 	    validate(validator: IPackageValidator): this;
 	    $validate(validator: IAsyncPackageValidator): Promise<this>;
 	    $mutate($callback: (component: Attributes) => ArgumentPackageComponent): Promise<IArgumentPackage>;
-	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
-	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]>): this;
+	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]> | IArgumentPackage): this;
+	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]> | IArgumentPackage): this;
 	    mount(mount: IArgumentPackageMount): IArgumentPackage;
 	    $mount(mount: IArgumentPackageMount): Promise<IArgumentPackage>;
 	    collect<T = Attributes>(sequence: QuerySequence): T;
 	    $collect<T = Attributes>(sequence: QuerySequence): Promise<T>;
 	    $help(): Promise<string>;
 	}
+	export function VerfiyPackageWarnignsAndErrors({ args, warnings, errors, silent }: {
+	    args?: (IArgumentPackage | ArgumentValues)[];
+	    warnings?: string[];
+	    errors?: string[];
+	    silent?: boolean;
+	}): void;
 	
 	
 	
@@ -1155,26 +1183,6 @@ declare module "@onyx-ignition/forge" {
 	        defaultValue?: string;
 	        $validate?: (answer: string) => Promise<boolean>;
 	    }): Promise<this>;
-	}
-	
-	
-	export function EncodeNumber(value: number): ArrayBuffer;
-	export function EncodeNumber(value: number, data: ArrayBuffer): ArrayBuffer;
-	export function DecodeNumber(data: ArrayBuffer): number;
-	export function EncodedStringSize(value: string): number;
-	export function EncodeString(value: string): ArrayBuffer;
-	export function DecodeString(buffer: ArrayBufferLike): string;
-	export function DecodeAttributes(buffer: ArrayBufferLike): Attributes | unknown[];
-	export function DecodeAttributes(buffer: ArrayBufferLike, reviver: (this: any, key: string, value: unknown) => any): Attributes | unknown[];
-	export function EncodeAttributes(attributes: Attributes | unknown[]): ArrayBuffer;
-	export function EncodeAttributes(attributes: Attributes | unknown[], replacer: (this: any, key: string, value: unknown) => any): ArrayBuffer;
-	export class Base64 {
-	    static ArrayBuffer(input: string): ArrayBufferLike;
-	    static String(input: string): string;
-	    static JSON(input: string, reviver?: (key: string, value: unknown, context?: Record<string, unknown>) => unknown): Record<string, unknown>;
-	    static Encode(input: ArrayBuffer | Record<string, unknown> | string, replacer?: (key: string, value: unknown) => unknown): string;
-	    static Replacer(key: string, value: unknown): unknown;
-	    static Reviver(this: any, key: string, value: unknown): any;
 	}
 	
 	export class Iterate {
@@ -1393,6 +1401,26 @@ declare module "@onyx-ignition/forge" {
 	    static $Parse<T = unknown>(value: string, requestInit: RequestInit): Promise<T>;
 	}
 	
+	
+	export function EncodeNumber(value: number): ArrayBuffer;
+	export function EncodeNumber(value: number, data: ArrayBuffer): ArrayBuffer;
+	export function DecodeNumber(data: ArrayBuffer): number;
+	export function EncodedStringSize(value: string): number;
+	export function EncodeString(value: string): ArrayBuffer;
+	export function DecodeString(buffer: ArrayBufferLike): string;
+	export function DecodeAttributes(buffer: ArrayBufferLike): Attributes | unknown[];
+	export function DecodeAttributes(buffer: ArrayBufferLike, reviver: (this: any, key: string, value: unknown) => any): Attributes | unknown[];
+	export function EncodeAttributes(attributes: Attributes | unknown[]): ArrayBuffer;
+	export function EncodeAttributes(attributes: Attributes | unknown[], replacer: (this: any, key: string, value: unknown) => any): ArrayBuffer;
+	export class Base64 {
+	    static ArrayBuffer(input: string): ArrayBufferLike;
+	    static String(input: string): string;
+	    static JSON(input: string, reviver?: (key: string, value: unknown, context?: Record<string, unknown>) => unknown): Record<string, unknown>;
+	    static Encode(input: ArrayBuffer | Record<string, unknown> | string, replacer?: (key: string, value: unknown) => unknown): string;
+	    static Replacer(key: string, value: unknown): unknown;
+	    static Reviver(this: any, key: string, value: unknown): any;
+	}
+	
 	export class JSONLoader {
 	    static $Parse<T = unknown>(value: string): Promise<T>;
 	}
@@ -1428,6 +1456,51 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
+	export interface IResponseSocket {
+	    setHeader(key: string, value: string): void;
+	    status(status: number | string): void;
+	    write(data: unknown): void;
+	    end(...rest: unknown[]): void;
+	}
+	export class ForgeResponse {
+	    private _socket;
+	    private _resolved;
+	    private _rejected;
+	    authorized: boolean | undefined;
+	    private _$end;
+	    private _open;
+	    readonly headers: ServeHeaders;
+	    readonly writes: IQuery<SerializeData>;
+	    constructor();
+	    constructor(socket: IResponseSocket);
+	    get open(): boolean;
+	    get resolved(): boolean | undefined;
+	    get rejected(): boolean | undefined;
+	    end(): void;
+	    import(data: Serialize): this;
+	    $export(): Promise<Serialize>;
+	    sync(response: ForgeResponse): void;
+	    resolve(value: boolean): void;
+	    reject(value: boolean): void;
+	}
+	
+	
+	
+	
+	
+	
+	
+	export type ForgeServlet = {
+	    [Reactivity]: IReactor<{
+	        signal: Signal;
+	        request: ForgeRequest;
+	        response: ForgeResponse;
+	    }>;
+	};
+	type ForgeServletConstructor = {
+	    new (port: number): ForgeServlet;
+	};
 	export class ServeHeaders {
 	    readonly query: IQuery<Serialize>;
 	    [Symbol.iterator](): IterableIterator<[Serialize, Attributes]>;
@@ -1437,10 +1510,26 @@ declare module "@onyx-ignition/forge" {
 	    first<T = SerializeData>(regExp: RegExp): T | undefined;
 	    last<T = SerializeData>(regExp: RegExp): T | undefined;
 	    all<T = SerializeData>(regExp: RegExp): T[];
-	    merge(): Serialize;
+	    squash(): Serialize;
 	    import(buffer: ArrayBuffer): this;
 	    export(): ArrayBuffer;
 	}
+	export class ForgeServletFactory {
+	    private readonly _classRef;
+	    private readonly _servers;
+	    constructor(classRef: ForgeServletConstructor);
+	    [Reactivity]: IReactor<{
+	        signal: Signal;
+	        request: ForgeRequest;
+	        response: ForgeResponse;
+	    }>;
+	    [Symbol.iterator](): IterableIterator<[number, ForgeServlet]>;
+	    create(port: number): ForgeServlet;
+	    has(port: number): boolean;
+	    get(port: number): ForgeServlet | undefined;
+	}
+	
+	
 	
 	
 	
@@ -1465,12 +1554,18 @@ declare module "@onyx-ignition/forge" {
 	    $read(): Promise<ArrayBuffer>;
 	}
 	export class ForgeRequest {
+	    private _$promise;
+	    private _timeout;
+	    key: string | undefined;
+	    race: number;
+	    session: string | undefined;
 	    readonly headers: ServeHeaders;
 	    readonly reads: IQuery<IRequestRead>;
-	    readonly session: GenericSession<Serialize> | undefined;
+	    readonly socket: IForgeSocket | undefined;
 	    constructor();
-	    constructor(session: GenericSession<Serialize>);
-	    race(delay: number): void;
+	    constructor(socket: IForgeSocket);
+	    get $race(): Promise<undefined>;
+	    expiry(race: number): void;
 	    import(data: Serialize): this;
 	    $export(): Promise<Serialize>;
 	    sync(request: ForgeRequest): void;
@@ -1480,44 +1575,25 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export interface IResponseSocket {
-	    setHeader(key: string, value: string): void;
-	    status(status: number | string): void;
-	    write(data: unknown): void;
-	    end(...rest: unknown[]): void;
-	}
-	export class ForgeResponse {
-	    private _socket;
-	    readonly headers: ServeHeaders;
-	    readonly writes: IQuery<SerializeData>;
-	    private _$end;
-	    private _open;
-	    session: string | undefined;
-	    authorized: boolean | undefined;
-	    resolved: boolean | undefined;
-	    rejected: boolean | undefined;
-	    constructor();
-	    constructor(socket: IResponseSocket);
-	    get open(): boolean;
-	    end(): void;
-	    import(data: Serialize): this;
-	    $export(): Promise<Serialize>;
-	    sync(response: ForgeResponse): void;
-	}
-	
-	
-	
-	
 	
 	
 	export const ForgeProtocol: string;
-	export type Signal = Record<string, string | number | boolean>;
+	export type Signal = {
+	    [name: string]: Signal | string | number | boolean | (string | number | boolean)[];
+	};
 	export type SignalConstraint = {
 	    race: number;
 	    capture?: Capture;
 	};
 	export type SocketSession = GenericSession<[ForgeRequest, ForgeResponse]>;
 	export type SignalResult = SessionResult<[ForgeRequest, ForgeResponse]>;
+	export type SocketReaction = {
+	    socket: IForgeSocket;
+	    protocol: string;
+	    signal: Signal;
+	    request: ForgeRequest;
+	    response: ForgeResponse;
+	};
 	type MultiPartHeader = {
 	    multi_part: string;
 	    frames: number;
@@ -1542,11 +1618,11 @@ declare module "@onyx-ignition/forge" {
 	    set(signal: Signal, constraints: SignalConstraint): this;
 	    get(signal: Signal): SignalConstraint;
 	}
-	export interface IForgeSocket extends ISubscription {
+	export interface IForgeSocket {
+	    [Reactivity]: IReactor<SocketReaction>;
 	    get key(): string;
 	    get name(): string;
 	    get $ready(): Promise<Serialize>;
-	    get routing(): ForgeSocketRouting;
 	    get constraints(): SignalConstraints;
 	    $read(message: [string, Signal, Serialize, Serialize]): Promise<void>;
 	    write(protocol: string, ...rest: Serialize[]): void;
@@ -1559,22 +1635,6 @@ declare module "@onyx-ignition/forge" {
 	    $send(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	    $reboot(): Promise<void>;
 	}
-	class ForgeSocketRouting {
-	    private _socket;
-	    constructor(socket: IForgeSocket);
-	    $authorize(request: ForgeRequest, response: ForgeResponse, options: {
-	        race: number;
-	        capture: Capture;
-	    }): Promise<boolean | undefined>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse, options: {
-	        race: number;
-	        capture: Capture;
-	    }): Promise<boolean | undefined>;
-	    $reject(request: ForgeRequest, response: ForgeResponse, options: {
-	        race: number;
-	        capture: Capture;
-	    }): Promise<boolean | undefined>;
-	}
 	class MultiPartCollector {
 	    private readonly _$complete;
 	    private readonly _$parts;
@@ -1582,7 +1642,7 @@ declare module "@onyx-ignition/forge" {
 	    get $complete(): Promise<ArrayBuffer>;
 	    add(index: number, buffer: ArrayBuffer): void;
 	}
-	export class AbstractForgeSocket extends Subscription implements IForgeSocket {
+	export class AbstractForgeSocket implements IForgeSocket {
 	    protected _name: string;
 	    protected _key: string;
 	    protected _reboot: boolean;
@@ -1591,15 +1651,14 @@ declare module "@onyx-ignition/forge" {
 	    constraints: SignalConstraints;
 	    protected readonly _sessions: Map<string, SocketSession>;
 	    protected readonly _bindings: Map<Function, Function>;
-	    protected readonly _routing: ForgeSocketRouting;
 	    protected readonly _collectors: Map<string, MultiPartCollector>;
+	    [Reactivity]: IReactor<SocketReaction>;
 	    constructor(name: string, config: SocketConfig);
-	    protected _reserveSession(signal: Signal, request: ForgeRequest, response: ForgeResponse): [string, number, Promise<SignalResult>];
+	    protected _reserveSession(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
 	    protected _$thenConnect(data: Serialize): Promise<SignalResult>;
 	    protected _readDecoded(buffer: ArrayBuffer): void;
 	    get key(): string;
 	    get name(): string;
-	    get routing(): ForgeSocketRouting;
 	    get $ready(): Promise<{
 	        local: Serialize;
 	        remote: Serialize;
@@ -1618,7 +1677,7 @@ declare module "@onyx-ignition/forge" {
 	    $flush(data: Serialize): Promise<SignalResult>;
 	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
 	    $send(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	    write(protocol: string, signal: Signal, ...rest: Serialize[]): void;
+	    write(protocol: string, signal: Signal | Serialize, ...rest: Serialize[]): void;
 	    $reboot(): Promise<void>;
 	}
 	
@@ -1627,6 +1686,11 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	export const ForgePackageSanitizeSuccessAttributes: {
+	    forge: boolean;
+	    sanitize: boolean;
+	    success: boolean;
+	};
 	export class ForgePackageSanitize extends AsyncArgumentPackageSanitize {
 	    constructor();
 	    constructor(options: AsyncPackageSanitizeOptions);
@@ -1640,8 +1704,13 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	export const ForgePackageValidateSuccessAttributes: {
+	    forge: boolean;
+	    validate: boolean;
+	    success: boolean;
+	};
 	export class ForgePackageValidate extends AsyncArgumentPackageValidate {
-	    $flush(query: IQuery<ArgumentPackageComponent>, validations: ArgumentValidation): Promise<void>;
+	    $flush(query: IQuery<ArgumentPackageComponent>, validations: ArgumentValidations): Promise<void>;
 	}
 	
 	
@@ -1655,20 +1724,24 @@ declare module "@onyx-ignition/forge" {
 	    debounce?: number;
 	    threshold?: number;
 	    ignores?: string[];
-	    triggers: {
+	    actions: {
 	        filter: RegExp;
 	        data: Attributes;
-	        action: string;
+	        trigger: string;
 	        race: number;
 	    }[];
 	};
 	export type ForgeWorkerParams = {
 	    name: string;
 	    script: string;
-	    signals: Signal[];
+	    signals: string[];
 	    data: Attributes;
 	    connect: Attributes;
 	    race: number;
+	};
+	export type HTTPActionParams = {
+	    url: RegExp;
+	    signal: Signal;
 	};
 	export type ForgeParams = Partial<{
 	    watch: ForgeWatchParams;
@@ -1677,6 +1750,7 @@ declare module "@onyx-ignition/forge" {
 	        port?: number;
 	        root?: string;
 	        caching?: boolean;
+	        actions?: HTTPActionParams[];
 	    };
 	    socket: {
 	        port: number;
@@ -1698,6 +1772,995 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	export function $GetApplicationArguments(): Promise<IArgumentPackage>;
+	
+	
+	
+	
+	export interface IForgeTrigger {
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	export class ForgeTrigger implements IForgeTrigger {
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	
+	
+	export enum ResolverOperators {
+	    Or = 0,
+	    And = 1
+	}
+	/**
+	 * The raw data from a JSON for action data. Pulled from a `.Forge` or supplied from a developer
+	 *
+	 * @typedef {Object} ActionInit
+	 *
+	 * @property {(string|undefined)} name - (optional) the default error message.
+	 * @property {(boolean)} enabled - A callback to transform the supplied value for an aurgument.
+	 *
+	 */
+	export type ActionInit = {
+	    enabled: boolean;
+	    name?: string;
+	    resolver?: ResolverOperators;
+	};
+	export enum ActionState {
+	    Pending = 0,
+	    Authorized = 1,
+	    Resolved = 2,
+	    Rejected = 3
+	}
+	export interface IAction {
+	    name: string;
+	    state: ActionState;
+	    add(trigger: IForgeTrigger): this;
+	    remove(trigger: IForgeTrigger): this;
+	    $frame(data: Serialize): Promise<void>;
+	    $flush(data: Serialize): Promise<void>;
+	    $authorize(signal: Signal, request: ForgeRequest, respone: ForgeResponse): Promise<boolean>;
+	    $signal(signal: Signal, request: ForgeRequest, respone: ForgeResponse): Promise<void>;
+	}
+	/**
+	 * ForgeAction is the base class to eval signal dispatching from triggers, dispatch `$signals`, route requests, or stream output during `ForgeStream.$signal( ... )`
+	 *
+	 */
+	export class ForgeAction extends Subscription implements IAction {
+	    protected readonly _triggers: Set<IForgeTrigger>;
+	    protected _resolver: ResolverOperators;
+	    name: string;
+	    enabled: boolean;
+	    protected _state: ActionState;
+	    constructor(init: ActionInit);
+	    get state(): ActionState;
+	    set state(value: ActionState);
+	    add(trigger: IForgeTrigger): this;
+	    remove(trigger: IForgeTrigger): this;
+	    $authorize(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	    $frame(data: Serialize): Promise<void>;
+	    $flush(data: Serialize): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	
+	export class SignalAction extends ForgeAction {
+	    private _sequence;
+	    constructor(init: ActionInit);
+	    constructor(init: ActionInit, sequence: QuerySequence);
+	    $authorize(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	
+	
+	export class ForgeController {
+	    readonly actions: IQuery<IAction>;
+	    readonly settled: Set<IAction>;
+	    readonly resolves: Set<IAction>;
+	    readonly rejections: Set<IAction>;
+	    find(name: string): IAction | undefined;
+	    $frame(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $flush(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $signal(signal: Signal, resquest: ForgeRequest, response: ForgeResponse): Promise<Map<IAction, ForgeResponse>>;
+	}
+	
+	
+	
+	
+	
+	
+	
+	export type DispatchParams = {
+	    command: string;
+	    headers?: [Serialize, Attributes][];
+	    reads?: [ArrayBuffer, Attributes][];
+	};
+	export type $AuthorizeDispatch = (signal: Signal, ...rest: any[]) => Promise<boolean> | boolean;
+	export type ForgeReactorDispatch = {
+	    $authorize: $AuthorizeDispatch;
+	    trigger: IForgeTrigger;
+	    params: DispatchParams;
+	};
+	export class ForgeReactor extends Reactor<{
+	    signal: Signal;
+	    request: ForgeRequest;
+	    response: ForgeResponse;
+	}> {
+	    dispatches: ForgeReactorDispatch[];
+	    add(params: DispatchParams, $authorize: $AuthorizeDispatch): this;
+	}
+	
+	
+	export class Topology<T = unknown> {
+	    static Deserialize<T>(data: [T, Attributes, number][], replacer: (data: any) => unknown): Topology;
+	    static Serialize<T>(tree: Topology<T>, replacer?: (source: T) => JSON): any[];
+	    protected readonly _parentMap: Map<T, T>;
+	    protected readonly _childMap: Map<T, T[]>;
+	    protected readonly _attributeMap: Map<T, Attributes>;
+	    private _sortChildren;
+	    constructor();
+	    [Symbol.iterator](): Iterator<[T, Attributes]>;
+	    protected _detach(source: T): void;
+	    protected _delete(source: T): void;
+	    get size(): number;
+	    attributes(source: T): Attributes | undefined;
+	    attributes(source: T, attributes: Attributes): Attributes | undefined;
+	    traverse(source: T, traversal: Set<T>): Set<T>;
+	    index(source: T): number;
+	    add(source: T, attributes: Attributes): this;
+	    add(source: T, attributes: Attributes, parent: T): this;
+	    remove(source: T): this;
+	    purge(source: T): void;
+	    move(source: T, parent: T, insert?: number): this;
+	    order(parent: T, children: T[]): T[];
+	    mutate(source: T, target: T): void;
+	    parent(child: T): T;
+	    children(): T[];
+	    children(source: T): T[];
+	    siblings(source: T): Set<T>;
+	    ancestry(source: T): T[];
+	    depth(): number;
+	    depth(source: T): number;
+	    has(source: T): boolean;
+	    clear(): T[];
+	}
+	
+	
+	export class DataStreamWriter {
+	    static Flush(contents: string | number | Attributes | ArrayBuffer): ArrayBuffer;
+	    private _queue;
+	    private _frames;
+	    private _queueSize;
+	    get size(): number;
+	    write(value: number): this;
+	    write(value: string): this;
+	    write(attributes: Attributes): this;
+	    write(data: ArrayBuffer): this;
+	    frame(): void;
+	    flush(): ArrayBuffer;
+	}
+	export class DataStreamReader {
+	    private _start;
+	    private _cursor;
+	    private _data;
+	    private _dataView;
+	    private _size;
+	    constructor(data: ArrayBuffer);
+	    constructor(data: ArrayBuffer, cursor: number);
+	    [Symbol.iterator](): IterableIterator<ArrayBuffer>;
+	    protected _readNumber(): number;
+	    protected _readCharCode(): number;
+	    get size(): number;
+	    get cursor(): number;
+	    read(): ArrayBuffer;
+	    peek(offset: number): ArrayBuffer;
+	    frame(): void;
+	    complete(): boolean;
+	    skip(): void;
+	    readString(): string;
+	    readAttributes(): Attributes;
+	}
+	
+	
+	
+	
+	
+	export type UpgradeParams = [Attributes, ...rest: unknown[]];
+	export enum ForgeStoreMime {
+	    Released = "forge/released",
+	    Undefined = "forge/undefined",
+	    Number = "forge/number",
+	    Binary = "forge/binary",
+	    JSON = "application/json; charset=utf-16",
+	    Text = "text/plain"
+	}
+	export type ForgeStoreExport = {
+	    header: ArrayBuffer;
+	    attributes: ArrayBuffer;
+	    parent: ArrayBuffer;
+	    hash: ArrayBuffer;
+	    mime: ArrayBuffer;
+	    data?: ArrayBuffer;
+	} & Record<string, ArrayBuffer>;
+	export function $CompareStores(iStoreA: IForgeStore, iStoreB: IForgeStore): Promise<boolean>;
+	export type StoreUpgradeQuery = {
+	    delegate: QueryDelegate;
+	    parameters: UpgradeParams;
+	    recursive: boolean;
+	};
+	export interface IForgeStore {
+	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
+	    get hash(): string;
+	    get attributes(): Attributes;
+	    get $children(): Promise<IForgeStore[]>;
+	    get $parent(): Promise<IForgeStore>;
+	    get $ancestry(): Promise<IForgeStore[]>;
+	    $ready(race: number): Promise<IForgeStore>;
+	    $connect(model: IForgeModel): Promise<IForgeStore>;
+	    $purge(): Promise<IForgeStore[]>;
+	    $branch(iForgeStore: IForgeStore): Promise<IForgeStore>;
+	    $fork(): Promise<IForgeStore>;
+	    $fork(mappings: Map<IForgeStore, IForgeStore>): Promise<IForgeStore>;
+	    $fork(mappings?: Map<IForgeStore, IForgeStore>): Promise<IForgeStore>;
+	    $clone(): Promise<IForgeStore>;
+	    $order(iForgeStores: IForgeStore[]): Promise<void>;
+	    $find(callback: (value: IForgeStore, attributes: Attributes) => boolean): Promise<IForgeStore[]>;
+	    $upgrade(queries: StoreUpgradeQuery[]): Promise<IForgeStore[]>;
+	    $query(): Promise<IQuery<IForgeStore>>;
+	    $query(recursive: boolean): Promise<IQuery<IForgeStore>>;
+	    $write(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $mutate(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $read(): Promise<[ArrayBuffer, string]>;
+	    $import(readStream: DataStreamReader): Promise<this>;
+	    $export(): Promise<ForgeStoreExport>;
+	    $export(excludeBody: boolean): Promise<ForgeStoreExport>;
+	    $stream(): Promise<ArrayBuffer>;
+	    $stream(excludeBody: boolean): Promise<ArrayBuffer>;
+	    $lock(): Promise<void>;
+	    $unlock(): Promise<void>;
+	    $hasLock(): Promise<boolean>;
+	    $render<T = string>(options: {
+	        $onStartGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
+	        $onRender?: (iStore: IForgeStore) => Promise<T>;
+	        $onEndGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
+	    }): AsyncIterableIterator<T>;
+	}
+	export class ForgeStore implements IForgeStore {
+	    static AssignHash(iStore: ForgeStore, hash: string): void;
+	    static Null: string;
+	    static Header: string;
+	    static Race: number;
+	    static Empty(attributes: Attributes): ForgeStore;
+	    static Number(attributes: Attributes, value: number): ForgeStore;
+	    static JSON(attributes: Attributes, value: Record<string, unknown>): ForgeStore;
+	    static Binary(attributes: Attributes, value: ArrayBuffer): IForgeStore;
+	    static String(attributes: Attributes, value: string): IForgeStore;
+	    static Store(attributes: Attributes, value: ArrayBuffer, mime: string): IForgeStore;
+	    protected _mime: string;
+	    protected _attributes: Attributes;
+	    protected _hash: string;
+	    protected _lock: string;
+	    protected _releasedStore: IForgeStore;
+	    protected readonly _$onModelConnected: $Promise<IForgeModel>;
+	    protected readonly _$model: $Promise<IForgeModel>;
+	    protected readonly _$onReleased: $Promise<IForgeStore>;
+	    protected readonly _$body: $Promise<[ArrayBuffer, string]>;
+	    protected readonly _$ready: $Promise<this>;
+	    constructor(attributes: Attributes);
+	    constructor(readStream: DataStreamReader);
+	    constructor(attributes: Attributes, model: IForgeModel);
+	    constructor(readStream: DataStreamReader, model: IForgeModel);
+	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
+	    private _$thenChildren;
+	    private _$thenAncestry;
+	    private _$thenParent;
+	    _import(streamReader: DataStreamReader): {
+	        hash: string;
+	        parent: string;
+	        attributes: Attributes;
+	        mime: string;
+	        data: ArrayBuffer;
+	    };
+	    protected _$raceIModel(): Promise<IForgeModel>;
+	    protected _$thenConnectModel: any;
+	    get hash(): string;
+	    get attributes(): Attributes;
+	    get $children(): Promise<IForgeStore[]>;
+	    get $parent(): Promise<IForgeStore>;
+	    get $ancestry(): Promise<IForgeStore[]>;
+	    /**
+	     *
+	     * Public members
+	     *
+	     */
+	    write(buffer: ArrayBuffer, mime: string): this;
+	    $ready(race: number): Promise<IForgeStore>;
+	    $connect(model: IForgeModel): Promise<IForgeStore>;
+	    $lock(): Promise<void>;
+	    $unlock(): Promise<void>;
+	    $hasLock(): Promise<boolean>;
+	    $purge(): Promise<IForgeStore[]>;
+	    $branch(child: IForgeStore): Promise<IForgeStore>;
+	    $fork(): Promise<IForgeStore>;
+	    $fork(mappings: Map<IForgeStore, IForgeStore>): Promise<IForgeStore>;
+	    $clone(): Promise<IForgeStore>;
+	    $order(iForgeStores: IForgeStore[]): Promise<void>;
+	    $write(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $read(): Promise<[ArrayBuffer, string]>;
+	    $mutate(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $query(): Promise<IQuery<IForgeStore>>;
+	    $query(recursive: boolean): Promise<IQuery<IForgeStore>>;
+	    $upgrade(queries: StoreUpgradeQuery[]): Promise<IForgeStore[]>;
+	    $find(callback: (iforgeStore: IForgeStore, attributes: Attributes) => boolean): Promise<IForgeStore[]>;
+	    $import(readStream: DataStreamReader): Promise<this>;
+	    $export(): Promise<ForgeStoreExport>;
+	    $export(excludeBody: boolean): Promise<ForgeStoreExport>;
+	    $stream(): Promise<ArrayBuffer>;
+	    $stream(excludeBody: boolean): Promise<ArrayBuffer>;
+	    $render<T = string>(options: {
+	        $onStartGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
+	        $onRender?: (iStore: IForgeStore) => Promise<T>;
+	        $onEndGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
+	    }): AsyncIterableIterator<T>;
+	    toString(): string;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	export class AbstractForgeModelProxy extends Subscription implements IForgeModelProxy {
+	    protected _model: IForgeModel;
+	    protected _bindings: Map<Function, Function>;
+	    constructor(iModel: IForgeModel);
+	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
+	    $activate(): Promise<void>;
+	    $deactivate(): Promise<void>;
+	    $lock(store: IForgeStore): Promise<void>;
+	    $unlock(hash: string): Promise<void>;
+	    $branch(parent: IForgeStore, child: IForgeStore): Promise<void>;
+	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
+	    $read(store: IForgeStore): Promise<void>;
+	    $write(oldStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<void>;
+	    $purge(store: IForgeStore): Promise<void>;
+	    $connect(store: IForgeStore, hash: string): Promise<void>;
+	    $mutate(store: IForgeStore, mutateStore: IForgeStore): Promise<void>;
+	    $frame(): Promise<void>;
+	    $flush(): Promise<void>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	export class ForgeModelProxyManager {
+	    private readonly _proxies;
+	    [Symbol.iterator](): IterableIterator<[IForgeModelProxy, Attributes]>;
+	    $add(proxy: IForgeModelProxy, attributes: Attributes): Promise<void>;
+	    remove(proxy: IForgeModelProxy): Promise<void>;
+	    $connect(store: IForgeStore, hash: string): Promise<void>;
+	    $mutate(store: IForgeStore, mutateStore: IForgeStore): Promise<void>;
+	    $branch(parent: IForgeStore, child: IForgeStore): Promise<void>;
+	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
+	    $read(store: IForgeStore): Promise<void>;
+	    $write(store: IForgeStore, data: ArrayBuffer, mime: string): Promise<void>;
+	    $purge(store: IForgeStore): Promise<void>;
+	    $frame(): Promise<void>;
+	    $flush(): Promise<void>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	export function $CompareModels(iModelA: IForgeModel, iModelB: IForgeModel): Promise<boolean>;
+	type ModelReactorKey = "connect" | "write" | "mutate" | "branch" | "fork" | "purge" | "order" | "lock" | "unlock" | "frame";
+	export type ModelReactorState = {
+	    [key in ModelReactorKey]?: IForgeStore[];
+	};
+	export class ModelReactor extends Reactor<ModelReactorState> {
+	    private readonly _stores;
+	    constructor();
+	    /**
+	     * All setters will dispatch subscriptions
+	     * @param state
+	     * @param previous
+	     * @returns
+	     */
+	    frame(): void;
+	}
+	export interface IForgeModel {
+	    race: number;
+	    [Symbol.iterator](): IterableIterator<[IForgeStore, Attributes]>;
+	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
+	    [Reactivity]: IReactor<ModelReactorState>;
+	    get proxies(): ForgeModelProxyManager;
+	    get state(): string;
+	    get root(): IForgeStore;
+	    get(hash: string): IForgeStore | undefined;
+	    $hash(iStore: IForgeStore): Promise<string | undefined>;
+	    $attributes(iStore: IForgeStore): Promise<Attributes | undefined>;
+	    $children(iStore: IForgeStore): Promise<IForgeStore[]>;
+	    $parent(iStore: IForgeStore): Promise<IForgeStore>;
+	    $ancestry(iStore: IForgeStore): Promise<IForgeStore[]>;
+	    $branch(parent: IForgeStore, child: IForgeStore): Promise<IForgeStore>;
+	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
+	    $traverse(iStore: IForgeStore): Promise<IForgeStore[]>;
+	    $query(): Promise<IQuery<IForgeStore>>;
+	    $query(parent: IForgeStore): Promise<IQuery<IForgeStore>>;
+	    $query(parent: IForgeStore, recursive: boolean): Promise<IQuery<IForgeStore>>;
+	    $write(iStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $mutate(iStore: IForgeStore, mutateStore: IForgeStore): Promise<IForgeStore>;
+	    $read(iStore: IForgeStore): Promise<[ArrayBuffer, string]>;
+	    $hasLock(iStore: IForgeStore): Promise<boolean>;
+	    $lock(iStore: IForgeStore): Promise<string>;
+	    $unlock(hash: string): Promise<IForgeStore>;
+	    $connect(iStore: IForgeStore): Promise<string>;
+	    $connect(iStore: IForgeStore, options: {
+	        parent: IForgeStore;
+	    }): Promise<string>;
+	    $connect(iStore: IForgeStore, options: {
+	        data: ArrayBuffer;
+	        mime: string;
+	    }): Promise<string>;
+	    $connect(iStore: IForgeStore, options: {
+	        parent: IForgeStore;
+	        data: ArrayBuffer;
+	        mime: string;
+	    }): Promise<string>;
+	    $purge(iStore: IForgeStore): Promise<IForgeStore[]>;
+	    $import(iStore: IForgeStore, importData: {
+	        parent: string;
+	        data: ArrayBuffer;
+	        mime: string;
+	    }): Promise<IForgeStore>;
+	    $wait(hash: string): Promise<IForgeStore>;
+	    $frame(): Promise<this>;
+	    $flush(): Promise<this>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	export interface IForgeModelProxy {
+	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
+	    $activate(): Promise<void>;
+	    $deactivate(): Promise<void>;
+	    $frame(): Promise<void>;
+	    $flush(): Promise<void>;
+	    $lock(store: IForgeStore): Promise<void>;
+	    $unlock(hash: string): Promise<void>;
+	    $connect(iStore: IForgeStore, hash: string): Promise<void>;
+	    $mutate(iStore: IForgeStore, mutateStore: IForgeStore): Promise<void>;
+	    $branch(parent: IForgeStore, child: IForgeStore): Promise<void>;
+	    $read(iStore: IForgeStore): Promise<void>;
+	    $write(iStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<void>;
+	    $purge(iStore: IForgeStore): Promise<void>;
+	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	export class ForgeModel implements IForgeModel {
+	    protected _root: IForgeStore;
+	    protected _state: string;
+	    protected _proxies: ForgeModelProxyManager;
+	    protected readonly _topology: Topology<IForgeStore>;
+	    protected readonly _hashes: Map<IForgeStore, string>;
+	    protected readonly _$bodies: Map<IForgeStore, [ArrayBuffer, string]>;
+	    protected readonly _waitingStores: Map<string, $Promise<IForgeStore>>;
+	    protected readonly _locks: Map<IForgeStore, string>;
+	    readonly [Reactivity]: IReactor<ModelReactorState>;
+	    race: number;
+	    constructor();
+	    constructor(attributes: Attributes);
+	    constructor(root: IForgeStore);
+	    [Symbol.iterator](): IterableIterator<[IForgeStore, Attributes]>;
+	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
+	    protected _nextHash(): string;
+	    protected _$reserve(hash: string): $Promise<IForgeStore>;
+	    protected _$remove(store: IForgeStore): Promise<void>;
+	    get state(): string;
+	    get root(): IForgeStore;
+	    get proxies(): ForgeModelProxyManager;
+	    $hash(store: IForgeStore): Promise<string | undefined>;
+	    $attributes(store: IForgeStore): Promise<Attributes | undefined>;
+	    $children(store: IForgeStore): Promise<IForgeStore[]>;
+	    $parent(store: IForgeStore): Promise<IForgeStore>;
+	    $ancestry(store: IForgeStore): Promise<IForgeStore[]>;
+	    get(query: string): IForgeStore | undefined;
+	    $fork(stores: IForgeStore[], options?: {
+	        topology?: boolean;
+	        root?: Attributes;
+	        mappings?: Map<IForgeStore, IForgeStore>;
+	    }): Promise<IForgeModel>;
+	    $branch(parent: IForgeStore, child: IForgeStore): Promise<IForgeStore>;
+	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
+	    $traverse(iStore: IForgeStore): Promise<IForgeStore[]>;
+	    $connect(store: IForgeStore): Promise<string>;
+	    $connect(store: IForgeStore, options: {
+	        parent: IForgeStore;
+	        hash?: string;
+	    }): Promise<string>;
+	    $connect(store: IForgeStore, options: {
+	        data: ArrayBuffer;
+	        mime: string;
+	        hash?: string;
+	    }): Promise<string>;
+	    $connect(store: IForgeStore, options: {
+	        parent: IForgeStore;
+	        data: ArrayBuffer;
+	        mime: string;
+	        hash?: string;
+	    }): Promise<string>;
+	    $purge(store: IForgeStore): Promise<IForgeStore[]>;
+	    $hasLock(store: IForgeStore): Promise<boolean>;
+	    $lock(store: IForgeStore): Promise<string>;
+	    $unlock(hash: string): Promise<IForgeStore>;
+	    $import(iStore: IForgeStore, importData: {
+	        parent: string | IForgeStore;
+	        data: ArrayBuffer;
+	        mime: string;
+	    }): Promise<IForgeStore>;
+	    $frame(): Promise<this>;
+	    $flush(): Promise<this>;
+	    $query(): Promise<IQuery<IForgeStore>>;
+	    $query(root: IForgeStore): Promise<IQuery<IForgeStore>>;
+	    $query(root: IForgeStore, recursive: boolean): Promise<IQuery<IForgeStore>>;
+	    $write(store: IForgeStore, data: ArrayBuffer, mime: string): Promise<IForgeStore>;
+	    $mutate(store: IForgeStore, mutatedStore: IForgeStore): Promise<IForgeStore>;
+	    $validate(iStore: IForgeStore): $IResult<Attributes>;
+	    $wait(hash: string): Promise<IForgeStore>;
+	    $read(iStore: IForgeStore): Promise<[ArrayBuffer, string]>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	    toString(): string;
+	}
+	
+	
+	export type DebounceDelegate = (caller: unknown, ...rest: unknown[]) => unknown | void;
+	export class Debounce {
+	    private _timeout;
+	    private readonly _refresh;
+	    private readonly _timeoutCompleteBinded;
+	    race: number;
+	    constructor(race: number);
+	    private _onTimeoutComplete;
+	    refresh(callback: DebounceDelegate): void;
+	    refresh(callback: DebounceDelegate, options: {
+	        context?: unknown;
+	        rest?: unknown[];
+	    }): void;
+	    clear(): void;
+	}
+	
+	
+	
+	export class ForgeFileWatcher extends Subscription {
+	    static Default: {
+	        Threshold: number;
+	        Debouce: number;
+	    };
+	    private _abortController;
+	    private _ignores;
+	    private readonly _targets;
+	    private readonly _reactor;
+	    private readonly _fileStats;
+	    private readonly _debounce;
+	    private readonly _files;
+	    threshold: number;
+	    constructor(targets: string[], options: {
+	        threshold?: number;
+	        debounce?: number;
+	        ignores?: string[];
+	    });
+	    private _onDebounceFileChange;
+	    [Symbol.dispose](): void;
+	    [Reactivity](): IReactor<{
+	        file: string;
+	        event: string;
+	    }[]>;
+	    [Symbol.asyncIterator](): AsyncIterableIterator<{
+	        file: string;
+	        event: string;
+	    }[]>;
+	    protected _$watchFiles(event: string, file: string): Promise<void>;
+	    abort(): void;
+	}
+	
+	
+	
+	
+	export type RouteSignal = Signal & {
+	    route: string;
+	    method: string;
+	    routing: string;
+	};
+	export type RouteDelegate = (signal: RouteSignal, forgeRequest: ForgeRequest, response: ForgeResponse) => Promise<boolean | undefined>;
+	export interface IForgeRoute {
+	    $authorize: RouteDelegate;
+	    $resolve: RouteDelegate;
+	    $reject: RouteDelegate;
+	    $finally: RouteDelegate;
+	}
+	export type IForgeRouteHook = {
+	    $authorize?: RouteDelegate;
+	    $resolve?: RouteDelegate;
+	    $reject?: RouteDelegate;
+	    $finally?: RouteDelegate;
+	};
+	export function AuthorizeString(...matches: string[]): RouteDelegate;
+	export function AuthorizeRegExp(regExp: RegExp, options?: {
+	    groups?: string;
+	    index?: number;
+	}): RouteDelegate;
+	export class ForgeRoute implements IForgeRoute, IForgeRouteHook {
+	    protected _hooks: Set<IForgeRouteHook>;
+	    protected _hasAuthorizeHooks: boolean;
+	    protected _hasResolveHooks: boolean;
+	    protected _hasRejectHooks: boolean;
+	    protected _hasFinallyHooks: boolean;
+	    constructor();
+	    constructor(config: {
+	        hooks?: IForgeRouteHook[];
+	    });
+	    $authorize(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $resolve(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $reject(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $finally(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    add(hook: IForgeRouteHook): this;
+	}
+	
+	
+	
+	export class ExpressRequestHeader {
+	    _descriptors: string[];
+	    readonly cookies: Serialize;
+	    http: Serialize;
+	    constructor(request: ExpressRequestAdapter);
+	    parse(raw: string): this;
+	}
+	
+	
+	
+	export class ExpressRequestPayload implements IRequestRead {
+	    private _adapter;
+	    private _race;
+	    private _buffer;
+	    constructor(adapter: ExpressRequestAdapter, race: number);
+	    $read(): Promise<ArrayBuffer>;
+	}
+	
+	
+	
+	
+	
+	export type ExpressRequestAdapter = {
+	    originalUrl: string;
+	    protocol: string;
+	    rawHeaders: string[];
+	    method: string;
+	    on: Function;
+	    off: Function;
+	    get(key: string): string;
+	};
+	export class ExpressHTTPServer {
+	    private _express;
+	    protected _$catchRoute: (error: unknown) => boolean;
+	    race: number;
+	    [Reactivity]: IReactor<{
+	        signal: Signal;
+	        request: ForgeRequest;
+	        response: ForgeResponse;
+	    }>;
+	    constructor(port: number);
+	    protected _buildRequest(request: ExpressRequestAdapter): ForgeRequest;
+	    protected _buildResponse(response: IResponseSocket): ForgeResponse;
+	    use(delegate: Function): void;
+	    protected _$all(request: ExpressRequestAdapter, response: IResponseSocket, next: Function): Promise<void>;
+	}
+	
+	
+	
+	export class ForgeWebsocket extends AbstractForgeSocket {
+	    static FrameSize: number;
+	    private _socket;
+	    private _abort;
+	    private _$online;
+	    private readonly _frameSize;
+	    constructor(name: string, options: SocketConfig, socket: WebSocket);
+	    private _onMessage;
+	    private _onOpen;
+	    $connect(data: Serialize): Promise<Serialize>;
+	    private _onExit;
+	    private _$writeMultiPart;
+	    write(protocol: string, ...rest: Serialize[]): void;
+	}
+	
+	
+	
+	
+	
+	export class ForgeWebSocketServer {
+	    private _key;
+	    private _server;
+	    private readonly _sockets;
+	    private _router;
+	    private _constraints;
+	    readonly port: number;
+	    [Reactivity]: IReactor<SocketReaction>;
+	    constructor(port: number, race?: unknown, key?: unknown);
+	    protected _$connect(socket: WebSocket): Promise<void>;
+	    _$read(reaction: SocketReaction): Promise<void>;
+	    get key(): string;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	
+	export class ServletManger {
+	    http: ForgeServletFactory;
+	    websocket: ForgeServletFactory;
+	    constructor(target: {
+	        [Reactivity]: IReactor<{
+	            signal: Signal;
+	            request: ForgeRequest;
+	            response: ForgeResponse;
+	        }>;
+	    });
+	    [Symbol.iterator](): IterableIterator<[number, ForgeServlet]>;
+	}
+	
+	
+	
+	
+	
+	export class ExecSocket extends AbstractForgeSocket {
+	    private _command;
+	    private _config;
+	    private _stdio;
+	    constructor(name: string, config: SocketConfig);
+	    private _injectCommand;
+	    protected _pipeStdio(message: string): void;
+	    protected _pipeError(message: string): void;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
+	    send(protocol: string, ...rest: Serialize[]): void;
+	}
+	
+	
+	
+	export class ForkSocket extends AbstractForgeSocket {
+	    private _source;
+	    private _commands;
+	    private _args;
+	    private _stdio;
+	    constructor(name: string, config: SocketConfig, source?: any);
+	    protected _pipeStdio(message: string): void;
+	    protected _pipeError(message: string): void;
+	    private _onExit;
+	    write(protocol: string, ...rest: Serialize[]): void;
+	}
+	
+	
+	
+	
+	export class SpawnSocket extends AbstractForgeSocket {
+	    private _source;
+	    private _commands;
+	    constructor(name: string, config: SocketConfig, source?: any);
+	    protected _pipeStdio(message: string): void;
+	    private _onExit;
+	    $write(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	
+	export class WorkerSocket extends AbstractForgeSocket {
+	    private _worker;
+	    private _command;
+	    private readonly _$online;
+	    constructor(name: string, config: SocketConfig);
+	    constructor(name: string, config: SocketConfig, port: MessagePort);
+	    $connect(data: Serialize): Promise<Serialize>;
+	    private _onExit;
+	    write(protocol: string, ...rest: Serialize[]): void;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	class RouteManager {
+	    private _first;
+	    private _last;
+	    private _routes;
+	    [Symbol.iterator](): IterableIterator<IForgeRoute>;
+	    get size(): number;
+	    add(route: IForgeRoute): this;
+	    delete(route: IForgeRoute): this;
+	    first(route: IForgeRoute): this;
+	    last(route: IForgeRoute): this;
+	}
+	export class Forge {
+	    private _state;
+	    readonly model: IForgeModel;
+	    private readonly _controller;
+	    readonly sockets: Map<string, IForgeSocket>;
+	    readonly [Reactivity]: ForgeReactor;
+	    readonly servlet: ServletManger;
+	    readonly routes: RouteManager;
+	    readonly watch: {
+	        [Symbol.iterator](): IterableIterator<ForgeFileWatcher>;
+	        add(roots: string[], options: {
+	            threshold?: number;
+	            ignores?: string[];
+	            debounce?: number;
+	            throttle?: number;
+	        }): ForgeFileWatcher;
+	        remove(watcher: ForgeFileWatcher): void;
+	    };
+	    constructor();
+	    protected _addSocket(key: string, socket: IForgeSocket): IForgeSocket;
+	    spawn(name: string, config: SocketConfig): IForgeSocket;
+	    fork(name: string, config: SocketConfig): IForgeSocket;
+	    worker(name: string, config: SocketConfig): IForgeSocket;
+	    exec(name: string, config: SocketConfig): IForgeSocket;
+	    add(action: IAction, attributes: Attributes): this;
+	    $frame(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $flush(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<Map<IAction, ForgeResponse>>;
+	    $route(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	    abort(): void;
+	}
+	
+	
+	
+	
+	
+	export class DelegateRoute extends ForgeRoute {
+	    private _$authorize;
+	    private _$resolve;
+	    private _$reject;
+	    constructor($delegates: {
+	        $authorize?: RouteDelegate;
+	        $resolve?: RouteDelegate;
+	        $reject?: RouteDelegate;
+	    });
+	    $authorize(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $resolve(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $reject(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	}
+	
+	export const Mimes: {
+	    Find: (file: string) => string;
+	    Set: (file: string, mime: string) => void;
+	    $Load: (file: string) => Promise<void>;
+	    $Append: () => Promise<void>;
+	};
+	
+	
+	
+	
+	
+	export type FileRoutePathing = {
+	    relative: string;
+	    absolute: string;
+	    base: string;
+	    ext: string;
+	};
+	type FinallyDelegate = (signal: RouteSignal, request: ForgeRequest, response: ForgeResponse) => Promise<boolean | undefined>;
+	export class FileRoute extends ForgeRoute {
+	    private _file;
+	    private _mime;
+	    private _status;
+	    private _cache;
+	    constructor(config: {
+	        hooks?: IForgeRouteHook[];
+	        file: {
+	            path: string;
+	            mime?: string;
+	            caching?: boolean;
+	            preload?: boolean;
+	        };
+	        race?: number;
+	        status: number;
+	    });
+	    $resolve(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $invalidate(): Promise<void>;
+	}
+	export class FileDirectoryRoute extends ForgeRoute {
+	    private _root;
+	    private _indexes;
+	    private _caching;
+	    private readonly _$resolve;
+	    private readonly _$reject;
+	    readonly statuses: Map<string, ForgePathStatus>;
+	    readonly cache: Map<string, ArrayBufferLike>;
+	    constructor(config: {
+	        root: string;
+	        indexes?: string[];
+	        hooks?: (IForgeRouteHook & {
+	            $render?: RouteDelegate;
+	        })[];
+	        race?: number;
+	        $resolve?: FinallyDelegate;
+	        $reject?: FinallyDelegate;
+	        caching?: boolean;
+	    });
+	    get root(): string;
+	    get indexes(): string[];
+	    $status(target: string): Promise<ForgePathStatus>;
+	    $status(target: string, root: string): Promise<ForgePathStatus>;
+	    $exists(target: string): Promise<boolean>;
+	    $pathing(target: string): Promise<FileRoutePathing>;
+	    $fetch(relative: string, absolute: string): Promise<ArrayBufferLike | undefined>;
+	    protected _$render(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $authorize(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $resolve(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $reject(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    add(hook: {
+	        $authorize?: RouteDelegate;
+	        $resolve?: RouteDelegate;
+	        $reject?: RouteDelegate;
+	        $finally?: RouteDelegate;
+	        $render?: RouteDelegate;
+	    }): this;
+	    uncache(): void;
+	    uncache(relative: string): void;
+	}
+	
+	
+	
+	
+	
+	
+	export class SocketRoute extends ForgeRoute {
+	    private socket;
+	    constructor(socket: IForgeSocket);
+	    constructor(socket: IForgeSocket, config: {
+	        hooks?: IForgeRouteHook[];
+	    });
+	    $authorize(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $resolve(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    $reject(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	}
+	
+	
+	
+	
+	
+	export class SocketTrigger extends ForgeTrigger {
+	    private _socket;
+	    constructor(socket: IForgeSocket);
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	export function $Run(packages: IArgumentPackage[]): Promise<Forge>;
+	
+	
 	
 	
 	export class NumberArgumentSanitize extends ArgumentValueSanitize {
@@ -1739,14 +2802,14 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	export interface IValidateValueDelegates {
-	    frame?: (values: unknown[], results: ArgumentValidation) => void;
-	    validate?: (value: unknown, results: ArgumentValidation) => void;
-	    flush?: (values: unknown[], results: ArgumentValidation) => void;
+	    frame?: (values: unknown[], results: ArgumentValidations) => void;
+	    validate?: (value: unknown, results: ArgumentValidations) => void;
+	    flush?: (values: unknown[], results: ArgumentValidations) => void;
 	}
 	export interface IAsyncValidateValueDelegates {
-	    $frame?: (values: unknown[], results: ArgumentValidation) => Promise<void>;
-	    $validate?: (value: unknown, results: ArgumentValidation) => Promise<void>;
-	    $flush?: (values: unknown[], results: ArgumentValidation) => Promise<void>;
+	    $frame?: (values: unknown[], results: ArgumentValidations) => Promise<void>;
+	    $validate?: (value: unknown, results: ArgumentValidations) => Promise<void>;
+	    $flush?: (values: unknown[], results: ArgumentValidations) => Promise<void>;
 	}
 	export type ValueValidateOptions = {
 	    help?: string;
@@ -1773,24 +2836,24 @@ declare module "@onyx-ignition/forge" {
 	    protected _validators: IValidateValueDelegates[];
 	    constructor();
 	    constructor(options: ValueValidateOptions);
-	    frame(values: unknown[], results: ArgumentValidation): void;
-	    flush(values: unknown[], results: ArgumentValidation): void;
-	    validate(value: unknown, results: ArgumentValidation): void;
+	    frame(values: unknown[], results: ArgumentValidations): void;
+	    flush(values: unknown[], results: ArgumentValidations): void;
+	    validate(value: unknown, results: ArgumentValidations): void;
 	}
 	export class AsyncArgumentValueValidate extends AbstractArgumentValidate implements IAsyncValidateValueDelegates {
 	    protected _validators: IAsyncValidateValueDelegates[];
 	    constructor();
 	    constructor(options: AsyncValueValidateOptions);
-	    $frame(values: unknown[], results: ArgumentValidation): Promise<void>;
-	    $flush(values: unknown[], results: ArgumentValidation): Promise<void>;
-	    $validate(value: unknown, results: ArgumentValidation): Promise<void>;
+	    $frame(values: unknown[], results: ArgumentValidations): Promise<void>;
+	    $flush(values: unknown[], results: ArgumentValidations): Promise<void>;
+	    $validate(value: unknown, results: ArgumentValidations): Promise<void>;
 	}
 	
 	
 	
 	
 	export class FileExistsArgumentValidate extends AsyncArgumentValueValidate {
-	    $validate(value: unknown, results: ArgumentValidation): Promise<void>;
+	    $validate(value: unknown, results: ArgumentValidations): Promise<void>;
 	}
 	
 	
@@ -1839,40 +2902,6 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 	
-	
-	export class Topology<T = unknown> {
-	    static Deserialize<T>(data: [T, Attributes, number][], replacer: (data: any) => unknown): Topology;
-	    static Serialize<T>(tree: Topology<T>, replacer?: (source: T) => JSON): any[];
-	    protected readonly _parentMap: Map<T, T>;
-	    protected readonly _childMap: Map<T, T[]>;
-	    protected readonly _attributeMap: Map<T, Attributes>;
-	    private _sortChildren;
-	    constructor();
-	    [Symbol.iterator](): Iterator<[T, Attributes]>;
-	    protected _detach(source: T): void;
-	    protected _delete(source: T): void;
-	    get size(): number;
-	    attributes(source: T): Attributes | undefined;
-	    attributes(source: T, attributes: Attributes): Attributes | undefined;
-	    traverse(source: T, traversal: Set<T>): Set<T>;
-	    index(source: T): number;
-	    add(source: T, attributes: Attributes): this;
-	    add(source: T, attributes: Attributes, parent: T): this;
-	    remove(source: T): this;
-	    purge(source: T): void;
-	    move(source: T, parent: T, insert?: number): this;
-	    order(parent: T, children: T[]): T[];
-	    mutate(source: T, target: T): void;
-	    parent(child: T): T;
-	    children(): T[];
-	    children(source: T): T[];
-	    siblings(source: T): Set<T>;
-	    ancestry(source: T): T[];
-	    depth(): number;
-	    depth(source: T): number;
-	    has(source: T): boolean;
-	    clear(): T[];
-	}
 	
 	
 	
@@ -2039,42 +3068,6 @@ declare module "@onyx-ignition/forge" {
 	}
 	
 	
-	export class DataStreamWriter {
-	    static Flush(contents: string | number | Attributes | ArrayBuffer): ArrayBuffer;
-	    private _queue;
-	    private _frames;
-	    private _queueSize;
-	    get size(): number;
-	    write(value: number): this;
-	    write(value: string): this;
-	    write(attributes: Attributes): this;
-	    write(data: ArrayBuffer): this;
-	    frame(): void;
-	    flush(): ArrayBuffer;
-	}
-	export class DataStreamReader {
-	    private _start;
-	    private _cursor;
-	    private _data;
-	    private _dataView;
-	    private _size;
-	    constructor(data: ArrayBuffer);
-	    constructor(data: ArrayBuffer, cursor: number);
-	    [Symbol.iterator](): IterableIterator<ArrayBuffer>;
-	    protected _readNumber(): number;
-	    protected _readCharCode(): number;
-	    get size(): number;
-	    get cursor(): number;
-	    read(): ArrayBuffer;
-	    peek(offset: number): ArrayBuffer;
-	    frame(): void;
-	    complete(): boolean;
-	    skip(): void;
-	    readString(): string;
-	    readAttributes(): Attributes;
-	}
-	
-	
 	export class Cipher {
 	    static Random(): Cipher;
 	    private _maxIterations;
@@ -2131,46 +3124,12 @@ declare module "@onyx-ignition/forge" {
 	export function Enforce(values: IterableIterator<EnforceableValue>, inquiries: IterableIterator<EnforcementInquiry>): EnforcementResult;
 	
 	
-	export const Mimes: {
-	    Find: (file: string) => string;
-	    Set: (file: string, mime: string) => void;
-	    $Load: (file: string) => Promise<void>;
-	    $Append: () => Promise<void>;
-	};
-	
-	export const AsyncReactivity: unique symbol;
-	export const HaltAsyncReactivity: unique symbol;
-	export type AsyncReactiveDelegate<T> = (value: T, previous?: T) => Promise<unknown>;
-	export type AsyncReaction<T> = (delegate?: AsyncReactiveDelegate<T>) => Promise<T | unknown>;
-	export interface IAsyncReactor<T> {
-	    $setter: (value: T) => Promise<T>;
-	    $getter: AsyncReaction<T>;
-	}
-	export class AsyncReactiveTrait<T> implements IAsyncReactor<T> {
-	    private _state;
-	    private _$state;
-	    private _$setter;
-	    private _$getter;
-	    private readonly _$delegates;
-	    constructor();
-	    constructor(state: T);
-	    constructor(state: T, transform: {
-	        $get?: (state: T) => Promise<T>;
-	        $set?: (newState: T, oldState: T) => Promise<T>;
-	    });
-	    [Symbol.asyncIterator](): AsyncIterableIterator<T>;
-	    $getter(): Promise<T>;
-	    $getter($delegate: AsyncReactiveDelegate<T>): Promise<T>;
-	    $setter(value: T): Promise<T>;
-	}
-	export function $reactive<T = unknown>(value: T): IAsyncReactor<T>;
-	
 	
 	const NullState: unique symbol;
 	type ReactorMap<T> = Map<IReactor<T>, T | typeof NullState>;
 	export class CircuitReactor<T> implements IReactor<IReactor<T>, IReactor<T>[]> {
-	    protected _abortController: AbortController;
-	    protected _signal: AbortSignal;
+	    protected _abortController: AbortController | undefined;
+	    protected _signal: AbortSignal | undefined;
 	    protected _states: ReactorMap<T>;
 	    protected _activeStates: Set<IReactor<T>>;
 	    private _clearTimeout;
@@ -2182,6 +3141,7 @@ declare module "@onyx-ignition/forge" {
 	    get activeStates(): IReactor<T>[];
 	    protected _operate(states: ReactorMap<T>, iReactor?: IReactor<T>): boolean;
 	    setter(iReactor: IReactor<T>): IReactor<T>[];
+	    $setter(iReactor: IReactor<T>): Promise<IReactor<T>[]>;
 	    getter(): IReactor<T>[];
 	    subscribe(delegate: ReactiveDelegate<IReactor<T>[]>): this;
 	    unsubscribe(delegate: ReactiveDelegate<IReactor<T>[]>): this;
@@ -2207,22 +3167,6 @@ declare module "@onyx-ignition/forge" {
 	
 	export function InstanceOf(instance: unknown, ...classes: (unknown | string)[]): boolean;
 	
-	export type DebounceDelegate = (caller: unknown, ...rest: unknown[]) => unknown;
-	export class Debounce {
-	    private _timeout;
-	    private readonly _refresh;
-	    private readonly _timeoutCompleteBinded;
-	    race: number;
-	    constructor(race: number);
-	    private _onTimeoutComplete;
-	    refresh(callback: DebounceDelegate): void;
-	    refresh(callback: DebounceDelegate, options: {
-	        context?: unknown;
-	        rest?: unknown[];
-	    }): void;
-	    clear(): void;
-	}
-	
 	export interface IThottle<T> {
 	    $queue($callback: Function, ...params: unknown[]): Promise<T | Error>;
 	}
@@ -2241,86 +3185,6 @@ declare module "@onyx-ignition/forge" {
 	    debounce(delegate: Function, parameters: unknown[], delay: number): void;
 	    reset(): void;
 	    clear(): void;
-	}
-	
-	
-	
-	
-	
-	export interface IForgeTrigger {
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	export class ForgeTrigger implements IForgeTrigger {
-	    protected _resolver: ResolverOperators;
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	export class WatchTrigger implements IForgeTrigger {
-	    private _regExps;
-	    constructor(regExps: RegExp[]);
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	
-	
-	
-	
-	
-	
-	
-	export enum ResolverOperators {
-	    Or = 0,
-	    And = 1
-	}
-	/**
-	 * The raw data from a JSON for action data. Pulled from a `.Forge` or supplied from a developer
-	 *
-	 * @typedef {Object} ActionInit
-	 *
-	 * @property {(string|undefined)}  name - (optional) the default error message.
-	 * @property {(boolean|undefined)}  enabled - (optional) A callback to transform the supplied value for an aurgument.
-	 *
-	 */
-	export type ActionInit = {
-	    enabled: boolean;
-	    name?: string;
-	    resolver?: ResolverOperators;
-	};
-	export enum ActionState {
-	    Pending = 0,
-	    Authorized = 1,
-	    Resolved = 2,
-	    Rejected = 3
-	}
-	export interface IAction {
-	    name: string;
-	    state: ActionState;
-	    add(trigger: IForgeTrigger): this;
-	    remove(trigger: IForgeTrigger): this;
-	    $frame(data: Serialize): Promise<SerializeData[]>;
-	    $flush(data: Serialize): Promise<SerializeData[]>;
-	    $authorize(signal: Signal, request: ForgeRequest, respone: ForgeResponse): Promise<boolean>;
-	    $signal(signal: Signal, request: ForgeRequest, respone: ForgeResponse): Promise<boolean>;
-	}
-	/**
-	 * ForgeAction is the base class to eval signal dispatching from triggers, dispatch `$signals`, route requests, or stream output during `ForgeStream.$signal( ... )`
-	 *
-	 */
-	export class ForgeAction extends Subscription implements IAction {
-	    protected readonly _triggers: Set<IForgeTrigger>;
-	    protected _resolver: ResolverOperators;
-	    name: string;
-	    enabled: boolean;
-	    protected _state: ActionState;
-	    constructor(init: ActionInit);
-	    get state(): ActionState;
-	    set state(value: ActionState);
-	    add(trigger: IForgeTrigger): this;
-	    remove(trigger: IForgeTrigger): this;
-	    $authorize(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $frame(data: Serialize): Promise<SerializeData[]>;
-	    $flush(data: Serialize): Promise<SerializeData[]>;
-	    protected _$signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
-	    protected _write(protocol: string, ...rest: Serialize[]): void;
 	}
 	
 	
@@ -2351,38 +3215,6 @@ declare module "@onyx-ignition/forge" {
 	    protected _actions: IAction[];
 	    constructor(init: ActionInit, actions: IAction[]);
 	    $authorize(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	
-	
-	
-	
-	
-	
-	export class SignalAction extends ForgeAction {
-	    private _sequence;
-	    constructor(init: ActionInit);
-	    constructor(init: ActionInit, sequence: QuerySequence);
-	    $authorize(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	
-	
-	
-	
-	
-	export class DelegateTrigger extends ForgeTrigger {
-	    private _$delegate;
-	    constructor($delegate: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => Promise<boolean>);
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	
-	
-	
-	
-	
-	export class SocketTrigger extends ForgeTrigger {
-	    private _socket;
-	    constructor(socket: IForgeSocket);
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	}
 	
 	
@@ -2427,6 +3259,8 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
+	
 	export class ForgeUser {
 	    private _permit;
 	    private _session;
@@ -2439,354 +3273,33 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export type UpgradeParams = [Attributes, ...rest: unknown[]];
-	export enum ForgeStoreMime {
-	    Released = "forge/released",
-	    Undefined = "forge/undefined",
-	    Number = "forge/number",
-	    Binary = "forge/binary",
-	    JSON = "application/json; charset=utf-16",
-	    Text = "text/plain"
-	}
-	export type ForgeStoreExport = {
-	    header: ArrayBuffer;
-	    attributes: ArrayBuffer;
-	    parent: ArrayBuffer;
-	    hash: ArrayBuffer;
-	    mime: ArrayBuffer;
-	    data?: ArrayBuffer;
-	} & Record<string, ArrayBuffer>;
-	export function $CompareStores(iStoreA: IForgeStore, iStoreB: IForgeStore): Promise<boolean>;
-	export type StoreUpgradeQuery = {
-	    delegate: QueryDelegate;
-	    parameters: UpgradeParams;
-	    recursive: boolean;
+	
+	
+	export type DispatchParams = {
+	    command: string;
+	    headers?: [Serialize, Attributes][];
+	    reads?: [ArrayBuffer, Attributes][];
 	};
-	export interface IForgeStore {
-	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    get hash(): string;
-	    get attributes(): Attributes;
-	    get $children(): Promise<IForgeStore[]>;
-	    get $parent(): Promise<IForgeStore>;
-	    get $ancestry(): Promise<IForgeStore[]>;
-	    $ready(race: number): Promise<IForgeStore>;
-	    $connect(model: IForgeModel): Promise<IForgeStore>;
-	    $purge(): Promise<IForgeStore[]>;
-	    $branch(iForgeStore: IForgeStore): Promise<IForgeStore>;
-	    $fork(): Promise<IForgeStore>;
-	    $fork(mappings: Map<IForgeStore, IForgeStore>): Promise<IForgeStore>;
-	    $fork(mappings?: Map<IForgeStore, IForgeStore>): Promise<IForgeStore>;
-	    $clone(): Promise<IForgeStore>;
-	    $order(iForgeStores: IForgeStore[]): Promise<void>;
-	    $find(callback: (value: IForgeStore, attributes: Attributes) => boolean): Promise<IForgeStore[]>;
-	    $upgrade(queries: StoreUpgradeQuery[]): Promise<IForgeStore[]>;
-	    $query(): Promise<IQuery<IForgeStore>>;
-	    $query(recursive: boolean): Promise<IQuery<IForgeStore>>;
-	    $write(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
-	    $mutate(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
-	    $read(): Promise<[ArrayBuffer, string]>;
-	    $import(readStream: DataStreamReader): Promise<this>;
-	    $export(): Promise<ForgeStoreExport>;
-	    $export(excludeBody: boolean): Promise<ForgeStoreExport>;
-	    $stream(): Promise<ArrayBuffer>;
-	    $stream(excludeBody: boolean): Promise<ArrayBuffer>;
-	    $lock(): Promise<void>;
-	    $unlock(): Promise<void>;
-	    $hasLock(): Promise<boolean>;
-	    $render<T = string>(options: {
-	        $onStartGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
-	        $onRender?: (iStore: IForgeStore) => Promise<T>;
-	        $onEndGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
-	    }): AsyncIterableIterator<T>;
-	}
-	export class ForgeStore implements IForgeStore {
-	    static AssignHash(iStore: ForgeStore, hash: string): void;
-	    static Null: string;
-	    static Header: string;
-	    static Race: number;
-	    static Empty(attributes: Attributes): ForgeStore;
-	    static Number(attributes: Attributes, value: number): ForgeStore;
-	    static JSON(attributes: Attributes, value: Record<string, unknown>): ForgeStore;
-	    static Binary(attributes: Attributes, value: ArrayBuffer): IForgeStore;
-	    static String(attributes: Attributes, value: string): IForgeStore;
-	    static Store(attributes: Attributes, value: ArrayBuffer, mime: string): IForgeStore;
-	    protected _mime: string;
-	    protected _attributes: Attributes;
-	    protected _hash: string;
-	    protected _lock: string;
-	    protected _releasedStore: IForgeStore;
-	    protected readonly _$onModelConnected: $Promise<IForgeModel>;
-	    protected readonly _$model: $Promise<IForgeModel>;
-	    protected readonly _$onReleased: $Promise<IForgeStore>;
-	    protected readonly _$body: $Promise<[ArrayBuffer, string]>;
-	    protected readonly _$ready: $Promise<this>;
-	    constructor(attributes: Attributes);
-	    constructor(readStream: DataStreamReader);
-	    constructor(attributes: Attributes, model: IForgeModel);
-	    constructor(readStream: DataStreamReader, model: IForgeModel);
-	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    private _$thenChildren;
-	    private _$thenAncestry;
-	    private _$thenParent;
-	    _import(streamReader: DataStreamReader): {
-	        hash: string;
-	        parent: string;
-	        attributes: Attributes;
-	        mime: string;
-	        data: ArrayBuffer;
-	    };
-	    protected _$raceIModel(): Promise<IForgeModel>;
-	    protected _$thenConnectModel: any;
-	    get hash(): string;
-	    get attributes(): Attributes;
-	    get $children(): Promise<IForgeStore[]>;
-	    get $parent(): Promise<IForgeStore>;
-	    get $ancestry(): Promise<IForgeStore[]>;
-	    /**
-	     *
-	     * Public members
-	     *
-	     */
-	    write(buffer: ArrayBuffer, mime: string): this;
-	    $ready(race: number): Promise<IForgeStore>;
-	    $connect(model: IForgeModel): Promise<IForgeStore>;
-	    $lock(): Promise<void>;
-	    $unlock(): Promise<void>;
-	    $hasLock(): Promise<boolean>;
-	    $purge(): Promise<IForgeStore[]>;
-	    $branch(child: IForgeStore): Promise<IForgeStore>;
-	    $fork(): Promise<IForgeStore>;
-	    $fork(mappings: Map<IForgeStore, IForgeStore>): Promise<IForgeStore>;
-	    $clone(): Promise<IForgeStore>;
-	    $order(iForgeStores: IForgeStore[]): Promise<void>;
-	    $write(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
-	    $read(): Promise<[ArrayBuffer, string]>;
-	    $mutate(data: ArrayBuffer, mime: string): Promise<IForgeStore>;
-	    $query(): Promise<IQuery<IForgeStore>>;
-	    $query(recursive: boolean): Promise<IQuery<IForgeStore>>;
-	    $upgrade(queries: StoreUpgradeQuery[]): Promise<IForgeStore[]>;
-	    $find(callback: (iforgeStore: IForgeStore, attributes: Attributes) => boolean): Promise<IForgeStore[]>;
-	    $import(readStream: DataStreamReader): Promise<this>;
-	    $export(): Promise<ForgeStoreExport>;
-	    $export(excludeBody: boolean): Promise<ForgeStoreExport>;
-	    $stream(): Promise<ArrayBuffer>;
-	    $stream(excludeBody: boolean): Promise<ArrayBuffer>;
-	    $render<T = string>(options: {
-	        $onStartGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
-	        $onRender?: (iStore: IForgeStore) => Promise<T>;
-	        $onEndGroup?: (iStore: IForgeStore, previousParent: IForgeStore) => Promise<T>;
-	    }): AsyncIterableIterator<T>;
-	    toString(): string;
-	}
-	
-	
-	
-	
-	
-	
-	export class AbstractForgeModelProxy extends Subscription implements IForgeModelProxy {
-	    protected _model: IForgeModel;
-	    protected _bindings: Map<Function, Function>;
-	    constructor(iModel: IForgeModel);
-	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    $activate(): Promise<void>;
-	    $deactivate(): Promise<void>;
-	    $lock(store: IForgeStore): Promise<void>;
-	    $unlock(hash: string): Promise<void>;
-	    $branch(parent: IForgeStore, child: IForgeStore): Promise<void>;
-	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
-	    $read(store: IForgeStore): Promise<void>;
-	    $write(oldStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<void>;
-	    $purge(store: IForgeStore): Promise<void>;
-	    $connect(store: IForgeStore, hash: string): Promise<void>;
-	    $mutate(store: IForgeStore, mutateStore: IForgeStore): Promise<void>;
-	    $frame(): Promise<void>;
-	    $flush(): Promise<void>;
-	    $message(socket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
-	}
-	export class ForgeModelProxyManager {
-	    private readonly _iProxies;
-	    [Symbol.iterator](): IterableIterator<[IForgeModelProxy, Attributes]>;
-	    $add(proxy: IForgeModelProxy, attributes: Attributes): Promise<void>;
-	    remove(proxy: IForgeModelProxy): Promise<void>;
-	    $connect(store: IForgeStore, hash: string): Promise<void>;
-	    $mutate(store: IForgeStore, mutateStore: IForgeStore): Promise<void>;
-	    $branch(parent: IForgeStore, child: IForgeStore): Promise<void>;
-	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
-	    $read(store: IForgeStore): Promise<void>;
-	    $write(store: IForgeStore, data: ArrayBuffer, mime: string): Promise<void>;
-	    $purge(store: IForgeStore): Promise<void>;
-	    $frame(): Promise<void>;
-	    $flush(): Promise<void>;
-	    $message(iSocket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	export function $CompareModels(iModelA: IForgeModel, iModelB: IForgeModel): Promise<boolean>;
-	type ModelReactorKey = "connect" | "write" | "mutate" | "branch" | "fork" | "purge" | "order" | "lock" | "unlock" | "frame";
-	export type ModelReactorState = {
-	    [key in ModelReactorKey]?: IForgeStore[];
+	export type ForgeDispatcherEntry<T> = {
+	    $authorize: T;
+	    trigger: IForgeTrigger;
+	    params: DispatchParams;
 	};
-	export class ModelReactor extends Reactor<ModelReactorState> {
-	    private readonly _stores;
-	    constructor();
-	    /**
-	     * All setters will dispatch subscriptions
-	     * @param state
-	     * @param previous
-	     * @returns
-	     */
-	    frame(): void;
+	export class ForgeDispatcher<T extends (signal: Signal, ...rest: any[]) => Promise<boolean> | boolean> {
+	    protected _entries: ForgeDispatcherEntry<T>[];
+	    [Symbol.iterator](): IterableIterator<ForgeDispatcherEntry<T>>;
+	    [Reactivity]: Reactor<{
+	        signal: Signal;
+	        request: ForgeRequest;
+	        response: ForgeResponse;
+	    }, {
+	        signal: Signal;
+	        request: ForgeRequest;
+	        response: ForgeResponse;
+	    }>;
+	    add(params: DispatchParams, $authorize: T): this;
 	}
-	export interface IForgeModel {
-	    race: number;
-	    [Symbol.iterator](): IterableIterator<[IForgeStore, Attributes]>;
-	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    [Reactivity]: IReactor<ModelReactorState>;
-	    get proxies(): ForgeModelProxyManager;
-	    get state(): string;
-	    get root(): IForgeStore;
-	    get(hash: string): IForgeStore;
-	    $hash(iStore: IForgeStore): Promise<string>;
-	    $attributes(iStore: IForgeStore): Promise<Attributes>;
-	    $children(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $parent(iStore: IForgeStore): Promise<IForgeStore>;
-	    $ancestry(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $branch(parent: IForgeStore, child: IForgeStore): Promise<IForgeStore>;
-	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
-	    $traverse(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $query(): Promise<IQuery<IForgeStore>>;
-	    $query(parent: IForgeStore): Promise<IQuery<IForgeStore>>;
-	    $query(parent: IForgeStore, recursive: boolean): Promise<IQuery<IForgeStore>>;
-	    $write(iStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<IForgeStore>;
-	    $mutate(iStore: IForgeStore, mutateStore: IForgeStore): Promise<IForgeStore>;
-	    $read(iStore: IForgeStore): Promise<[ArrayBuffer, string]>;
-	    $hasLock(iStore: IForgeStore): Promise<boolean>;
-	    $lock(iStore: IForgeStore): Promise<string>;
-	    $unlock(hash: string): Promise<IForgeStore>;
-	    $connect(iStore: IForgeStore): Promise<string>;
-	    $connect(iStore: IForgeStore, options: {
-	        parent: IForgeStore;
-	    }): Promise<string>;
-	    $connect(iStore: IForgeStore, options: {
-	        data: ArrayBuffer;
-	        mime: string;
-	    }): Promise<string>;
-	    $connect(iStore: IForgeStore, options: {
-	        parent: IForgeStore;
-	        data: ArrayBuffer;
-	        mime: string;
-	    }): Promise<string>;
-	    $purge(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $import(iStore: IForgeStore, importData: {
-	        parent: string;
-	        data: ArrayBuffer;
-	        mime: string;
-	    }): Promise<IForgeStore>;
-	    $wait(hash: string): Promise<IForgeStore>;
-	    $frame(): Promise<this>;
-	    $flush(): Promise<this>;
-	    $message(iSocket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
-	}
-	export interface IForgeModelProxy {
-	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    $activate(): Promise<void>;
-	    $deactivate(): Promise<void>;
-	    $frame(): Promise<void>;
-	    $flush(): Promise<void>;
-	    $lock(store: IForgeStore): Promise<void>;
-	    $unlock(hash: string): Promise<void>;
-	    $connect(iStore: IForgeStore, hash: string): Promise<void>;
-	    $mutate(iStore: IForgeStore, mutateStore: IForgeStore): Promise<void>;
-	    $branch(parent: IForgeStore, child: IForgeStore): Promise<void>;
-	    $read(iStore: IForgeStore): Promise<void>;
-	    $write(iStore: IForgeStore, data: ArrayBuffer, mime: string): Promise<void>;
-	    $purge(iStore: IForgeStore): Promise<void>;
-	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
-	    $message(iSocket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
-	}
-	export class ForgeModel implements IForgeModel {
-	    protected _hash: string;
-	    protected _root: IForgeStore;
-	    protected _state: string;
-	    protected _proxies: ForgeModelProxyManager;
-	    protected readonly _topology: Topology<IForgeStore>;
-	    protected readonly _hashes: Map<IForgeStore, string>;
-	    protected readonly _$bodies: Map<IForgeStore, [ArrayBuffer, string]>;
-	    protected readonly _waitingStores: Map<string, $Promise<IForgeStore>>;
-	    protected readonly _locks: Map<IForgeStore, string>;
-	    readonly [Reactivity]: IReactor<ModelReactorState>;
-	    race: number;
-	    constructor();
-	    constructor(attributes: Attributes);
-	    constructor(root: IForgeStore);
-	    [Symbol.iterator](): IterableIterator<[IForgeStore, Attributes]>;
-	    [Symbol.asyncIterator](): AsyncIterableIterator<[IForgeStore, Attributes]>;
-	    protected _nextHash(): string;
-	    protected _$fetchWaitingStore(hash: string): $Promise<IForgeStore>;
-	    protected _$remove(store: IForgeStore): Promise<void>;
-	    get state(): string;
-	    get root(): IForgeStore;
-	    get proxies(): ForgeModelProxyManager;
-	    $hash(iStore: IForgeStore): Promise<string>;
-	    $attributes(iStore: IForgeStore): Promise<Attributes>;
-	    $children(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $parent(iStore: IForgeStore): Promise<IForgeStore>;
-	    $ancestry(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    get(query: string): IForgeStore;
-	    $fork(stores: IForgeStore[], options?: {
-	        topology?: boolean;
-	        root?: Attributes;
-	        mappings?: Map<IForgeStore, IForgeStore>;
-	    }): Promise<IForgeModel>;
-	    $branch(parent: IForgeStore, child: IForgeStore): Promise<IForgeStore>;
-	    $order(parent: IForgeStore, children: IForgeStore[]): Promise<void>;
-	    $traverse(iStore: IForgeStore): Promise<IForgeStore[]>;
-	    $connect(store: IForgeStore): Promise<string>;
-	    $connect(store: IForgeStore, options: {
-	        parent: IForgeStore;
-	        hash?: string;
-	    }): Promise<string>;
-	    $connect(store: IForgeStore, options: {
-	        data: ArrayBuffer;
-	        mime: string;
-	        hash?: string;
-	    }): Promise<string>;
-	    $connect(store: IForgeStore, options: {
-	        parent: IForgeStore;
-	        data: ArrayBuffer;
-	        mime: string;
-	        hash?: string;
-	    }): Promise<string>;
-	    $purge(store: IForgeStore): Promise<IForgeStore[]>;
-	    $hasLock(store: IForgeStore): Promise<boolean>;
-	    $lock(store: IForgeStore): Promise<string>;
-	    $unlock(hash: string): Promise<IForgeStore>;
-	    $import(iStore: IForgeStore, importData: {
-	        parent: string | IForgeStore;
-	        data: ArrayBuffer;
-	        mime: string;
-	    }): Promise<IForgeStore>;
-	    $frame(): Promise<this>;
-	    $flush(): Promise<this>;
-	    $query(): Promise<IQuery<IForgeStore>>;
-	    $query(root: IForgeStore): Promise<IQuery<IForgeStore>>;
-	    $query(root: IForgeStore, recursive: boolean): Promise<IQuery<IForgeStore>>;
-	    $write(store: IForgeStore, data: ArrayBuffer, mime: string): Promise<IForgeStore>;
-	    $mutate(store: IForgeStore, mutatedStore: IForgeStore): Promise<IForgeStore>;
-	    $validate(iStore: IForgeStore): $IResult<Attributes>;
-	    $wait(hash: string): Promise<IForgeStore>;
-	    $read(iStore: IForgeStore): Promise<[ArrayBuffer, string]>;
-	    $message(iSocket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
-	    toString(): string;
-	}
+	
 	
 	
 	
@@ -2804,7 +3317,7 @@ declare module "@onyx-ignition/forge" {
 	    private _$thenISocketReady;
 	    protected _$queue(header: unknown, data: Serialize): Promise<Serialize>;
 	    get $ready(): Promise<IForgeModel>;
-	    $message(socket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	    $activate(): Promise<void>;
 	    $connect(store: IForgeStore, hash: string): Promise<void>;
 	    $mutate(iStore: IForgeStore, mutateStore: IForgeStore): Promise<void>;
@@ -2823,343 +3336,36 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export class ForgeWebsocket extends AbstractForgeSocket {
-	    static FrameSize: number;
-	    private _socket;
-	    private _abort;
-	    private _$online;
-	    private readonly _frameSize;
-	    constructor(name: string, options: SocketConfig, socket: WebSocket);
-	    private _onMessage;
-	    private _onOpen;
-	    $connect(data: Serialize): Promise<Serialize>;
-	    private _onExit;
-	    private _$writeMultiPart;
-	    write(protocol: string, ...rest: Serialize[]): void;
-	}
 	
 	
 	
 	
 	
-	
-	
-	
-	export class ForgeWebSocketServer {
-	    private _key;
-	    private _server;
-	    private readonly _sockets;
-	    private _router;
-	    private _constraints;
-	    readonly port: number;
-	    [Reactivity]: IReactor<[IForgeSocket, Attributes, Serialize]>;
-	    constructor(port: number, race?: unknown, key?: unknown);
-	    protected _$connect(socket: WebSocket): Promise<void>;
-	    _$read(notify: Notification, socket: ForgeWebsocket, header: Attributes, data: Serialize): Promise<void | typeof Unsubscribe>;
-	    get key(): string;
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	}
-	
-	
-	
-	export type RouteDelegate = (forgeRequest: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute) => Promise<boolean | undefined>;
-	export interface IForgeRoute {
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $finally(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	}
-	export type IForgeRouteHook = {
-	    $authorize?: RouteDelegate;
-	    $resolve?: RouteDelegate;
-	    $reject?: RouteDelegate;
-	    $finally?: RouteDelegate;
-	};
-	export class ForgeRoute implements IForgeRoute, IForgeRouteHook {
-	    protected static Race: number;
-	    static Hooks: {
-	        $Authorize: {
-	            Match: (...matches: string[]) => RouteDelegate;
-	            RegExp: (regExp: RegExp, options?: {
-	                groups?: string;
-	                index?: number;
-	            }) => RouteDelegate;
-	        };
-	    };
-	    protected _hooks: Set<IForgeRouteHook>;
-	    protected _race: number;
-	    protected _hasAuthorize: boolean;
-	    protected _hasResolve: boolean;
-	    protected _hasReject: boolean;
-	    protected _hasFinally: boolean;
-	    constructor();
-	    constructor(config: {
-	        race?: number;
-	        hooks?: IForgeRouteHook[];
-	    });
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $finally(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    add(hook: IForgeRouteHook): this;
-	}
-	
-	
-	
-	export class ForkSocket extends AbstractForgeSocket {
-	    private _source;
-	    private _commands;
-	    private _args;
-	    private _stdio;
-	    constructor(name: string, config: SocketConfig, source?: any);
-	    protected _pipeStdio(message: string): void;
-	    protected _pipeError(message: string): void;
-	    private _onExit;
-	    write(protocol: string, ...rest: Serialize[]): void;
-	}
-	
-	
-	
-	
-	export class SpawnSocket extends AbstractForgeSocket {
-	    private _source;
-	    private _commands;
-	    constructor(name: string, config: SocketConfig, source?: any);
-	    protected _pipeStdio(message: string): void;
-	    private _onExit;
-	    $write(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	}
-	
-	
-	
-	
-	export class WorkerSocket extends AbstractForgeSocket {
-	    private _worker;
-	    private _command;
-	    private readonly _$online;
-	    constructor(name: string, config: SocketConfig);
-	    constructor(name: string, config: SocketConfig, port: MessagePort);
-	    $connect(data: Serialize): Promise<Serialize>;
-	    private _onExit;
-	    write(protocol: string, ...rest: Serialize[]): void;
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	export type ForgeClientParams = {
+	export type ForgeHostParams = {
 	    key?: string;
 	    name?: string;
 	    race?: Record<string, number>;
 	};
-	class ForgeClientRouting {
-	    protected _$catchRoute: (error: unknown) => false;
-	    private _client;
-	    constructor(client: ForgeClient);
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	export class ClientSession extends GenericSession<Serialize> {
-	    private readonly _signal;
-	    private readonly _socket;
-	    constructor(race: number, header: Signal, socket?: IForgeSocket);
-	    renew(race: number): this;
-	    toString(): string;
-	}
-	export class ForgeClient extends Subscription {
+	export class ForgeHost extends Forge {
 	    protected _executing: boolean | undefined;
 	    protected _queue: [];
 	    protected _socket: IForgeSocket;
 	    protected _model: IForgeModel | undefined;
-	    protected _server: ForgeWebSocketServer | undefined;
 	    protected _constraints: SignalConstraints;
-	    protected readonly _routing: ForgeClientRouting;
-	    readonly routes: Set<IForgeRoute>;
 	    constructor(options: {
 	        key?: string;
 	        constraint: SignalConstraint;
 	    });
-	    protected _$subscribeMessage(notify: string, socket: IForgeSocket, signal: Signal, forgeRequest: ForgeRequest, forgeResponse: ForgeResponse): Promise<void>;
+	    protected _$subscribeSignalReaction({ socket, protocol, signal, request, response }: SocketReaction): Promise<void>;
 	    get $ready(): Promise<Serialize>;
 	    $connect(data: Serialize): Promise<Serialize>;
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
 	    $start(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	    $frame(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	    $flush(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	    $frame(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $flush(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
 	    $execute(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	    $watch(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	    $model(attributes: Attributes): Promise<IForgeModel>;
-	    $route(signal: Signal, forgeRequest: ForgeRequest, forgeResponse: ForgeResponse): Promise<void>;
-	    $read(signal: Signal, forgeRequest: ForgeRequest, forgeResponse: ForgeResponse): Promise<void>;
-	}
-	
-	
-	export class ForgeRace {
-	    static From(overload: number | Record<string, number> | Map<RegExp, number> | ForgeRace): ForgeRace;
-	    private _default;
-	    private _race;
-	    constructor(race: Record<string, number>);
-	    constructor(race: Map<RegExp, number>);
-	    query(): number;
-	    query(value: string): number;
-	}
-	
-	
-	
-	
-	
-	
-	export class ForgeController {
-	    readonly actions: Set<IAction>;
-	    readonly settled: Set<IAction>;
-	    readonly resolves: Set<IAction>;
-	    readonly rejections: Set<IAction>;
-	    find(name: string): IAction | undefined;
-	    $frame(data: Serialize): Promise<Map<IAction, SerializeData[]>>;
-	    $flush(data: Serialize): Promise<Map<IAction, SerializeData[]>>;
-	    $signal(signal: Signal, resquest: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	}
-	
-	
-	
-	export class ForgeFileWatcher extends Subscription {
-	    static Default: {
-	        Threshold: number;
-	    };
-	    threshold: number;
-	    private _abortController;
-	    private _targets;
-	    private _ignores;
-	    private readonly _reactor;
-	    private readonly _fileStats;
-	    private readonly _debounce;
-	    constructor(targets: string[], options: {
-	        threshold?: number;
-	        ignores?: string[];
-	    });
-	    private _onDebounceFileChangeUnbinded;
-	    [Symbol.dispose](): void;
-	    [Reactivity](): IReactor<{
-	        file: string;
-	        event: string;
-	    }>;
-	    [Symbol.asyncIterator](): AsyncIterableIterator<{
-	        event: string;
-	        file: string;
-	    }>;
-	    protected _$watchFiles(event: string, file: string): Promise<void>;
-	    abort(): void;
-	}
-	
-	
-	
-	export class ExpressRequestHeader {
-	    _descriptors: string[];
-	    readonly cookies: Serialize;
-	    http: Serialize;
-	    constructor(request: ExpressRequestAdapter);
-	    parse(raw: string): this;
-	}
-	
-	
-	
-	export class ExpressRequestPayload implements IRequestRead {
-	    private _adapter;
-	    private _race;
-	    private _buffer;
-	    constructor(adapter: ExpressRequestAdapter, race: number);
-	    $read(): Promise<ArrayBuffer>;
-	}
-	
-	
-	
-	
-	export type ExpressRequestAdapter = {
-	    originalUrl: string;
-	    protocol: string;
-	    rawHeaders: string[];
-	    method: string;
-	    on: Function;
-	    off: Function;
-	    get(key: string): string;
-	};
-	export class ExpressHTTPServer {
-	    private _express;
-	    protected _$catchRoute: (error: unknown) => boolean;
-	    readonly routes: Set<IForgeRoute>;
-	    race: number;
-	    constructor(port: number);
-	    protected _buildRequest(request: ExpressRequestAdapter): ForgeRequest;
-	    protected _buildResponse(response: IResponseSocket): ForgeResponse;
-	    use(delegate: Function): void;
-	    protected _$all(request: ExpressRequestAdapter, response: IResponseSocket, next: Function): Promise<void>;
-	}
-	
-	
-	
-	
-	
-	export class ExecSocket extends AbstractForgeSocket {
-	    private _command;
-	    private _config;
-	    private _stdio;
-	    constructor(name: string, config: SocketConfig);
-	    private _injectCommand;
-	    protected _pipeStdio(message: string): void;
-	    protected _pipeError(message: string): void;
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
-	    send(protocol: string, ...rest: Serialize[]): void;
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	export enum Verbosity {
-	    all = "all",
-	    log = "log",
-	    warn = "warn",
-	    error = "error",
-	    silent = "silent"
-	}
-	export class Forge {
-	    static EnviromentVariabled(): {
-	        DRY_RUN: boolean;
-	        VERBOSITY: Verbosity;
-	    };
-	    private readonly _serve;
-	    private _model;
-	    private readonly _controller;
-	    readonly sockets: Map<string, IForgeSocket>;
-	    constructor();
-	    private _addSocket;
-	    get serve(): any;
-	    get model(): IForgeModel;
-	    spawn(name: string, config: SocketConfig): IForgeSocket;
-	    fork(name: string, config: SocketConfig): IForgeSocket;
-	    worker(name: string, config: SocketConfig): IForgeSocket;
-	    exec(name: string, config: SocketConfig): IForgeSocket;
-	    watch(roots: string[], options: {
-	        threshold?: number;
-	        ignores?: string[];
-	        debounce?: number;
-	        throttle?: number;
-	    }): ForgeFileWatcher;
-	    add(action: IAction): void;
-	    $frame(data: Serialize): Promise<Serialize>;
-	    $flush(data: Serialize): Promise<Serialize>;
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    abort(): void;
+	    $read(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
 	
@@ -3222,6 +3428,7 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
 	type ForgeModelRouteRequestBody = {
 	    branch?: {
 	        parent: string;
@@ -3254,7 +3461,7 @@ declare module "@onyx-ignition/forge" {
 	}
 	export type $AuthorizePermission = (request: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute, permission: ForgeModelRoutePermission) => Promise<boolean>;
 	export type ForgeModelRouteHook = IForgeRouteHook & {
-	    $parse(request: ForgeRequest, response: ForgeResponse): Promise<ForgeModelRouteRequest>;
+	    $parse(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<ForgeModelRouteRequest>;
 	};
 	export class ForgeModelRoute extends ForgeRoute implements ForgeModelRouteHook {
 	    protected _iModel: IForgeModel;
@@ -3263,13 +3470,12 @@ declare module "@onyx-ignition/forge" {
 	    protected readonly _stateKey: string;
 	    protected readonly _permissions: Map<string, ForgeModelRoutePermission>;
 	    constructor(iModel: IForgeModel, config: {
-	        race?: number;
 	        hooks?: ForgeModelRouteHook[];
 	    });
 	    get state(): string;
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $parse(request: ForgeRequest, response: ForgeResponse): Promise<ForgeModelRouteRequest>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $authorize(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    $parse(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<ForgeModelRouteRequest>;
+	    $resolve(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
 	    expose(stores: IForgeStore[]): ForgeModelRoutePermission;
 	    expose(stores: IForgeStore[], options: {
 	        access?: ForgeModelRouteAccess[];
@@ -3326,13 +3532,13 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	
 	export class RootSocketModelProxy extends AbstractForgeModelProxy {
-	    private readonly _roots;
 	    readonly _iSockets: Set<IForgeSocket>;
 	    constructor(model: IForgeModel);
 	    private _$waitForStore;
 	    private _validateModelState;
-	    $message(iSocket: IForgeSocket, header: Record<string, unknown>, data: Serialize): Promise<void>;
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
 	
@@ -3428,138 +3634,41 @@ declare module "@onyx-ignition/forge" {
 	export class ForgeZip {
 	    static $GUnzip(data: string | ArrayBuffer): Promise<ArrayBuffer>;
 	    static $GZip(data: string | ArrayBuffer, options?: {}): Promise<ArrayBuffer>;
-	}
-	
-	
-	
-	
-	export class DelegateRoute extends ForgeRoute {
-	    private _$authorize;
-	    private _$resolve;
-	    private _$reject;
-	    constructor($delegates: {
-	        $authorize: RouteDelegate;
-	        $resolve: RouteDelegate;
-	        $reject: RouteDelegate;
-	    });
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
+	    private _zip;
+	    cursor(path: string): void;
+	    add(path: string, data: string | ArrayBuffer): this;
+	    remove(path: string): void;
+	    $archive(): Promise<ArrayBuffer>;
 	}
 	
 	
 	
 	
 	
-	export type FileRoutePathing = {
-	    relative: string;
-	    absolute: string;
-	    base: string;
-	    ext: string;
-	};
-	export type FileRouteDelegate = (forgeRequest: ForgeRequest, response: ForgeResponse, iRoute: IForgeRoute, pathing: FileRoutePathing) => Promise<boolean>;
-	export class FileRoute extends ForgeRoute {
-	    private _file;
-	    private _mime;
-	    private _status;
-	    private _cache;
-	    constructor(config: {
-	        hooks?: IForgeRouteHook[];
-	        file: {
-	            path: string;
-	            mime?: string;
-	            caching?: boolean;
-	            preload?: boolean;
-	        };
-	        race?: number;
-	        status: number;
-	    });
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $invalidate(): Promise<void>;
-	}
-	export class FileDirectoryRoute extends ForgeRoute {
-	    static Hooks: {
-	        $Authorize: {
-	            Match: (...matches: string[]) => RouteDelegate;
-	            RegExp: (regExp: RegExp, options?: {
-	                groups?: string;
-	                index?: number;
-	            }) => RouteDelegate;
-	        };
-	    };
-	    private _root;
-	    private _indexes;
-	    private _caching;
-	    private readonly _resolve;
-	    private readonly _reject;
-	    readonly statuses: Map<string, ForgePathStatus>;
-	    readonly cache: Map<string, ArrayBufferLike>;
-	    constructor(config: {
-	        root: string;
-	        indexes?: string[];
-	        hooks?: (IForgeRouteHook & {
-	            $render?: FileRouteDelegate;
-	        })[];
-	        race?: number;
-	        resolve?: {
-	            status?: number;
-	            end?: boolean;
-	        };
-	        reject?: {
-	            status?: number;
-	            end?: boolean;
-	        };
-	        caching?: boolean;
-	    });
-	    get root(): string;
-	    get indexes(): string[];
-	    $status(target: string): Promise<ForgePathStatus>;
-	    $status(target: string, root: string): Promise<ForgePathStatus>;
-	    $exists(target: string): Promise<boolean>;
-	    $pathing(request: ForgeRequest): Promise<FileRoutePathing>;
-	    $fetch(relative: string, absolute: string): Promise<ArrayBufferLike | undefined>;
-	    protected _$render(request: ForgeRequest, response: ForgeResponse, pathing: FileRoutePathing): Promise<boolean>;
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    add(hook: {
-	        $authorize?: RouteDelegate;
-	        $resolve?: RouteDelegate;
-	        $reject?: RouteDelegate;
-	        $finally?: RouteDelegate;
-	        $render?: FileRouteDelegate;
-	    }): this;
-	    uncache(): void;
-	    uncache(relative: string): void;
+	export class SignalRoute extends ForgeRoute {
+	    private _target;
+	    private _signal;
+	    constructor(target: {
+	        $signal: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => any;
+	    }, signal: Signal);
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
 	
 	
 	
 	
-	
-	export class ForgeSocketRoute extends ForgeRoute {
-	    static $Authorize(socket: IForgeSocket, options: {
+	export class HTTPSocket extends AbstractForgeSocket {
+	    private _config;
+	    private readonly _signals;
+	    constructor(name: string, config: SocketConfig, signals: Map<Signal, {
+	        url: string;
+	        request: RequestInit;
 	        race: number;
-	        capture: Capture;
-	    }): (request: ForgeRequest, response: ForgeResponse) => Promise<boolean | undefined>;
-	    private socket;
-	    constructor(socket: IForgeSocket, config: {
-	        hooks?: IForgeRouteHook[];
-	        race?: number;
-	    });
-	    $authorize(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	    $reject(request: ForgeRequest, response: ForgeResponse): Promise<boolean | undefined>;
-	}
-	
-	
-	
-	
-	export class HTTPRoute extends ForgeRoute {
-	    private _root;
-	    constructor(route: RegExp, root: string);
-	    $resolve(request: ForgeRequest, response: ForgeResponse): Promise<boolean>;
+	    }>);
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
+	    $send(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	    write(protocol: string, ...rest: Serialize[]): void;
 	}
 	
 	
@@ -3581,23 +3690,6 @@ declare module "@onyx-ignition/forge" {
 	    write(protocol: string, ...rest: Serialize[]): void;
 	    start(): this;
 	    $play(): Promise<void>;
-	}
-	
-	
-	
-	
-	
-	export class RequestSocket extends AbstractForgeSocket {
-	    private _config;
-	    private readonly _signals;
-	    constructor(name: string, config: SocketConfig, signals: Map<Signal, {
-	        url: string;
-	        request: RequestInit;
-	        race: number;
-	    }>);
-	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<SignalResult>;
-	    $send(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	    write(protocol: string, ...rest: Serialize[]): void;
 	}
 	
 	
@@ -3624,6 +3716,31 @@ declare module "@onyx-ignition/forge" {
 	export class GenericExpression extends ForgeSyntaxExpression {
 	    consume(token: ParsedToken): boolean;
 	    clone(): IForgeSyntaxExpression;
+	}
+	
+	
+	
+	
+	
+	
+	
+	export class DelegateTrigger extends ForgeTrigger {
+	    private _$delegate;
+	    constructor($delegate: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => Promise<void>);
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	}
+	
+	
+	
+	
+	
+	export class SignalTrigger extends ForgeTrigger {
+	    private _target;
+	    private _signal;
+	    constructor(target: {
+	        $signal: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => any;
+	    }, signal: Signal);
+	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
 	export class ForgeVirtualScript {
@@ -3756,7 +3873,13 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	export { $GetApplicationArguments, Accessor, ArgumentPackageComponent, IArgumentPackage, MergePackages, MergeValidations, ArgumentPackage, IArgumentPackageMount, AttributesArgumentPackageMount, DelegateArgumentPackageMount, ArgumentValidationComponent, ArgumentValidationWarning, ArgumentValidationSuccess, ArgumentValidationError, ArgumentValidation, ArgumentValues, CLIPromptArgument, CLIArgumentPackage, ExplodeString, $ExplodeGlob, VerfiyPacakgeWarnignsAndErrors, AbstractPackageQuerySequence, IPackageSanitizer, IAsyncPackageSanitizer, PackageSanitizeOptions, AsyncPackageSanitizeOptions, ArgumentPackageSanitize, AsyncArgumentPackageSanitize, NumberArgumentSanitize, GlobArgumentSanitize, JSONEntriesArgumentSanitizer, IValueSanitizer, IAsyncValueSanitizer, ValueSanitizeOptions, AsyncValueSanitizeOptions, ArgumentValueSanitize, AsyncArgumentValueSanitize, StdinArgumentPackage, IPackageValidator, IAsyncPackageValidator, PackageValidateOptions, AsyncPackageValidateOptions, AbstractPackageValidate, ArgumentPackageValidate, AsyncArgumentPackageValidate, FileExistsArgumentValidate, IValidateValueDelegates, IAsyncValidateValueDelegates, ValueValidateOptions, AsyncValueValidateOptions, ArgumentValueValidate, AsyncArgumentValueValidate, IAsyncable, AsyncUnknown, AsyncCaught, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Topology, ITreeNode, TreeNode, TreeCollection, ICommand, CommandState, AbstractCommand, CommandQueue, CommandSequence, DelegateCommand, LockCommand, Attributes, AttributeFragment, IntervalClear, TimeoutClear, SerializeData, Serialize, $Serialize, Capture, ImplodeAttributesOptions, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, TokenizeAttributes, TokenizeAttributeFragments, MountAttributes, CollateAttributes, ExplodeAttributes, IntersectAttributes, MergeAttributes, CollapseAttributes, ImplodeAttributes, TransformAttributes, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, CompositeLoader, HTTPLoader, JSONLoader, Mimes, IPoolable, PoolManager, Intersects, QueryDelegate, $QueryDelegate, AttributesQuery, IQuery, QueryManager, QueryManagerReactor, QuerySequence, AsyncReactivity, HaltAsyncReactivity, AsyncReactiveDelegate, AsyncReaction, IAsyncReactor, AsyncReactiveTrait, $reactive, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, Reactor, reactive, InstanceOf, IResult, $IResult, Result, SessionResult, GenericSession, Notification, ISubscription, Unsubscribe, Subscription, DebounceDelegate, Debounce, IThottle, SequentialThottle, Debouncer, ResolverOperators, ActionInit, ActionState, IAction, ForgeAction, RejectedAction, ResolvedAction, SettledAction, SignalAction, DelegateTrigger, IForgeTrigger, ForgeTrigger, WatchTrigger, SocketTrigger, ForgeParamsKeys, ForgeWatchParams, ForgeWorkerParams, ForgeParams, ForgePackage, ForgePackageSanitize, ForgePackageValidate, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeUser, ForgeClientParams, ClientSession, ForgeClient, ForgeRace, Verbosity, Forge, ForgeController, $CompareModels, ModelReactorState, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, ForgeModelState, ClientModelProxy, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRouteClient, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFile, ForgeIO, ForgeParsedPath, ForgePathStatus, ForgePath, ForgeZip, ForgeFileWatcher, ServeHeaders, ExpressRequestAdapter, ExpressHTTPServer, ExpressRequestHeader, ExpressRequestPayload, ForgeRequestInit, ForgeRequestExport, IRequestRead, LocalRequestRead, ForgeRequest, IResponseSocket, ForgeResponse, ForgeWebSocketServer, DelegateRoute, FileRoutePathing, FileRouteDelegate, FileRoute, FileDirectoryRoute, RouteDelegate, IForgeRoute, IForgeRouteHook, ForgeRoute, ForgeSocketRoute, HTTPRoute, DummySocket, ExecSocket, ForgeProtocol, Signal, SignalConstraint, SocketSession, SignalResult, SocketConfig, SignalConstraints, IForgeSocket, AbstractForgeSocket, ForgeWebsocket, ForkSocket, ModulesExportSocket, PlaybackSocket, RequestSocket, SpawnSocket, WorkerSocket, ForgeSwarm, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ParseAttributes, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer, ForgeVirtualScript };
+	
+	
+	
+	
+	export { $GetApplicationArguments, Accessor, ArgumentPackageComponent, IArgumentPackage, SquashPackages, MergeValidations, PackageError, ArgumentPackage, VerfiyPackageWarnignsAndErrors, IArgumentPackageMount, AttributesArgumentPackageMount, DelegateArgumentPackageMount, ArgumentValidationComponent, ArgumentValidationWarning, ArgumentValidationSuccess, ArgumentValidationError, ArgumentValidations, ArgumentValues, CLIPromptArgument, CLIArgumentPackage, ExplodeString, $ExplodeGlob, AbstractPackageQuerySequence, IPackageSanitizer, IAsyncPackageSanitizer, PackageSanitizeOptions, AsyncPackageSanitizeOptions, ArgumentPackageSanitize, AsyncArgumentPackageSanitize, NumberArgumentSanitize, GlobArgumentSanitize, JSONEntriesArgumentSanitizer, IValueSanitizer, IAsyncValueSanitizer, ValueSanitizeOptions, AsyncValueSanitizeOptions, ArgumentValueSanitize, AsyncArgumentValueSanitize, StdinArgumentPackage, IPackageValidator, IAsyncPackageValidator, PackageValidateOptions, AsyncPackageValidateOptions, AbstractPackageValidate, ArgumentPackageValidate, AsyncArgumentPackageValidate, FileExistsArgumentValidate, IValidateValueDelegates, IAsyncValidateValueDelegates, ValueValidateOptions, AsyncValueValidateOptions, ArgumentValueValidate, AsyncArgumentValueValidate, IAsyncable, AsyncUnknown, AsyncCaught, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Topology, ITreeNode, TreeNode, TreeCollection, ICommand, CommandState, AbstractCommand, CommandQueue, CommandSequence, DelegateCommand, LockCommand, Attributes, AttributeFragment, IntervalClear, TimeoutClear, SerializeData, Serialize, $Serialize, Capture, ImplodeAttributesOptions, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, TokenizeAttributes, TokenizeAttributeFragments, MountAttributes, CollateAttributes, ExplodeAttributes, IntersectAttributes, SquashAttributes, CollapseAttributes, ImplodeAttributes, TransformAttributes, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, CompositeLoader, HTTPLoader, JSONLoader, Mimes, IPoolable, PoolManager, Intersects, QueryDelegate, $QueryDelegate, AttributesQuery, IQuery, QueryManager, QueryManagerReactor, QuerySequence, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, ReactorTransform, Reactor, reactive, InstanceOf, IResult, $IResult, Result, SessionResult, GenericSession, Notification, ISubscription, Unsubscribe, Subscription, DebounceDelegate, Debounce, IThottle, SequentialThottle, Debouncer, ResolverOperators, ActionInit, ActionState, IAction, ForgeAction, RejectedAction, ResolvedAction, SettledAction, SignalAction, ForgeParamsKeys, ForgeWatchParams, ForgeWorkerParams, HTTPActionParams, ForgeParams, ForgePackage, ForgePackageSanitizeSuccessAttributes, ForgePackageSanitize, ForgePackageValidateSuccessAttributes, ForgePackageValidate, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeUser, Verbosity, EnviromentVariables, DispatchParams, ForgeDispatcherEntry, ForgeDispatcher, $Run, Forge, ForgeController, ForgeHostParams, ForgeHost, $AuthorizeDispatch, ForgeReactorDispatch, ForgeReactor, $CompareModels, ModelReactorState, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, ForgeModelState, ClientModelProxy, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRouteClient, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFile, ForgeIO, ForgeParsedPath, ForgePathStatus, ForgePath, ForgeZip, ForgeFileWatcher, DelegateRoute, FileRoutePathing, FileRoute, FileDirectoryRoute, RouteSignal, RouteDelegate, IForgeRoute, IForgeRouteHook, AuthorizeString, AuthorizeRegExp, ForgeRoute, SignalRoute, SocketRoute, ForgeServlet, ServeHeaders, ForgeServletFactory, ExpressRequestAdapter, ExpressHTTPServer, ExpressRequestHeader, ExpressRequestPayload, ForgeRequestInit, ForgeRequestExport, IRequestRead, LocalRequestRead, ForgeRequest, IResponseSocket, ForgeResponse, ForgeWebSocketServer, ServletManger, DummySocket, ExecSocket, ForgeProtocol, Signal, SignalConstraint, SocketSession, SignalResult, SocketReaction, SocketConfig, SignalConstraints, IForgeSocket, AbstractForgeSocket, ForgeWebsocket, ForkSocket, HTTPSocket, ModulesExportSocket, PlaybackSocket, SpawnSocket, WorkerSocket, ForgeSwarm, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ParseAttributes, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer, DelegateTrigger, IForgeTrigger, ForgeTrigger, SignalTrigger, SocketTrigger, ForgeVirtualScript };
+	
+	
 	
 	
 	
