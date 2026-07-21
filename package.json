@@ -1,6 +1,6 @@
 {
   "name": "@onyx-ignition/forge",
-  "version": "0.1.7",
+  "version": "0.2.4",
   "description": "NPX entry and Core library used for all Forge Packages",
   "bin": "./bin.js",
   "license": "GNU",
@@ -13,9 +13,9 @@
     }
   },
   "scripts": {
-    "test": "echo \"Warning: no test specified\" && exit 0",
+    "test": "node ./validate-publish.js",
     "start": "node ./bin",
-    "debug": "node --watch ./bin.js [forge.watch] [[roots]] ../Forge-Source/src/ [[actions]] [[[filter]]] .+?[/\\].ts [[[trigger]]] signal://one [[actions]] [[[filter]]] .+?[/\\].css [[[trigger]]] \"cli://python index.py\" [forge.imports] \"json.values(root[1])://test.json\" [forge.http] [[port]] 1234 [[root]] ./app/ [forge.workers] [[script]] ./worker.js [[signals]] one [[data]] [[[some]]] value [forge.workers_] [[script]] ./worker.js [[signals]] damn,son,big [[data]] [[[hi [[[drew]]] tyna"
+    "debug": "node --watch ./bin.js [forge.watch] [[roots]] ../Forge-Source/src/ [[actions]] [[[filter]]] .+?\\.ts [[[trigger]]] signal://one [[actions]] [[[filter]]] .+?\\.css [[[trigger]]] \"cli://python index.py\" [forge.imports] \"json.values(root[1])://test.json\" [forge.http] [[port]] 1234 [[root]] ./app/ [forge.workers] [[script]] ./worker.js [[signals]] one [[data]] [[[some]]] value [forge.workers_] [[script]] ./worker.js [[signals]] damn,son,big [[data]] [[[hi [[[drew]]] tyna"
   },
   "repository": {
     "type": "git",
@@ -26,10 +26,8 @@
   "dependencies": {
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
-    "express": "^4.18.2",
+    "express": "^5.2.1",
+    "jszip": "^3.10.1",
     "ws": "^8.18.3"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.1.0"
   }
 }

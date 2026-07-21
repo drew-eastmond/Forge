@@ -11,3 +11,4 @@ node_modules
 /test.json
 /worker.js
 /index.py
+/validate-publish.js
