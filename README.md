@@ -1,9 +1,19 @@
-# Forge ( BETA )
+# Forge
+
+Check out the [Forge Wiki](https://github.com/drew-eastmond/Forge/wiki) for evolving documentation.
+
+## Overview
+
+`Forge` is a fully portable and highly customizable build environment. `Forge` can build full-stack applications like Single/Multi Page Applications or games, but is flexible to integrate with ( with some complexity ) building environments focused on Python, RUST, C++, or even PHP. It even works in Project IDX
+
+Another unique feature of `Forge` is the convenience of packaging services for other team members to use. By bundling API routes, CLI commands, models, and browser front-ends. You can build "local-first" APIs to automate tasks and sequence AI into individual build steps.
+
+Finally `Forge` includes a library of files and types definitions for each components via NPM. Documentation is pending and will be released pending final specifications.
 
 ## Getting Started
 
 ```bash
-# via NPM
+# via NPM ( see below for config.json )
 npm install @onyx-ignition/Forge
 npm run start [forge] [[imports]] json://./config.json
 ```
@@ -15,7 +25,7 @@ npm run start [forge] [[imports]] json://./config.json
 npx @onyx-ignition/Forge -- [forge] [[imports]] json://./config.json [[http.port]] 1337
 ```
 
-### Config.json
+### Config.json ( Example file )
 A config file that instructs `Forge` to:
 * Create a http server listening on port 1234 that can serve static files from `./www/` while routing missed requests to any worker instances.
 * Watches the file system for file changes against an Regular Expression. Then dispatch an action based on the supplied protocol.
@@ -71,7 +81,7 @@ import { Signal, SignalConstraint } from "./forge/socket/ForgeSocket";
     // all signals and routes have at least on universal race timeuot 
     const constraint: SignalConstraint = { race: 1000 };
 
-    const application = new class extends ForgeClient {
+    const application = new class extends Forgelet {
 
         public async $route(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void> {
             
@@ -150,10 +160,30 @@ import { Signal, SignalConstraint } from "./forge/socket/ForgeSocket";
 ```
 
 
-## Overview
+## Socials
 
-`Forge` is a fully portable and highly customizable build environment. `Forge` can build full-stack applications like Single/Multi Page Applications or games, but is flexible to integrate with ( with some complexity ) building environments focused on Python, RUST, C++, or even PHP. It even works in Project IDX
+Currently these are the channels that official. More social channels will added as new opportunities progress. 
 
-Another unique feature of `Forge` is the convenience of packaging services for other team members to use. By bundling API routes, CLI commands, models, and browser front-ends. You can build "local-first" APIs to automate tasks and sequence AI into individual build steps.
+### Wiki
+There's a [Forge Wiki](https://github.com/drew-eastmond/Forge/wiki) for a quick reference for getting started with examples
 
-Finally `Forge` includes a library of files and types definitions for each components via NPM. Documentation is pending and will be released pending final specifications.
+### Reddit
+Community [Reddit board](https://www.reddit.com/r/OnyxIgnition/) for discussing features, news, and debugging.
+
+### Discord
+Direct message and group chats [Discord](https://discord.gg/eRGwtxKmM)
+
+### Youtube
+Tutorials coming soon [Youtube](https://www.youtube.com/@OnyxIgnition)
+
+## Funding
+
+`Forge` is one of the many projects being developed by Onxy Ignition. To keep access vs funding as democratic as possible i've opted to use innovate a new business model around the concept of **Profit Sourced**. 
+
+**Profit Sourced** revolves around the paradigm that the release builds are always open to the general public, while source code is private  until on funding goals are reached. In the mean, time premium content is regularly is promoted to drive community funding through dedicated portals, or contracts from participating entities. 
+
+This is a long term project that is expected to gain traction through iterative releases.
+
+<img src="https://media3.giphy.com/media/TDQOtnWgsBx99cNoyH/200.gif" width="50">[Buy me a coffee](https://buymeacoffee.com/onyx_ignition)
+
+<img src="https://static.vecteezy.com/system/resources/thumbnails/065/386/606/small/patreon-logo-icon-app-transparent-background-premium-social-media-design-for-digital-download-free-png.png" width="50"> [Patreon](https://www.patreon.com/cw/Onyx_Ignition)

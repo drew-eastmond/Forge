@@ -4,6 +4,11 @@
 
 declare module "@onyx-ignition/forge" {
 
+	/**
+	 * Levels of Verbosity when outputting to logs
+	 * @readonly
+	 * @enum {string}
+	 */
 	export enum Verbosity {
 	    all = "all",
 	    log = "log",
@@ -11,6 +16,9 @@ declare module "@onyx-ignition/forge" {
 	    error = "error",
 	    silent = "silent"
 	}
+	/**
+	 * Enviroment variables
+	 */
 	export const EnviromentVariables: {
 	    DRY_RUN: boolean;
 	    VERBOSITY: Verbosity;
@@ -178,16 +186,29 @@ declare module "@onyx-ignition/forge" {
 	export function CollateAttributes<T = Attributes>(sources: Attributes[], grouping: Attributes[]): T[];
 	export function CollateAttributes<T = Attributes>(sources: Attributes[], grouping: Attributes[], mounts: Attributes[]): T[];
 	export function ExplodeAttributes(entries: Attributes): AttributeFragment[];
+	/**
+	 * Finds the nested intersection between the _intersect_ parameter and _source_ parameter.
+	 *
+	 * If no interection exists. An empty object will be returned
+	 * @param {Attributes} intersect Attribute value that will be used to test the intersection
+	 * @param {Attributes} source Attribute value use for the source of the operation
+	 * @returns {Attributes} Attribute value that is the result of the intersection
+	 */
 	export function IntersectAttributes(intersect: Attributes, source: Attributes): Attributes;
 	/**
 	 *
-	 * Combines multiple nested objects where overlapping values are converted into array.
-	 * For example [{ value: "forge" }, { value: 777 }] will become { value: ["forge", 777 ] }
+	 * Combines multiple nested objects where each source is first intersected, then overlapping key:values are resolved using the _{ implode }_ options
 	 *
-	 * @param sources {Attributes[]} Array of objects to merge
-	 * @param options {?{ intersect: Attributes }} object with an `intersect` property. strip
+	 * For example _[{ value: "forge" }, { value: 777 }, { enabled: true }]_ will become:
+	 * * **ImplodeAttributesOptions.collect** : { value: ["forge", 777 ], enabled: true }
+	 * * **ImplodeAttributesOptions.first** : { value: "forge", enabled: true }
+	 * * **ImplodeAttributesOptions.last** : { value: 777, enabled: true }
+	 * @param {Object} sources An array of attributes to merge togther
+	 * @param {Object} [options] Optional parameters for "squashing" and mount the result
+	 * @param {Attributes} [options.intersect="last"] Optional intersection for "squashing" all components
+	 * @param {ImplodeAttributesOptions} [options.implode] - Optional enum for resolving overlapping pairs during "squashing" all components
 	 *
-	 * @returns { Attributes }
+	 * @returns { Attributes } the results of the **squash** operation
 	 *
 	 */
 	export function SquashAttributes(sources: Attributes[]): Attributes;
@@ -195,16 +216,32 @@ declare module "@onyx-ignition/forge" {
 	    intersect?: Attributes;
 	    implode?: ImplodeAttributesOptions;
 	}): Attributes;
-	export function CollapseAttributes(entries: Attributes[]): Attributes;
 	/**
-	 *
-	 * @param accessor
-	 * @param value
-	 * @param input
-	 * @param options
-	 * @returns
+	 * Convenience function Combines all object using the `...` spread operator
+	 * @param {Attributes} sources An array of attributes sources
+	 * @returns {Attributes} the results of the **collapse** operation
 	 */
-	export function ImplodeAttributes(accessor: string[], value: unknown, input: Attributes, options?: {
+	export function CollapseAttributes(sources: Attributes[]): Attributes;
+	/**
+	 * Appends a `AttributeFragment` to the input by using ancestry as a template
+	 *
+	 * For example _[ "forge", "child", "grand-child" ]_, will become:
+	 * { forge: { child: { "grand-child": <value param> } }
+	 * { forge: { child: 1337 } }
+	 *
+	 * * **ImplodeAttributesOptions.collect** : { forge: { child: [ 1337, { "grand-child": value } ] }
+	 * * **ImplodeAttributesOptions.first** : { forge: { child: 1337 }
+	 * * **ImplodeAttributesOptions.last** : { forge: { child: { "grand-child": value } }
+	 * @param {string[]} ancestry an array of strings to build ancestry for a AttributeFragment
+	 * @param {unknown} value the value to set the end node
+	 * @param {Attributes} input the source to append the _AttributeFragment_ onto
+	 * @param {object} [options] _Optional_ object for defing implosion and cloning
+	 * @param {ImplodeAttributesOptions} [options.implode="last"] _"collect" | "first" | "last"_ : algorithm for resolving collisions
+	 * @param {boolean} [options.clone=false] if the input is cloned as the source
+	 * @returns {Attributes} returns Attribute with the new
+	 */
+	export function ImplodeAttributes(ancestry: string[], value: unknown, input: Attributes): Attributes;
+	export function ImplodeAttributes(ancestry: string[], value: unknown, input: Attributes, options: {
 	    implode?: ImplodeAttributesOptions;
 	    clone?: boolean;
 	}): Attributes;
@@ -226,7 +263,16 @@ declare module "@onyx-ignition/forge" {
 	export function $UseRace<Resolve = unknown, Reject = unknown>(race: number, options: {
 	    capture: Capture;
 	}): $Promise<Resolve, Reject>;
-	export function $Wait<S, T>(delay: number, options?: {
+	/**
+	 *
+	 * @template S, T
+	 * @param {number} race timeoutin milliseconds before resolving or rejecting the return Promise<S | T>
+	 * @param {object} [options] an object that decide if the wait operation will resolve or reject
+	 * @param {object} [options.reject] an object that decide if the wait operation will resolve or reject
+	 * @param {object} [options.resolve] an object that decide if the wait operation will resolve or reject
+	 * @returns {Promise<S | T>}
+	 */
+	export function $Wait<S, T>(race: number, options?: {
 	    reject?: T;
 	    resolve?: S;
 	}): Promise<S | T>;
@@ -357,26 +403,110 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * Allows you to sequence _AttributeQuery_ operations for complex querying
+	 * @class
+	 */
 	export class QuerySequence {
+	    /**
+	     * Helper to queue a **And** operation and return a QuerySequence instance to chain more operations
+	     * @param {Attributes} attributes Attrbutes passed to **And** operation
+	     * @returns {QuerySequence}
+	     */
 	    static And(attributes: Attributes): QuerySequence;
+	    /**
+	     * Helper to queue a **Or** operation and return a QuerySequence instance to chain more operations
+	     * @param {Attributes} attributes Attrbutes passed to **Or** operation
+	     * @returns {QuerySequence}
+	     */
 	    static Or(attributes: Attributes): QuerySequence;
+	    /**
+	     * Helper to queue a **Not** operation and return a QuerySequence instance to chain more operations
+	     * @param {Attributes} attributes Attrbutes passed to **Not** operation
+	     * @returns {QuerySequence}
+	     */
 	    static Not(attributes: Attributes): QuerySequence;
-	    static All(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): QuerySequence;
+	    /**
+	     * Helper to queue a **Filter** operation and return a QuerySequence instance to chain more operations
+	     * @param {QueryDelegate} delegate
+	     * @param {Attributes} attributes Attrbutes passed to **Not** operation
+	     * @param {unknown[]} [rest]
+	     * @returns {QuerySequence}
+	     */
+	    static Filter(delegate: QueryDelegate): QuerySequence;
+	    static Filter(delegate: QueryDelegate, attributes: Attributes): QuerySequence;
+	    static Filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): QuerySequence;
 	    static Composite(attributes: Attributes, ...rest: unknown[]): QuerySequence;
 	    static Greater(attributes: Attributes): QuerySequence;
 	    static Less(attributes: Attributes): QuerySequence;
 	    static Traverse(attributes: Attributes): QuerySequence;
 	    private _sequence;
-	    constructor(iterable?: Iterable<[QueryDelegate, Attributes] | [QueryDelegate, Attributes, unknown]>);
+	    constructor(iterable?: Iterable<[QueryDelegate, Attributes] | [QueryDelegate, Attributes, unknown[]]>);
+	    /**
+	     * Add an **And** operation and _attributes_ to the sequence
+	     * @param {Attributes} attributes Attributes used for the **And** operation
+	     * @returns {this}
+	     */
 	    and(attributes: Attributes): this;
+	    /**
+	     * Add an **Or** operation and _attributes_ to the sequence
+	     * @param {Attributes} attributes Attributes used for the **Or** operation
+	     * @returns {this}
+	     */
 	    or(attributes: Attributes): this;
+	    /**
+	     * Add an **Not** operation and _attributes_ to the sequence
+	     * @param {Attributes} attributes Attributes used for the **Not** operation
+	     * @returns {this}
+	     */
 	    not(attributes: Attributes): this;
-	    all(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): this;
+	    /**
+	     * Add an _delegate_, _attributes_, and ...rest parameters to the sequence
+	     * @param {QueryDelegate} delegate A custom callback to match each attributes
+	     * @param {Attributes} [attributes] Attributes used for the _delegate_ operation
+	     * @param {unknown[]} [rest] Rest parameters for _delegate_
+	     * @returns {this}
+	     */
+	    filter(delegate: QueryDelegate): this;
+	    filter(delegate: QueryDelegate, attributes: Attributes): this;
+	    filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): this;
+	    /**
+	     * Add an **Composite** operation and _attributes_ to the sequence
+	     * @param {Attributes} attributes Attributes used for the **Composite** operation
+	     * @param {unknown[]} [rest] Rest parameters for _Composite_ operation
+	     * @returns {this}
+	     */
+	    composite(attributes: Attributes): this;
 	    composite(attributes: Attributes, ...rest: unknown[]): this;
+	    /**
+	     * Add an **Greater** operation and _attributes_ to the sequence
+	     * @param {Attributes} attributes Attributes used for the **Greater** operation
+	     * @returns {this}
+	     */
 	    greater(attributes: Attributes): this;
+	    /**
+	     * Add an **Less** operation and _attributes_ to the sequence
+	     * @param {Attributes} attributes Attributes used for the **Less** operation
+	     * @returns {this}
+	     */
 	    less(attributes: Attributes): this;
+	    /**
+	     * Performs the sequence on the _query_ parameter that should implements _IQuery_
+	     * @template [T=unknown]
+	     * @param {IQuery<T>} query An interface that implements the IQuery
+	     * @returns {IQuery<T>}
+	     */
 	    query<T>(query: IQuery<T>): IQuery<T>;
+	    /**
+	     * Performs the sequence of operation on the _attributes_ parameter and return a boolean if all operation match
+	     * @param {Attributes} attributes Attributes to perform the sequence of operations on
+	     * @returns {boolean}
+	     */
 	    match(attributes: Attributes): boolean;
+	    /**
+	     * Return a user readable representation of the sequence
+	     * @returns {string}
+	     */
 	    toString(): string;
 	}
 	
@@ -385,66 +515,306 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * An symbol to used to mark to a key/value should be present when proforming a query.
+	 */
 	export const Intersects: Symbol;
+	/**
+	 * Generic **type** signature for **synchronous** delegates used by _QueryManager_
+	 * @param {Attributes} objectA Attributes used for the query operation
+	 * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	 * @param {unknown[]} rest extra parameters passed
+	 * @returns {boolean}
+	 */
 	export type QueryDelegate = (objectA: Attributes, objectB: Attributes, ...rest: unknown[]) => boolean;
+	/**
+	 * Generic **type** signature for **asynchronous** delegates used by _QueryManager_
+	 * @param {Attributes} objectA Attributes used for the query operation
+	 * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	 * @param {unknown[]} rest extra parameters passed
+	 * @returns {boolean}
+	 */
 	export type $QueryDelegate = (objectA: Attributes, objectB: Attributes, ...rest: unknown[]) => Promise<boolean>;
+	/**
+	 * Generic **type** for a callback to confirm a entity exists within the current _QueryManager_ instance
+	 * @template [T=unknown]
+	 * @param {IQuery<T>} query Attributes used for the query operation
+	 * @returns {boolean | Promise<boolean>}
+	 */
+	export type $WaitQueryDelegate<T> = (query: IQuery<T>) => boolean | Promise<boolean>;
+	/**
+	 * Static class to Group all built-in query operations. Here's a summary of all supported operations:
+	 * * And: All nested key/value pairs should match
+	 * * Or: Any nested key/value pairs should match
+	 * * Not: No nested key/value pairs should match
+	 * * All: All value match and will be return
+	 * * Composite: A special query that will use values as dispatcher. Function as callbacks, RegExp to match, values must match
+	 * * Greater: Tries a "greater then" operation on both values
+	 * * Less: Tries a "greater then" operation on both values
+	 * * Traverse: Does both parameters match at least one matching hierarchy key/values
+	 * @class
+	 */
 	export class AttributesQuery {
+	    /**
+	     * @static
+	     * @public
+	     *
+	     */
 	    static readonly Intersects: Symbol;
+	    /**
+	     * Queries that **ALL** of the nested key/value pairs in the _objectA_ parameter match against the _objectB_ parameter
+	     * Note: Using _Intersects_ as value, will instead check that any value not undefined
+	     * @param {Attributes} objectA Attributes used for the **AND** operation
+	     * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	     * @returns {boolean}
+	     */
 	    static And(objectA: Attributes, objectB: Attributes): boolean;
+	    /**
+	     * Queries that **ANY** of the nested key/value pairs in the _objectA_ parameter match against the _objectB_ parameter
+	     * Note: Using _Intersects_ as value, will instead check that any value not undefined
+	     * @param {Attributes} objectA Attributes used for the **Or** operation
+	     * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	     * @returns {boolean}
+	     */
 	    static Or(objectA: Attributes, objectB: Attributes): boolean;
+	    /**
+	     * Queries that **NONE** of the nested key/value pairs in the _objectA_ parameter match against the _objectB_ parameter
+	     * Note: Using _Intersects_ as value, will instead check that any value not undefined
+	     * @param {Attributes} objectA Attributes used for the **None** operation
+	     * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	     * @returns {boolean}
+	     */
 	    static Not(objectA: Attributes, objectB: Attributes): boolean;
-	    static All(objectA: Attributes, objectB: Attributes, delegate: QueryDelegate, ...rest: unknown[]): boolean;
+	    /**
+	     * Queries that **ALL** key/value pairs in the _objectA_ parameter match against the _objectB_ parameter
+	     * @param {Attributes} objectA Not used
+	     * @param {Attributes} objectB Not used
+	     * @param {unknown[]} rest Not used
+	     * @returns {true}
+	     */
+	    static All(objectA: Attributes, objectB: Attributes, ...rest: unknown[]): boolean;
+	    /**
+	     * Queries each value in the _objectA_ parameter and will dispatch a different operation based on the following types:
+	     * * Function: Dispatches a synchronous callback to compare parameters
+	     * * RegExp: Dispatches a _RegExp.match( ... )_ to compare values
+	     * * Values: Dispatches a direct match
+	     * Note: Using _Intersects_ as value, will instead check that any value not undefined
+	     * @param {Attributes} objectA Attributes used for the **Composite** operation
+	     * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	     * @param {unknown[]} rest passed along to any callbacks encountered
+	     * @returns {boolean}
+	     */
 	    static Composite(objectA: Attributes, objectB: Attributes, ...rest: unknown[]): boolean;
+	    /**
+	     * Queries that each of the nested key/value pairs in the _objectA_ parameter is greater then the nested _objectB_ parameter
+	     * @param {Attributes} objectA Attributes used for the **Greater** operation
+	     * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	     * @returns {boolean}
+	     */
 	    static Greater(objectA: Attributes, objectB: Attributes): boolean;
+	    /**
+	     * Queries that each of the nested key/value pairs in the _objectA_ parameter is less then the nested _objectB_ parameter
+	     * @param {Attributes} objectA Attributes used for the **Less** operation
+	     * @param {Attributes} objectB Attributes used to test _objectA_ parameter against
+	     * @returns {boolean}
+	     */
 	    static Less(objectA: Attributes, objectB: Attributes): boolean;
 	    static Traverse(objectA: Attributes, objectB: Attributes): boolean;
 	}
 	export interface IQuery<T = unknown> {
-	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
-	    get size(): number;
-	    get collection(): ICollection<T>;
-	    get all(): T[];
-	    get last(): T;
-	    get first(): T;
-	    get(index: number): T;
-	    slice(start: Number, end?: Number): T[];
-	    slice(start: Number, end?: Number): T[];
 	    /**
-	     * Finds at least one component that matches the parameters passed using QuerySequence.match
-	     * @param {QuerySequence} sequence An instance of QuerySequence that will match against each attributes
-	     * @returns {boolean}
+	     * Reactor that generates a array of entities
+	     * @returns {IReactor<[T, Attributes][]>}
 	     */
-	    has(sequence: QuerySequence): boolean;
+	    [Reactivity](): IReactor<[T, Attributes][]>;
+	    /**
+	     * Iterator that return a component/attribute pair ( entity )
+	     * @template [T=unknown]
+	     * @returns {IterableIterator<[T, Attributes]>}
+	     */
+	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
+	    /**
+	     * Getter to access the amount of ( entities ) component/attributes
+	     * @type {number}
+	     */
+	    get size(): number;
+	    /**
+	     * Getter to access a the internal collection instance
+	     * @template [T=unknown]
+	     * @type {ICollection<T>}
+	     */
+	    get collection(): ICollection<T>;
+	    /**
+	     * Getter to access all components
+	     * @template [T=unknown]
+	     * @type {T[]}
+	     */
+	    get all(): T[];
+	    /**
+	     * Getter to access the last component within the internal collection
+	     * @template [T=unknown]
+	     * @type {T}
+	     */
+	    get last(): T;
+	    /**
+	     * Getter to access the first component within the internal collection
+	     * @template [T=unknown]
+	     * @type {T}
+	     */
+	    get first(): T;
+	    /**
+	     * Returns the component at the index from the internal collection
+	     * @template [T=unknown]
+	     * @returns {T}
+	     */
+	    get(index: number): T;
+	    /**
+	     * Constructs a sliced array of components from the internal collection of entities
+	     * @template [T=unknown]
+	     * @param {number} start Starting index to start the slice
+	     * @param {number} [end] Optional - The end index of the slice
+	     * @returns {T}
+	     */
+	    slice(start: Number): T[];
+	    slice(start: Number, end: Number): T[];
 	    /**
 	     * Attempts Finds at least one component that matches the delegate passed
 	     * @param {(component: T, attributes: Attributes, ...rest: unknown[]) => boolean} callback Called each iteration with following signature (component: T, attributes: Attributes, ...rest: unknown[]) => boolean
 	     * @param {...unknown[]} [rest]
 	     * @returns {boolean}
 	     */
+	    has(sequence: QuerySequence): boolean;
 	    has(callback: Function, ...rest: unknown[]): boolean;
-	    attributes(component: T): Attributes;
-	    add(component: T, attribute: Attributes): this;
+	    /**
+	     * Returns the attributes binded the _component_ paramter
+	     * @template [T=unknown]
+	     * @param {T} component
+	     * @returns {T|undefined}
+	     */
+	    attributes(component: T): Attributes | undefined;
+	    /**
+	     * Add a new entity entry creating a new component/attributes pairing
+	     * @template [T=unknown]
+	     * @param {T} component Data assigned to the entity
+	     * @param {Attributes} attributes Attributes binded to the _component_ parameter
+	     * @returns {this}
+	     */
+	    add(component: T, attributes: Attributes): this;
+	    /**
+	     * Removes the component ( and the binded attributes ) from the internal collection
+	     * @template [T=unknown]
+	     * @param component Data assigned to the entity
+	     * @returns {this}
+	     */
 	    remove(component: T): this;
+	    /**
+	     * Clears the collection removing all entites
+	     * @returns {this}
+	     */
 	    clear(): this;
-	    merge(...iQueries: IQuery<T>[]): this;
+	    /**
+	     * Merges components from other instance that implements IQuery<T>
+	     * @template [T=unknown]
+	     * @param {IQuery<T>[]} queries An array of _IQuery<T>_ instances
+	     * @returns {this}
+	     */
+	    merge(...queries: IQuery<T>[]): this;
+	    /**
+	     * Will change the component source without affecting the internal collection or binded attributes
+	     * @template [T=unknown]
+	     * @param {T} source Source component to be replaced
+	     * @param {T} target New Component that will replace the old component
+	     * @returns {this}
+	     */
 	    mutate(source: T, target: T): this;
+	    /**
+	     * Performs a **Or** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Or** operation
+	     * @returns {IQuery<T>}
+	     */
 	    or(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **And** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **And** operation
+	     * @returns {IQuery<T>}
+	     */
 	    and(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **Not** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Not** operation
+	     * @returns {IQuery<T>}
+	     */
 	    not(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **Greater** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Greater** operation
+	     * @returns {IQuery<T>}
+	     */
 	    greater(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **Less** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Less** operation
+	     * @returns {IQuery<T>}
+	     */
 	    less(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Check if there is a matching nested hierarchy and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Traverse** operation
+	     * @returns {IQuery<T>}
+	     */
 	    traverse(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Calls the _delegate_ parameter on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {QueryDelegate} delegate A callback to match each entity
+	     * @param {Attributes} [attributes] Attributes to pass to the delegate
+	     * @param {unknown[]} [rest] Rest parameters to pass to the delegate
+	     * @returns {IQuery<T>}
+	     */
 	    filter(delegate: QueryDelegate): IQuery<T>;
-	    filter(delegate: QueryDelegate, atttibutes: Attributes): IQuery<T>;
-	    filter(delegate: QueryDelegate, atttibutes: Attributes, ...rest: unknown[]): IQuery<T>;
-	    $filter(delegate: QueryDelegate, atttibutes: Attributes, ...rest: unknown[]): Promise<IQuery<T>>;
+	    filter(delegate: QueryDelegate, attributes: Attributes): IQuery<T>;
+	    filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): IQuery<T>;
+	    /**
+	     * Asynchronously Calls the _delegate_ parameter on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {QueryDelegate} delegate A callback to match each entity
+	     * @param {Attributes} [attributes] Attributes to pass to the delegate
+	     * @param {unknown[]} [rest] Rest parameters to pass to the delegate
+	     * @returns {IQuery<T>}
+	     */
 	    $filter(delegate: QueryDelegate): Promise<IQuery<T>>;
-	    $filter(delegate: QueryDelegate, atttibutes: Attributes): Promise<IQuery<T>>;
-	    group(key: unknown): Map<unknown, IQuery<T>>;
-	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>): Promise<this>;
-	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>, options: {
+	    $filter(delegate: QueryDelegate, attributes: Attributes): Promise<IQuery<T>>;
+	    $filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): Promise<IQuery<T>>;
+	    /**
+	     * Groups components based on matching attributes. Returns an object that has
+	     * @param {Attributes} attributes
+	     * @returns {Attributes}
+	     */
+	    group(attributes: Attributes): Attributes;
+	    /**
+	     * Return a promise that will resolve when the _listener_ parameter returns true after a update.
+	     * Note: This is useful for waiting for specific entities to be present before proceeding.
+	     * @template [T=unknown]
+	     * @param {$WaitQueryDelegate<T>} listener a callback to resolve the returned promise
+	     * @param {Object} [options] a callback to resolve the returned promise
+	     * @param {number} [options.race] a callback to resolve the returned promise
+	     * @returns {Promise<this>}
+	     */
+	    $wait(listener: $WaitQueryDelegate<T>): Promise<this>;
+	    $wait(listener: $WaitQueryDelegate<T>, options: {
 	        race: number;
 	    }): Promise<this>;
+	    /**
+	     * Produces a clone of the current instance.
+	     * @template [T=unknown]
+	     * @returns {IQuery<T>}
+	     */
 	    clone(): IQuery<T>;
 	}
 	export class QueryManager<T = unknown> implements IQuery<T> {
@@ -454,14 +824,59 @@ declare module "@onyx-ignition/forge" {
 	    protected _reactor: QueryManagerReactor<T> | undefined;
 	    constructor();
 	    constructor(collection: ICollection<T>);
+	    /**
+	     * Reactor that generates a array of entities
+	     * @returns {IReactor<[T, Attributes][]>}
+	     */
 	    [Reactivity](): IReactor<[T, Attributes][]>;
+	    /**
+	     * Iterator that return a component/attribute pair ( entity )
+	     * @template [T=unknown]
+	     * @returns {IterableIterator<[T, Attributes]>}
+	     */
 	    [Symbol.iterator](): IterableIterator<[T, Attributes]>;
+	    /**
+	     * Getter to access the amount of ( entities ) component/attributes
+	     * @type {number}
+	     */
 	    get size(): number;
+	    /**
+	     * Getter to access a the internal collection instance
+	     * @template [T=unknown]
+	     * @type {ICollection<T>}
+	     */
 	    get collection(): ICollection<T>;
+	    /**
+	     * Getter to access all components
+	     * @template [T=unknown]
+	     * @type {T[]}
+	     */
 	    get all(): T[];
+	    /**
+	     * Getter to access the last component within the internal collection
+	     * @template [T=unknown]
+	     * @type {T}
+	     */
 	    get last(): T;
+	    /**
+	     * Getter to access the first component within the internal collection
+	     * @template [T=unknown]
+	     * @type {T}
+	     */
 	    get first(): T;
+	    /**
+	     * Returns the component at the index from the internal collection
+	     * @template [T=unknown]
+	     * @returns {T}
+	     */
 	    get(index: number): T;
+	    /**
+	     * Constructs a sliced array of components from the internal collection of entities
+	     * @template [T=unknown]
+	     * @param {number} start Starting index to start the slice
+	     * @param {number} [end] Optional - The end index of the slice
+	     * @returns {T}
+	     */
 	    slice(start: number): T[];
 	    slice(start: number, end: number): T[];
 	    /**
@@ -477,30 +892,138 @@ declare module "@onyx-ignition/forge" {
 	     * @returns {boolean}
 	     */
 	    has(callback: (component: T, attributes: Attributes, ...rest: unknown[]) => boolean, ...rest: unknown[]): boolean;
+	    /**
+	     * Add a new entity entry creating a new component/attributes pairing
+	     * @template [T=unknown]
+	     * @param {T} component Data assigned to the entity
+	     * @param {Attributes} attributes Attributes binded to the _component_ parameter
+	     * @returns {this}
+	     */
 	    add(component: T, attributes: Attributes): this;
+	    /**
+	     * Removes the component ( and the binded attributes ) from the internal collection
+	     * @template [T=unknown]
+	     * @param component Data assigned to the entity
+	     * @returns {this}
+	     */
 	    remove(component: T): this;
+	    /**
+	     * Will change the component source without affecting the internal collection or binded attributes
+	     * @template [T=unknown]
+	     * @param {T} source Source component to be replaced
+	     * @param {T} target New Component that will replace the old component
+	     * @returns {this}
+	     */
 	    mutate(source: T, target: T): this;
+	    /**
+	     * Clears the collection removing all entites
+	     * @returns {this}
+	     */
 	    clear(): this;
-	    attributes(component: T): Attributes;
+	    /**
+	     * Returns the attributes binded the _component_ paramter
+	     * @template [T=unknown]
+	     * @param {T} component
+	     * @returns {T|undefined}
+	     */
+	    attributes(component: T): Attributes | undefined;
+	    /**
+	     * Merges components from other instance that implements IQuery<T>
+	     * @template [T=unknown]
+	     * @param {IQuery<T>[]} queries An array of _IQuery<T>_ instances
+	     * @returns {this}
+	     */
 	    merge(...queries: IQuery<T>[]): this;
+	    /**
+	     * Performs a **Greater** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Greater** operation
+	     * @returns {IQuery<T>}
+	     */
 	    greater(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **Less** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Less** operation
+	     * @returns {IQuery<T>}
+	     */
 	    less(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **Or** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Or** operation
+	     * @returns {IQuery<T>}
+	     */
 	    or(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **And** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **And** operation
+	     * @returns {IQuery<T>}
+	     */
 	    and(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Performs a **Not** operation on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Not** operation
+	     * @returns {IQuery<T>}
+	     */
 	    not(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Check if there is a matching nested hierarchy and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {Attributes} attributes Attributes used in the **Traverse** operation
+	     * @returns {IQuery<T>}
+	     */
 	    traverse(attributes: Attributes): IQuery<T>;
+	    /**
+	     * Calls the _delegate_ parameter on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {QueryDelegate} delegate A callback to match each entity
+	     * @param {Attributes} [attributes] Attributes to pass to the delegate
+	     * @param {unknown[]} [rest] Rest parameters to pass to the delegate
+	     * @returns {IQuery<T>}
+	     */
 	    filter(delegate: QueryDelegate): IQuery<T>;
 	    filter(delegate: QueryDelegate, attributes: Attributes): IQuery<T>;
 	    filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): IQuery<T>;
+	    /**
+	     * Asynchronously Calls the _delegate_ parameter on each entity and returns a new _IQuery<T>_ with all matched entity
+	     * @template [T=unknown]
+	     * @param {QueryDelegate} delegate A callback to match each entity
+	     * @param {Attributes} [attributes] Attributes to pass to the delegate
+	     * @param {unknown[]} [rest] Rest parameters to pass to the delegate
+	     * @returns {IQuery<T>}
+	     */
 	    $filter(delegate: QueryDelegate): Promise<IQuery<T>>;
 	    $filter(delegate: QueryDelegate, attributes: Attributes): Promise<IQuery<T>>;
 	    $filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): Promise<IQuery<T>>;
 	    composite(attributes: Attributes): IQuery<T>;
-	    $listen(listener: (query: IQuery<T>) => boolean | Promise<boolean>, options?: {
+	    /**
+	     * Return a promise that will resolve when the _listener_ parameter returns true after a update.
+	     * Note: This is useful for waiting for specific entities to be present before proceeding.
+	     * @template [T=unknown]
+	     * @param {$WaitQueryDelegate<T>} listener a callback to resolve the returned promise
+	     * @param {Object} [options] a callback to resolve the returned promise
+	     * @param {number} [options.race] a callback to resolve the returned promise
+	     * @returns {Promise<this>}
+	     */
+	    $wait(listener: $WaitQueryDelegate<T>): Promise<this>;
+	    $wait(listener: $WaitQueryDelegate<T>, options: {
 	        race?: number;
 	    }): Promise<this>;
-	    group(key: string): Map<unknown, IQuery<T>>;
+	    /**
+	     * Groups components based on matching attributes. Returns an object that has
+	     * @param {Attributes} attributes
+	     * @returns {Attributes}
+	     */
+	    group(grouping: Attributes): Attributes;
 	    transform(callback: (component: T, attributes: Attributes, ...rest: unknown[]) => [T, Attributes], ...rest: unknown[]): IQuery<T>;
+	    /**
+	    * Produces a clone of the current instance.
+	    * @template [T=unknown]
+	    * @returns {IQuery<T>}
+	    */
 	    clone(): IQuery<T>;
 	}
 	
@@ -873,7 +1396,9 @@ declare module "@onyx-ignition/forge" {
 	    or(attributes: Attributes): this;
 	    and(attributes: Attributes): this;
 	    not(attributes: Attributes): this;
-	    filter(attributes: Attributes, delegate: QueryDelegate, ...rest: unknown[]): this;
+	    filter(delegate: QueryDelegate): this;
+	    filter(delegate: QueryDelegate, attributes: Attributes): this;
+	    filter(delegate: QueryDelegate, attributes: Attributes, ...rest: unknown[]): this;
 	    intersect(intersection: Attributes): this;
 	    mount(attributes: Attributes): this;
 	    mount(attributes: Attributes, remount: Attributes): this;
@@ -1032,32 +1557,142 @@ declare module "@onyx-ignition/forge" {
 	
 	export type ArgumentPackageComponent = Attributes | Promise<Attributes>;
 	export interface IArgumentPackage {
+	    /**
+	     * Generates all entities
+	     * @generator
+	     * @yields {[ArgumentPackageComponent, Attributes]} The next component and attributes in the sequence.
+	     */
 	    [Symbol.iterator](): Iterator<[ArgumentPackageComponent, Attributes]>;
 	    validations: ArgumentValidations;
 	    get size(): number;
+	    /**
+	     * Adds a component and attributes for querying. Return a this for chaining calls
+	     * @param {ArgumentPackageComponent} component - Attributes or Promise<Attributes> that defines the current component
+	     * @param {Attributes} attributes - Attributes used for querying the current component
+	     * @returns {this} returns self for chaining calls
+	     */
 	    add(value: Attributes, attributes: Attributes): this;
+	    /**
+	     * Removes the entity component associated with the component
+	     * @param {ArgumentPackageComponent} component - Attributes or Promise<Attributes> that defines the current component
+	     * @returns {this} returns self for chaining calls
+	     */
 	    remove(value: Attributes): this;
+	    /**
+	     * Check if any entity exists using a QuerySequence to match the entity's attributes
+	     * @param {QuerySequence} sequence - sequence to match against each entity's attribute
+	     * @returns {boolean} if any entities match the {QuerySequence}
+	     */
 	    has(sequence: QuerySequence): boolean;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.Or( ... )
+	     * @param {Attributes} attributes - attributes to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    or(attributes: Attributes): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.And( ... )
+	     * @param {Attributes} attributes - attributes to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    and(attributes: Attributes): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.Not( ... )
+	     * @param {Attributes} attributes - attributes to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    not(attributes: Attributes): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.Traverse( ... )
+	     * @param {QueryDelegate} callback - callback to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    traverse(attributes: Attributes): IArgumentPackage;
-	    filter(callback: Function, ...rest: unknown[]): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by a callback
+	     * @param {QueryDelegate} callback - callback to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
+	    filter(callback: QueryDelegate): IArgumentPackage;
+	    /**
+	     * Return all components combined by iteratively merging each component using the `...` operator.
+	     * Also includes an optional parameter to only include the intersection of each component
+	     * @template [T=Attributes]
+	     * @param {Attributes} [intersect] - attributes value used as an intersection of each component
+	     * @returns {T} A value that is the combination of components which type extends Attributes
+	     */
 	    collapse<T extends Attributes>(): T;
 	    collapse<T extends Attributes>(intersect: Attributes): T;
+	    /**
+	     * Return all components combined by iteratively merging each component using the SquashAttributes( ... ).
+	     * Also includes an optional parameter to only include the intersection of each component
+	     * @template [T=Attributes]
+	     * @param {Object} [options] - Optional parameters for "squashing" and mount the result
+	     * @param {Attributes} [options.intersect] - Optional intersection for "squashing" all components
+	     * @param {ImplodeAttributesOptions} [options.implode] - Optional enum for resolving overlapping pairs during "squashing" all components
+	     * @param {Attributes} [options.mount] - Optional root for mounting result from squashing all components
+	     * @returns {T} A value that is the combination of components which type extends Attributes
+	     */
 	    squash<T extends Attributes>(): T;
 	    squash<T extends Attributes>(options: {
-	        intersect?: Record<string, true>;
+	        intersect?: Attributes;
 	        implode?: ImplodeAttributesOptions;
+	        mount?: Attributes;
 	    }): T;
+	    /**
+	     * Returns a _ArgumentValues<T>_ instance containing all values of from each components and it non-nested values
+	     * @method explode
+	     * @template [T=unknown]
+	     * @param {?Attributes} intersect The attributes to use as a intersection to filter (optional)
+	     * @returns {ArgumentValues<T>}
+	     */
 	    explode<T>(): ArgumentValues<T>;
 	    explode<T>(intersect: Attributes): ArgumentValues<T>;
+	    /**
+	     * Attempt to santize the package using the _sanitizer_ parameter. This includes creating, modifying, or deleting entities
+	     * @param {IPackageSanitizer} sanitizer an instance the implements the _IPackageSanitizer_ interface
+	     * @returns {this} The current instance
+	     */
 	    sanitize(sanitize: IPackageSanitizer): IArgumentPackage;
+	    /**
+	     * Asynchronously Attempt to santize the package using the _sanitizer_ parameter. This includes creating, modifying, or deleting entities
+	     * @param {IAsyncPackageSanitizer} sanitizer an instance the implements the _IAsyncPackageSanitizer_ interface
+	     * @returns {this} The current instance
+	     */
 	    $sanitize(sanitize: IAsyncPackageSanitizer): Promise<IArgumentPackage>;
+	    /**
+	     * Synchronously validate the current package using the _validator_ parameter
+	     * **Skips all entities that have components that `Promises`**
+	     * @param {IPackageValidator} validator an instance that implements _IAsyncPackageValidator_
+	     * @returns {this} The current instance
+	     */
 	    validate(validate: IPackageValidator): IArgumentPackage;
+	    /**
+	     * Asynchronously validate the current package using the _validator_ parameter
+	     * @param validator an instance that implements _IAsyncPackageValidator_
+	     * @returns The current instance
+	     */
 	    $validate(validate: IAsyncPackageValidator): Promise<IArgumentPackage>;
-	    $mutate($callback: (component: Attributes) => ArgumentPackageComponent): Promise<IArgumentPackage>;
+	    /**
+	     * Clones a new package where each entity has been processed by the _$callback( ... )_ parameters
+	     * @param $callback a callback processes each entity
+	     * @returns A new instance where each entity was processed
+	     */
+	    $mutate($callback: (component: Attributes, attributes: Attributes) => [ArgumentPackageComponent, Attributes]): Promise<IArgumentPackage>;
+	    /**
+	     * Uses the mount interface _IArgumentPackage_ to determine how to traverse and mount each entity component and attributes
+	     * **Only processes entities with components that are not a _Promise_**
+	     * @param mount an instance that implements the _IArgumentPackage_ to "remount" each entity
+	     *
+	     * @returns {IArgumentPackage} A new _IArgumentPackage_ that been process by the _mount_ parameter
+	     */
 	    mount(mount: IArgumentPackageMount): IArgumentPackage;
+	    /**
+	     * Uses the mount interface _IArgumentPackage_ to determine how to traverse and mount each entity component and attributes
+	     * **will resolve any component that is a _Promise_**
+	     * @param mount an instance that implements the _IArgumentPackage_ to "remount" each entity
+	     * @returns {IArgumentPackage} A new _IArgumentPackage_ that been process by the _mount_ parameter
+	     */
 	    $mount(mount: IArgumentPackageMount): Promise<IArgumentPackage>;
 	    collect<T = Attributes>(sequence: QuerySequence): T;
 	    $collect<T = Attributes>(sequence: QuerySequence): Promise<T>;
@@ -1076,60 +1711,253 @@ declare module "@onyx-ignition/forge" {
 	    });
 	    toString(): string;
 	}
+	/**
+	 * An utility class for packaging data from one source to transfer to another target including validating and sanitizing data.
+	 * ArgumentPackage holds all components collected and validations
+	 * @class
+	 * @implements {IArgumentPackage}
+	 */
 	export class ArgumentPackage implements IArgumentPackage {
+	    /**
+	     * Holds all components
+	     */
 	    protected _query: IQuery<ArgumentPackageComponent>;
+	    /**
+	     * Holds all validation results
+	     */
 	    validations: ArgumentValidations;
 	    /**
-	     *
+	     * Creates an instance with the options to use references as the internal data
+	     * @param {Object} [options] - Optional parameter to instantiate internal state from
+	     * @param {IQuery<ArgumentPackageComponent>} [options.query] - Optional reference to use an internal state of components
+	     * @param {ArgumentValidations} [options.validations] - Optional reference to another ArgumentPackage.validations
 	     */
 	    constructor();
 	    constructor(options: {
 	        query?: IQuery<ArgumentPackageComponent>;
 	        validations?: ArgumentValidations;
 	    });
+	    /**
+	     * Generates all entities
+	     * @generator
+	     * @yields {[ArgumentPackageComponent, Attributes]} The next component and attributes in the sequence.
+	     */
 	    [Symbol.iterator](): IterableIterator<[ArgumentPackageComponent, Attributes]>;
+	    /**
+	     * The amount of entities within this instance
+	     * @readonly
+	     * @type {number}
+	     */
 	    get size(): number;
-	    add(value: Attributes, attributes: Attributes): this;
+	    /**
+	     * The internal QueryManager instance
+	     * @readonly
+	     * @type {IQuery<ArgumentPackageComponent>}
+	     */
 	    get query(): IQuery<ArgumentPackageComponent>;
+	    /**
+	     * Adds a component and attributes for querying. Return a this for chaining calls
+	     * @method add
+	     * @param {ArgumentPackageComponent} component - Attributes or Promise<Attributes> that defines the current component
+	     * @param {Attributes} attributes - Attributes used for querying the current component
+	     * @returns {this} Returns self for chaining calls
+	     */
+	    add(component: ArgumentPackageComponent, attributes: Attributes): this;
+	    /**
+	     * Clones a new instance with all components resolved, So that only synchronous members are needed.
+	     * @method $await
+	     * @returns {ArgumentPackage} Returns a new instance of ArgumentPackage
+	     */
 	    $await(): Promise<ArgumentPackage>;
-	    remove(value: Attributes): this;
+	    /**
+	     * Removes the entity component associated with the component
+	     * @method remove
+	     * @param {ArgumentPackageComponent} component - Attributes or Promise<Attributes> that defines the current component
+	     * @returns {this} Returns self for chaining calls
+	     */
+	    remove(component: ArgumentPackageComponent): this;
+	    /**
+	     * Check if any entity exists using a QuerySequence to match the entity's attributes
+	     * @method has
+	     * @param {QuerySequence} sequence - sequence to match against each entity's attribute
+	     * @returns {boolean} If any entities match the {QuerySequence}
+	     */
 	    has(sequence: QuerySequence): boolean;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.Or( ... )
+	     * @method or
+	     * @param {Attributes} attributes - attributes to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    or(attributes: Attributes): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.And( ... )
+	     * @method and
+	     * @param {Attributes} attributes - attributes to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    and(attributes: Attributes): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.Not( ... )
+	     * @method not
+	     * @param {Attributes} attributes - attributes to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    not(attributes: Attributes): IArgumentPackage;
-	    filter(callback: QueryDelegate, ...rest: unknown[]): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by a callback
+	     * @method filter
+	     * @param {QueryDelegate} callback - callback to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
+	    filter(callback: QueryDelegate): IArgumentPackage;
+	    /**
+	     * Clones a new ArgumentPackage but with all entities filtered by QueryManager.Traverse( ... )
+	     * @method traverse
+	     * @param {QueryDelegate} callback - callback to used to match against each entity
+	     * @returns {IArgumentPackage} A new ArgumentPackage instance
+	     */
 	    traverse(attributes: Attributes): IArgumentPackage;
+	    /**
+	     * Return all components combined by iteratively merging each component using the `...` operator.
+	     * Also includes an optional parameter to only include the intersection of each component
+	     * @method collapse
+	     * @template [T=Attributes]
+	     * @param {Attributes} [intersect] - Attributes value used as an intersection of each component
+	     * @returns {T} A value that is the combination of components which type extends Attributes
+	     */
 	    collapse<T extends Attributes>(): T;
 	    collapse<T extends Attributes>(intersect: Attributes): T;
+	    /**
+	     * Return all components combined by iteratively merging each component using the SquashAttributes( ... ).
+	     * Also includes an optional parameter to only include the intersection of each component
+	     * @method squash
+	     * @template [T=Attributes]
+	     * @param {Object} [options] - Optional parameters for "squashing" and mount the result
+	     * @param {Attributes} [options.intersect] - Optional intersection for "squashing" all components
+	     * @param {ImplodeAttributesOptions} [options.implode] - Optional enum for resolving overlapping pairs during "squashing" all components
+	     * @param {Attributes} [options.mount] - Optional root for mounting result from squashing all components
+	     * @returns {T} A value that is the combination of components which type extends Attributes
+	     */
 	    squash<T = Attributes>(): T;
 	    squash<T = Attributes>(options: {
-	        intersect?: Record<string, true>;
+	        intersect?: Attributes;
 	        implode?: ImplodeAttributesOptions;
 	        mount?: Attributes;
 	    }): T;
 	    /**
-	     * Returns a `ArgumentValues<T>` instance containing all values of from each components and it non-nested values
+	     * Returns a _ArgumentValues<T>_ instance containing all values of from each components and it non-nested values
 	     * @method explode
 	     * @template [T=unknown]
-	     * @param {?Attributes} intersect The attributes to use as a intersection to filter (optional)
+	     * @param {?Attributes} intersect - The attributes to use as a intersection to filter (optional)
 	     * @returns {ArgumentValues<T>}
 	     */
 	    explode<T = unknown>(): ArgumentValues<T>;
 	    explode<T = unknown>(intersect: Attributes): ArgumentValues<T>;
+	    /**
+	     * Attempt to santize the package using the _sanitizer_ parameter. This includes creating, modifying, or deleting entities
+	     * @method sanitize
+	     * @param {IPackageSanitizer} sanitizer - An instance the implements the _IPackageSanitizer_ interface
+	     * @returns {this} The current instance
+	     */
 	    sanitize(sanitizer: IPackageSanitizer): ArgumentPackage;
+	    /**
+	     * Asynchronously Attempt to santize the package using the _sanitizer_ parameter. This includes creating, modifying, or deleting entities
+	     * @method $sanitize
+	     * @param {IAsyncPackageSanitizer} sanitizer - An instance the implements the _IAsyncPackageSanitizer_ interface
+	     * @returns {this} - The current instance
+	     */
 	    $sanitize(sanitizer: IAsyncPackageSanitizer): Promise<IArgumentPackage>;
+	    /**
+	     * Synchronously validate the current package using the _validator_ parameter
+	     * **Skips all entities that have components that `Promises`**
+	     * @method validate
+	     * @param {IPackageValidator} validator - An instance that implements _IAsyncPackageValidator_
+	     * @returns {this} The current instance
+	     */
 	    validate(validator: IPackageValidator): this;
+	    /**
+	     * Asynchronously validate the current package using the _validator_ parameter
+	     * @method $validate
+	     * @param validator - An instance that implements _IAsyncPackageValidator_
+	     * @returns The current instance
+	     */
 	    $validate(validator: IAsyncPackageValidator): Promise<this>;
-	    $mutate($callback: (component: Attributes) => ArgumentPackageComponent): Promise<IArgumentPackage>;
+	    /**
+	     * Clones a new package where each entity has been processed by the _$callback( ... )_ parameters
+	     * @method $mutate
+	     * @param $callback - A callback processes each entity
+	     * @returns A new instance where each entity was processed
+	     */
+	    $mutate($callback: (component: Attributes, attributes: Attributes) => [ArgumentPackageComponent, Attributes]): Promise<IArgumentPackage>;
+	    /**
+	     * This is a helper function to add entities to the end of the internal list.
+	     * Uses the _iterable_ parameter as a source of entities to add to the start of the packaging
+	     * @method after
+	     * @param iterable - A source of entities to append
+	     * @returns {this} The current instance
+	     */
 	    after(iterable: Iterable<[ArgumentPackageComponent, Attributes]> | IArgumentPackage): this;
+	    /**
+	     * This is a helper function to add entities to the start of the internal list.
+	     * Uses the _iterable_ parameter as a source of entities to add to the start of the packaging
+	     * @method before
+	     * @param iterable - A source of entities to prepend
+	     * @returns {this} The current instance
+	     */
 	    before(iterable: Iterable<[ArgumentPackageComponent, Attributes]> | IArgumentPackage): this;
+	    /**
+	     * Uses the mount interface _IArgumentPackage_ to determine how to traverse and mount each entity component and attributes
+	     * **Only processes entities with components that are not a _Promise_**
+	     * @method mount
+	     * @param mount - An instance that implements the _IArgumentPackage_ to "remount" each entity
+	     * @returns {IArgumentPackage} A new _IArgumentPackage_ that been process by the _mount_ parameter
+	     */
 	    mount(mount: IArgumentPackageMount): IArgumentPackage;
+	    /**
+	     * Uses the mount interface _IArgumentPackage_ to determine how to traverse and mount each entity component and attributes
+	     * **will resolve any component that is a _Promise_**
+	     * @method $mount
+	     * @param mount - An instance that implements the _IArgumentPackage_ to "remount" each entity
+	     * @returns {IArgumentPackage} A new _IArgumentPackage_ that been process by the _mount_ parameter
+	     */
 	    $mount(mount: IArgumentPackageMount): Promise<IArgumentPackage>;
+	    /**
+	     * Collects the components of entities that match the sequence parameter. Then squashes all components
+	     * **Only processes entities with components that are not a _Promise_**
+	     * @method collect
+	     * @template [T=Attributes]
+	     * @param {QuerySequence} - Sequence a _QuerySequence_
+	     * @returns {T} All queries component that been **squashed**
+	     */
 	    collect<T = Attributes>(sequence: QuerySequence): T;
+	    /**
+	     * Collects the components of entities that match the sequence parameter. Then squashes all components
+	     * **will resolve any component that is a _Promise_**
+	     * @method $collect
+	     * @template [T=Attributes]
+	     * @param {QuerySequence} sequence A _QuerySequence_ instance to match against each component
+	     * @returns {T} All queries component that been **squashed**
+	     */
 	    $collect<T = Attributes>(sequence: QuerySequence): Promise<T>;
+	    /**
+	     * Renders help content
+	     * @method $help
+	     * @returns {Promise<string>}
+	     */
 	    $help(): Promise<string>;
 	}
-	export function VerfiyPackageWarnignsAndErrors({ args, warnings, errors, silent }: {
+	/**
+	 * Checks the _params_ parameters for any errors which will throw a _PackageError_
+	 * Otherwise will display the statuses of each parameters
+	 * @throws PackageError
+	 * @param {object} [param] - The parent wrapper object for user details
+	 * @param {(IArgumentPackage | ArgumentValues)[]} [param.args] - An array of _IArgumentPackage_ or _ArgumentValues_ to check for errors or display statuses
+	 * @param {string[]} [param.warnings] - An array of warnings to display
+	 * @param {string[]} [param.errors] - An array of errors to display. If there any errors then a _PackageError_ is thrown
+	 * @param {boolean} [param.silent] - flag to override rendering status
+	 */
+	export function VerfiyPackageWarnignsAndErrors(params: {
 	    args?: (IArgumentPackage | ArgumentValues)[];
 	    warnings?: string[];
 	    errors?: string[];
@@ -1776,10 +2604,32 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * Ac omponent used to dispatch messages after being authorized
+	 * @interface
+	 */
 	export interface IForgeTrigger {
+	    /**
+	     * Member called after message was authroized
+	     * @member
+	     * @param {Signal} signal - Simple object used to help authorize messages
+	     * @param {ForgeRequest} request - Request headers and data sent with each message
+	     * @param {ForgeResponse} response - Response headers and data received after dispatching
+	     */
 	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
+	/**
+	 * Ac omponent used to dispatch messages after being authorized
+	 * @class
+	 */
 	export class ForgeTrigger implements IForgeTrigger {
+	    /**
+	     * Member called after message was authroized
+	     * @member
+	     * @param {Signal} signal - Simple object used to help authorize messages
+	     * @param {ForgeRequest} request - Request headers and data sent with each message
+	     * @param {ForgeResponse} response - Response headers and data received after dispatching
+	     */
 	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
@@ -1869,8 +2719,8 @@ declare module "@onyx-ignition/forge" {
 	    readonly resolves: Set<IAction>;
 	    readonly rejections: Set<IAction>;
 	    find(name: string): IAction | undefined;
-	    $frame(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
-	    $flush(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $frame(data: Serialize): Promise<void>;
+	    $flush(data: Serialize): Promise<void>;
 	    $signal(signal: Signal, resquest: ForgeRequest, response: ForgeResponse): Promise<Map<IAction, ForgeResponse>>;
 	}
 	
@@ -1880,23 +2730,48 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * Struct to configure a trigger and dispatch action
+	 * @typedef {object} DispatchParams
+	 * @property {string} command - Parameter used by the _dispatcher_ to construct a message when triggered
+	 * @property {[Serialize, Attributes][]} [headers] - Headers for constructing a message
+	 * @property {[ArrayBuffer, Attributes][]} [reads] - Data chunks for constructing a message
+	 */
 	export type DispatchParams = {
 	    command: string;
 	    headers?: [Serialize, Attributes][];
 	    reads?: [ArrayBuffer, Attributes][];
 	};
+	/**
+	 *
+	 */
 	export type $AuthorizeDispatch = (signal: Signal, ...rest: any[]) => Promise<boolean> | boolean;
 	export type ForgeReactorDispatch = {
 	    $authorize: $AuthorizeDispatch;
 	    trigger: IForgeTrigger;
 	    params: DispatchParams;
 	};
+	/**
+	 * A component that each _Forge_ instance uses to customize it dispatching from it's internal _Reactor_
+	 */
 	export class ForgeReactor extends Reactor<{
 	    signal: Signal;
 	    request: ForgeRequest;
 	    response: ForgeResponse;
 	}> {
+	    /**
+	     * List of all the registered dispatchers to be used by _Forge's_ _Reactor_
+	     * @type {ForgeReactorDispatch[]}
+	     * @public
+	     */
 	    dispatches: ForgeReactorDispatch[];
+	    /**
+	     * add another dipatcher and uses the authorize
+	     * @member
+	     * @param {DispatchParams} params -
+	     * @param {$AuthorizeDispatch} $authorize -
+	     * @returns {this} The current instance
+	     */
 	    add(params: DispatchParams, $authorize: $AuthorizeDispatch): this;
 	}
 	
@@ -2604,12 +3479,48 @@ declare module "@onyx-ignition/forge" {
 	}
 	export class Forge {
 	    private _state;
-	    readonly model: IForgeModel;
 	    private readonly _controller;
+	    /**
+	     * Internal model of all registered entitites
+	     * @type {IForgeModel}
+	     * @readonly
+	     * @public
+	     */
+	    readonly model: IForgeModel;
+	    /**
+	     * An map of all registered sockets
+	     * @type {ForgeController}
+	     * @readonly
+	     * @public
+	     */
 	    readonly sockets: Map<string, IForgeSocket>;
+	    /**
+	     * Reactor to enabled **Reactivity**
+	     * @type {ForgeReactor}
+	     * @readonly
+	     * @public
+	     */
 	    readonly [Reactivity]: ForgeReactor;
+	    /**
+	     * Manager instance for all servlets
+	     * @type {ServletManger}
+	     * @readonly
+	     * @public
+	     */
 	    readonly servlet: ServletManger;
+	    /**
+	     * A manager to process all registered routes
+	     * @type {RouteManager}
+	     * @readonly
+	     * @public
+	     */
 	    readonly routes: RouteManager;
+	    /**
+	     * A manager to process all registered routes
+	     * @type {RouteManager}
+	     * @readonly
+	     * @public
+	     */
 	    readonly watch: {
 	        [Symbol.iterator](): IterableIterator<ForgeFileWatcher>;
 	        add(roots: string[], options: {
@@ -2622,15 +3533,77 @@ declare module "@onyx-ignition/forge" {
 	    };
 	    constructor();
 	    protected _addSocket(key: string, socket: IForgeSocket): IForgeSocket;
+	    /**
+	     * Build a socket connected to a **spawned** process
+	     * @method spawn
+	     * @param {string} name
+	     * @param {SocketConfig} config
+	     * @returns {IForgeSocket} return a instance of _SpawnSocket_
+	     */
 	    spawn(name: string, config: SocketConfig): IForgeSocket;
+	    /**
+	     * Build a socket connected to a **forked** process
+	     * @method fork
+	     * @param {string} name
+	     * @param {SocketConfig} config
+	     * @returns {IForgeSocket} return a instance of _ForkSocket_
+	     */
 	    fork(name: string, config: SocketConfig): IForgeSocket;
+	    /**
+	     * Build a socket connected to a child **worker**
+	     * @method worker
+	     * @param {string} name
+	     * @param {SocketConfig} config
+	     * @returns {IForgeSocket} return a instance of _WorkerSocket_
+	     */
 	    worker(name: string, config: SocketConfig): IForgeSocket;
+	    /**
+	     * Build a socket connected to a **exec** process
+	     * @method worker
+	     * @param {string} name
+	     * @param {SocketConfig} config
+	     * @returns {IForgeSocket} return a instance of _WorkerSocket_
+	     */
 	    exec(name: string, config: SocketConfig): IForgeSocket;
+	    /**
+	     *
+	     * @method add
+	     * @param {IAction} action an action to be registered
+	     * @param {Attributes} attributes attributes to associate with the action
+	     * @returns {this} returns an instance of self
+	     */
 	    add(action: IAction, attributes: Attributes): this;
-	    $frame(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
-	    $flush(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    /**
+	     * Marks the start of each frame. Signals each action that the frame has started.
+	     * @method $frame
+	     * @param {Serialize} data data passed onto each action
+	     */
+	    $frame(data: Serialize): Promise<void>;
+	    /**
+	     * Marks the end of each frame. Signals each action that the frame has ended.
+	     * @method $flush
+	     * @param {Serialize} data data passed onto each action
+	     */
+	    $flush(data: Serialize): Promise<void>;
+	    /**
+	     * Uses the univesal messaging bus to trigger each registered action
+	     * @method $signal
+	     * @param {Signal} signal a nested object to attach to each message
+	     * @param {ForgeRequest} request the request component of a message to pass data
+	     * @param {ForgeResponse} response the response component of a message to receive data
+	     * @returns {Map<IAction, ForgeResponse>} a Map of each _IAction_ and the response
+	     */
 	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<Map<IAction, ForgeResponse>>;
+	    /**
+	     * Uses routing pipeline to give each registered route a chance to resolve, reject, or observe each message
+	     * @param {RouteSignal} signal a signal with a _{ route }_ intersection
+	     * @param {ForgeRequest} request the request component of a message to pass data
+	     * @param {ForgeResponse} response the response component of a message to receive data
+	     */
 	    $route(signal: RouteSignal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
+	    /**
+	     * Override for gracefully aborting the current instance
+	     */
 	    abort(): void;
 	}
 	
@@ -2758,6 +3731,11 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * Factory function to verify, sanitize, and build a Forge instance from parameters from the array of packages
+	 * @param {IArgumentPackage[]} packages - An array of IArgumentPackage to squash
+	 * @returns A Forge instance
+	 */
 	export function $Run(packages: IArgumentPackage[]): Promise<Forge>;
 	
 	
@@ -3340,13 +4318,15 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
-	
 	export type ForgeHostParams = {
 	    key?: string;
 	    name?: string;
 	    race?: Record<string, number>;
 	};
-	export class ForgeHost extends Forge {
+	/**
+	 * A component to support distributed computing by provided a binded interface to a central forge instance.
+	 */
+	export class Forgelet extends Forge {
 	    protected _executing: boolean | undefined;
 	    protected _queue: [];
 	    protected _socket: IForgeSocket;
@@ -3356,12 +4336,16 @@ declare module "@onyx-ignition/forge" {
 	        key?: string;
 	        constraint: SignalConstraint;
 	    });
+	    /**
+	     *
+	     * @param param0
+	     */
 	    protected _$subscribeSignalReaction({ socket, protocol, signal, request, response }: SocketReaction): Promise<void>;
 	    get $ready(): Promise<Serialize>;
 	    $connect(data: Serialize): Promise<Serialize>;
 	    $start(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
-	    $frame(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
-	    $flush(data: Serialize): Promise<Map<IAction, ForgeResponse>>;
+	    $frame(data: Serialize): Promise<void>;
+	    $flush(data: Serialize): Promise<void>;
 	    $execute(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	    $watch(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	    $model(attributes: Attributes): Promise<IForgeModel>;
@@ -3724,9 +4708,25 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * Dispatches a callack when signalled
+	 * @class
+	 */
 	export class DelegateTrigger extends ForgeTrigger {
 	    private _$delegate;
+	    /**
+	     * Initializes a callback to delegate _$signal(...)_ calls to
+	     * @param {(signal: Signal, request: ForgeRequest, response: ForgeResponse) => Promise<void>} $delegate - delegate to callback
+	     */
 	    constructor($delegate: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => Promise<void>);
+	    /**
+	     * delegate's the $signal's parameters to the initialize delegate
+	     * @param {Signal} signal - Simple object used to help authorize messages
+	     * @param {ForgeRequest} request - Request headers and data sent with each message
+	     * @param {ForgeResponse} response - Response headers and data received after dispatching
+	     * @override
+	     * @returns A empty promise when completed
+	     */
 	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
@@ -3734,12 +4734,27 @@ declare module "@onyx-ignition/forge" {
 	
 	
 	
+	/**
+	 * Delegate's the $signal(...) call to the internal target's instance and replaces the _signal_ parameter
+	 * @class
+	 */
 	export class SignalTrigger extends ForgeTrigger {
 	    private _target;
 	    private _signal;
 	    constructor(target: {
 	        $signal: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => any;
+	    });
+	    constructor(target: {
+	        $signal: (signal: Signal, request: ForgeRequest, response: ForgeResponse) => any;
 	    }, signal: Signal);
+	    /**
+	     * Replaces the _signal_ parameter and call $signal(...) on the internal target's instance
+	     * @member
+	     * @public
+	     * @param {Signal} signal - Simple object used to help authorize messages
+	     * @param {ForgeRequest} request - Request headers and data sent with each message
+	     * @param {ForgeResponse} response - Response headers and data received after dispatching
+	     */
 	    $signal(signal: Signal, request: ForgeRequest, response: ForgeResponse): Promise<void>;
 	}
 	
@@ -3750,136 +4765,6 @@ declare module "@onyx-ignition/forge" {
 	    constructor(code: string, exposed: Record<string, unknown>);
 	    evaluate(code: string, exposed?: Record<string, unknown>): unknown;
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	export { $GetApplicationArguments, Accessor, ArgumentPackageComponent, IArgumentPackage, SquashPackages, MergeValidations, PackageError, ArgumentPackage, VerfiyPackageWarnignsAndErrors, IArgumentPackageMount, AttributesArgumentPackageMount, DelegateArgumentPackageMount, ArgumentValidationComponent, ArgumentValidationWarning, ArgumentValidationSuccess, ArgumentValidationError, ArgumentValidations, ArgumentValues, CLIPromptArgument, CLIArgumentPackage, ExplodeString, $ExplodeGlob, AbstractPackageQuerySequence, IPackageSanitizer, IAsyncPackageSanitizer, PackageSanitizeOptions, AsyncPackageSanitizeOptions, ArgumentPackageSanitize, AsyncArgumentPackageSanitize, NumberArgumentSanitize, GlobArgumentSanitize, JSONEntriesArgumentSanitizer, IValueSanitizer, IAsyncValueSanitizer, ValueSanitizeOptions, AsyncValueSanitizeOptions, ArgumentValueSanitize, AsyncArgumentValueSanitize, StdinArgumentPackage, IPackageValidator, IAsyncPackageValidator, PackageValidateOptions, AsyncPackageValidateOptions, AbstractPackageValidate, ArgumentPackageValidate, AsyncArgumentPackageValidate, FileExistsArgumentValidate, IValidateValueDelegates, IAsyncValidateValueDelegates, ValueValidateOptions, AsyncValueValidateOptions, ArgumentValueValidate, AsyncArgumentValueValidate, IAsyncable, AsyncUnknown, AsyncCaught, ICollection, ICollectionIterator, IAsyncCollection, MapCollection, ArrayCollection, Iterate, Topology, ITreeNode, TreeNode, TreeCollection, ICommand, CommandState, AbstractCommand, CommandQueue, CommandSequence, DelegateCommand, LockCommand, Attributes, AttributeFragment, IntervalClear, TimeoutClear, SerializeData, Serialize, $Serialize, Capture, ImplodeAttributesOptions, EmptyAttributes, EmptyData, GetRange, IsObject, CatchThrowError, CatchCapture, EmptyFunction, EncodeBase64, DecodeBase64, TokenizeAttributes, TokenizeAttributeFragments, MountAttributes, CollateAttributes, ExplodeAttributes, IntersectAttributes, SquashAttributes, CollapseAttributes, ImplodeAttributes, TransformAttributes, QuickHash, $Promise, $UsePromise, $RacePromise, $UseRace, $Wait, EscapeHTML, Capitalize, Cipher, DebugCipher, MD5, EncodeNumber, DecodeNumber, EncodedStringSize, EncodeString, DecodeString, DecodeAttributes, EncodeAttributes, Base64, DataStreamWriter, DataStreamReader, DebugForeground, DebugBackground, ColourFormattingReset, DebugFormatter, EnforcementResult, EnforcementInquiry, $Enforce, Enforce, CompositeLoader, HTTPLoader, JSONLoader, Mimes, IPoolable, PoolManager, Intersects, QueryDelegate, $QueryDelegate, AttributesQuery, IQuery, QueryManager, QueryManagerReactor, QuerySequence, CircuitReactor, AndReactor, OrReactor, NotReactor, XorReactor, Reactivity, HaltReactivity, ReactiveDelegate, IReactor, ReactorTransform, Reactor, reactive, InstanceOf, IResult, $IResult, Result, SessionResult, GenericSession, Notification, ISubscription, Unsubscribe, Subscription, DebounceDelegate, Debounce, IThottle, SequentialThottle, Debouncer, ResolverOperators, ActionInit, ActionState, IAction, ForgeAction, RejectedAction, ResolvedAction, SettledAction, SignalAction, ForgeParamsKeys, ForgeWatchParams, ForgeWorkerParams, HTTPActionParams, ForgeParams, ForgePackage, ForgePackageSanitizeSuccessAttributes, ForgePackageSanitize, ForgePackageValidateSuccessAttributes, ForgePackageValidate, ForgeAccess, ForgeAuthorization, ForgeAuthSession, ForgeUser, Verbosity, EnviromentVariables, DispatchParams, ForgeDispatcherEntry, ForgeDispatcher, $Run, Forge, ForgeController, ForgeHostParams, ForgeHost, $AuthorizeDispatch, ForgeReactorDispatch, ForgeReactor, $CompareModels, ModelReactorState, ModelReactor, IForgeModel, IForgeModelProxy, ForgeModel, ForgeModelState, ClientModelProxy, FileModelPipe, AbstractForgeModelProxy, ForgeModelProxyManager, ClientSocketModelProxy, RootSocketModelProxy, ForgeModelRouteRequest, ForgeModelRouteAccess, $AuthorizePermission, ForgeModelRouteHook, ForgeModelRoute, ForgeModelRouteClient, ForgeModelRoutePermissionExport, ForgeModelRoutePermission, $ParseStoreUpgrade, UpgradeParams, ForgeStoreMime, ForgeStoreExport, $CompareStores, StoreUpgradeQuery, IForgeStore, ForgeStore, JSONStore, NumberStore, StringStore, PackageOptions, ForgeNPM, ForgeOS, ForgeGit, ForgeFileStats, ForgeFile, ForgeIO, ForgeParsedPath, ForgePathStatus, ForgePath, ForgeZip, ForgeFileWatcher, DelegateRoute, FileRoutePathing, FileRoute, FileDirectoryRoute, RouteSignal, RouteDelegate, IForgeRoute, IForgeRouteHook, AuthorizeString, AuthorizeRegExp, ForgeRoute, SignalRoute, SocketRoute, ForgeServlet, ServeHeaders, ForgeServletFactory, ExpressRequestAdapter, ExpressHTTPServer, ExpressRequestHeader, ExpressRequestPayload, ForgeRequestInit, ForgeRequestExport, IRequestRead, LocalRequestRead, ForgeRequest, IResponseSocket, ForgeResponse, ForgeWebSocketServer, ServletManger, DummySocket, ExecSocket, ForgeProtocol, Signal, SignalConstraint, SocketSession, SignalResult, SocketReaction, SocketConfig, SignalConstraints, IForgeSocket, AbstractForgeSocket, ForgeWebsocket, ForkSocket, HTTPSocket, ModulesExportSocket, PlaybackSocket, SpawnSocket, WorkerSocket, ForgeSwarm, ForgeSyntaxExpression, GenericExpression, ScopeExpression, CompositeComponent, SequentialExpression, ParseAttributes, ForgeSyntaxParser, ParsedToken, StatementAttributes, SyntaxParsingState, IForgeSyntaxExpression, ForgeSyntaxStatement, ForgeTokenIterator, ForgeTokenizer, DelegateTrigger, IForgeTrigger, ForgeTrigger, SignalTrigger, SocketTrigger, ForgeVirtualScript };
-	
-	
 	
 	
 	
